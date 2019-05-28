@@ -4,6 +4,7 @@
 #include "bus.hpp"
 #include "../config.hpp"
 
+#include <iomanip>
 #include <iostream>
 
 namespace r3emu::emulator
@@ -17,11 +18,12 @@ namespace r3emu::emulator
 		gp_registers    = mem.data.data() + config::mm_gp_registers;
 		flags           = mem.data.data() + config::mm_flags;
 		program_counter = mem.data.data() + config::mm_program_counter;
-		write_mask      = mem.data.data() + config::mm_write_mask;
+		return_to       = mem.data.data() + config::mm_return_to;
 		last_output     = mem.data.data() + config::mm_last_output;
 		loop_count      = mem.data.data() + config::mm_loop_count;
 		loop_from       = mem.data.data() + config::mm_loop_from;
 		loop_to         = mem.data.data() + config::mm_loop_to;
+		write_mask      = mem.data.data() + config::mm_write_mask;
 
 		cycle = 0;
 		subcycle = 0;
@@ -56,13 +58,10 @@ namespace r3emu::emulator
 
 	void core::do_cycle()
 	{
-		if (!halted)
+		while (subcycle < 4)
 		{
-			while (subcycle < 4)
-			{
-				exec_subcycle();
-			}
-		}
+			exec_subcycle();
+		}		
 		finish_cycle();
 	}
 	
@@ -83,25 +82,25 @@ namespace r3emu::emulator
 
 	void core::do_subcycle()
 	{
-		if (!halted)
+		exec_subcycle();
+		if (subcycle == 4)
 		{
-			exec_subcycle();
-			if (subcycle == 4)
-			{
-				finish_cycle();
-			}
+			finish_cycle();
 		}
 	}
 
 	void core::exec_subcycle()
 	{
-		sc_decode();
-		if (!skip_subcycle)
+		if (!halted)
 		{
-			sc_gather();
-			sc_execute();
-			sc_spread();
-			sc_branch();
+			sc_decode();
+			if (!skip_subcycle)
+			{
+				sc_gather();
+				sc_execute();
+				sc_spread();
+				sc_branch();
+			}
 		}
 		subcycle += 1;
 	}
@@ -119,8 +118,9 @@ namespace r3emu::emulator
 		decr_set = 0;
 		wrbk_set = 0;
 		jump = false;
+		write_op_0 = false;
 
-		uint32_t instruction = 0x20000000U | (mem.data[*program_counter] & 0x1FFFFFFFU);
+		uint32_t instruction = 0x20000000U | (mem.data[*program_counter & ((1 << config::memory_size) - 1)] & 0x1FFFFFFFU);
 
 		if (instruction & 0x00800000U)
 		{
@@ -272,34 +272,48 @@ namespace r3emu::emulator
 
 	void core::sc_spread()
 	{
-		auto to_write = ((*write_mask & 0x1FFF) << 16) | op[0];
-
-		if (mem_op[0])
+		uint16_t reg_temp[8];
+		for (auto i = 0U; i < 8U; ++i)
 		{
-			mem.data[mem_addr[0]] = to_write;
+			reg_temp[i] = gp_registers[i];
 		}
+
+		auto to_write = ((*write_mask & 0x1FFF) << 16) | op[0];
 
 		uint16_t bus_addr = 0;
 		if (mem_op[0])
 		{
 			bus_addr = mem_addr[0];
 		}
-		bu.spread(mem_op[0], bus_addr, to_write);
+		bu.spread(mem_op[0] && write_op_0, bus_addr, to_write);
+
+		if (write_op_0)
+		{
+			if (mem_op[0] && mem_addr[0] < (1 << config::memory_size))
+			{
+				mem.data[mem_addr[0]] = to_write;
+			}
+
+			for (auto i = 0U; i < 8U; ++i)
+			{
+				if (wrbk_set & (1 << i))
+				{
+					gp_registers[i] = op[0];
+				}
+			}
+		}
+
 		bu.post_spread();
 
 		for (auto i = 0U; i < 8U; ++i)
 		{
-			if (wrbk_set & (1 << i))
-			{
-				gp_registers[i] = op[0];
-			}
 			if (incr_set & (1 << i))
 			{
-				gp_registers[i] += 1;
+				gp_registers[i] = reg_temp[i] + 1;
 			}
 			if (decr_set & (1 << i))
 			{
-				gp_registers[i] -= 1;
+				gp_registers[i] = reg_temp[i] - 1;
 			}
 			gp_registers[i] &= 0xFFFFU;
 		}
@@ -332,60 +346,183 @@ namespace r3emu::emulator
 		*flags &= 0xFFU;
 	}
 
-	void core::oper_mov()
+	void core::update_secondary_flags()
 	{
-		op[0] = op[2];
+		*flags |= flag_true;
+		*flags = (*flags & ~flag_lower) | ((bool(*flags & flag_sign) != bool(*flags | flag_overflow)) ? flag_lower : 0);
+		*flags = (*flags & ~flag_below_equal) | ((*flags & (flag_carry | flag_zero)) ? flag_below_equal : 0);
+		*flags = (*flags & ~flag_not_greater) | ((*flags & (flag_lower | flag_zero)) ? flag_not_greater : 0);
 	}
 
-	void core::oper_jcc()
+	void core::update_secondary_flags_zs()
 	{
-		jump = true;
-	}
-
-	void core::oper_nyi()
-	{
-		std::cerr << "oper_nyi called" << std::endl;
+		*flags = (*flags & ~flag_sign) | ((op[0] & 0x8000U) ? flag_sign : 0);
+		*flags = (*flags & ~flag_zero) | (!op[0] ? flag_zero : 0);
+		update_secondary_flags();
 	}
 	
 	void core::sc_execute()
 	{
 		bu.mid_execute();
 
-		static void (core::*oper_table[0x20])() = {
-			&core::oper_mov,
-			&core::oper_jcc,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi,
-			&core::oper_nyi
-		};
+		switch (oper % 0x20)
+		{
+		// case 0x00: // ???
+		// 	break;
 
-		(this->*oper_table[oper])();
+		case 0x01: // hlt
+			halted = true;
+			break;
+
+		case 0x03: // call
+			*return_to = *program_counter;
+			[[fallthrough]];
+		case 0x02: // jcc
+			jump = true;
+			break;
+
+		case 0x04: // bsf
+		case 0x05: // bsr
+		case 0x06: // zsf
+		case 0x07: // zsr
+			if (oper & 0x02)
+			{
+				op[2] ^= 0xFFFFU;
+			}
+			if (op[2])
+			{
+				if (oper & 0x01)
+				{
+					op[0] = 15;
+					while (!((op[2] >> op[0]) & 1))
+					{
+						op[0] -= 1;
+					}
+				}
+				else
+				{
+					op[0] = 0;
+					while (!((op[2] >> op[0]) & 1))
+					{
+						op[0] += 1;
+					}
+				}
+			}
+			else
+			{
+				op[0] = 0xFFFFU;
+			}
+			write_op_0 = true;
+			break;
+
+		case 0x08: // mov
+			write_op_0 = true;
+			op[0] = op[2];
+			break;
+
+		case 0x09: // or
+			write_op_0 = true;
+			op[0] = op[1] | op[2];
+			update_secondary_flags_zs();
+			break;
+
+		case 0x0A: // and
+			write_op_0 = true;
+			[[fallthrough]];
+		case 0x1A: // test
+			op[0] = op[1] & op[2];
+			update_secondary_flags_zs();
+			break;
+
+		case 0x0B: // xor
+			write_op_0 = true;
+			op[0] = op[1] ^ op[2];
+			update_secondary_flags_zs();
+			break;
+
+		case 0x0C: // add
+		case 0x0D: // adc
+		case 0x0E: // sub
+		case 0x0F: // sbb
+			write_op_0 = true;
+			[[fallthrough]];
+		case 0x1E: // cmp
+			{
+				uint16_t carry = ((oper & 0x01) && (*flags & (1 << flag_carry))) ? 1 : 0;
+				if (oper & 0x02)
+				{
+					op[1] ^= 0xFFFFU;
+				}
+				op[0] = carry + op[1] + op[2];
+				uint32_t carry_16 = (uint32_t(carry) + op[1] + op[2]) >> 16;
+				uint32_t carry_15 = (uint32_t(carry) + (op[1] & 0x7FFFU) + (op[2] & 0x7FFFU)) >> 15;
+				if (oper & 0x02)
+				{
+					op[0] ^= 0xFFFFU;
+				}
+				*flags = (*flags & ~flag_carry) | (carry_16 ? flag_carry : 0);
+				*flags = (*flags & ~flag_overflow) | ((carry_16 ^ carry_15) ? flag_overflow : 0);
+				update_secondary_flags_zs();
+			}
+			break;
+
+		case 0x10: // mak
+		case 0x11: // ext
+		case 0x12: // mak1
+		case 0x13: // ext1
+		case 0x14: // scl
+		case 0x15: // scr
+		case 0x16: // rol
+		case 0x17: // ror
+			{
+				uint16_t shift_in_from;
+				switch ((oper & 0x1E) & 0x06)
+				{
+				case 0x00:
+					shift_in_from = 0x0000U;
+					break;
+
+				case 0x02:
+					shift_in_from = 0xFFFFU;
+					break;
+					
+				case 0x04:
+					shift_in_from = *last_output;
+					break;
+					
+				case 0x06:
+					shift_in_from = op[1];
+					break;
+				}
+
+				uint16_t mask = 0xFFFFU >> ((op[2] & 0xF0) >> 4);
+				uint16_t shift = op[2] & 0x0F;
+				if (oper & 1)
+				{
+					op[0] = ((op[1] >> shift) | (shift_in_from << (16 - shift))) & mask;
+				}
+				else
+				{
+					op[0] = ((op[1] << shift) | (shift_in_from >> (16 - shift))) & mask;
+				}
+			}
+			write_op_0 = true;
+			break;
+
+		// case 0x18: // ???
+		// case 0x19: // ???
+		// case 0x1B: // ???
+		// case 0x1C: // ???
+		// case 0x1D: // ???
+		// case 0x1F: // ???
+		// 	break;
+			
+		default:
+			std::cerr << "0x";
+			std::cerr << std::hex << std::uppercase << std::setw(2) << std::setfill('0'); // aka %02X
+			std::cerr << oper << ": nyi" << std::endl;
+			break;
+		}
+
 	}
 }

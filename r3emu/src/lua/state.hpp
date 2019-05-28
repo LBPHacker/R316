@@ -14,6 +14,7 @@ namespace r3emu::lua
 		~state();
 
 		operator lua_State *() const;
-		bool execute(std::string const &chunk, std::string const &code);
+		void execute(std::string const &chunk, std::string const &code);
+		bool execute_incomplete(std::string const &chunk, std::string const &code);
 	};
 }

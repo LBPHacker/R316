@@ -25,7 +25,16 @@ namespace r3emu::lua
 		return L;
 	}
 
-	bool state::execute(std::string const &chunk, std::string const &code)
+	void state::execute(std::string const &chunk, std::string const &code)
+	{
+		if (luaL_loadbuffer(L, code.data(), code.size(), chunk.c_str()) || lua_pcall(L, 0, 0, 0))
+		{
+			std::cerr << lua_tostring(L, -1) << std::endl;
+			lua_pop(L, 1);
+		}
+	}
+
+	bool state::execute_incomplete(std::string const &chunk, std::string const &code)
 	{
 		bool complete = true;
 		if (luaL_loadbuffer(L, code.data(), code.size(), chunk.c_str()))
@@ -41,13 +50,10 @@ namespace r3emu::lua
 			}
 			lua_pop(L, 1);
 		}
-		else
+		else if (lua_pcall(L, 0, 0, 0))
 		{
-			if (lua_pcall(L, 0, 0, 0))
-			{
-				std::cerr << lua_tostring(L, -1) << std::endl;
-				lua_pop(L, 1);
-			}
+			std::cerr << lua_tostring(L, -1) << std::endl;
+			lua_pop(L, 1);
 		}
 		return complete;
 	}

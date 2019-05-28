@@ -46,7 +46,7 @@ namespace r3emu::emulator
 		hw.write(9, 11, "RR", config::colour_frame);
 		hw.write(0, 13, "FPS      UPS", config::colour_frame);
 		hw.write(0, 14, "Core is", config::colour_frame);
-		hw.write(0, 15, "Simulation", config::colour_frame);
+		hw.write(0, 15, "Sim. is", config::colour_frame);
 	}
 
 	void core_view::draw()
@@ -79,6 +79,6 @@ namespace r3emu::emulator
 		hw.write_10(4, 13, fps, 3);
 		hw.write_10(13, 13, ups, 3);
 		hw.write(8, 14, co.halted ? "stopped!" : "running!");
-		hw.write(11, 15, sim.is_paused() ? "pause" : "blaze");
+		hw.write(8, 15, sim.is_paused() ? "stopped!" : "running!");
 	}
 }

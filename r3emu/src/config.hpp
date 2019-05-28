@@ -35,9 +35,10 @@ namespace r3emu::config
 	const int mm_gp_registers    = mm_base + 0x00;
 	const int mm_flags           = mm_base + 0x08;
 	const int mm_program_counter = mm_base + 0x09;
-	const int mm_write_mask      = mm_base + 0x0A;
+	const int mm_return_to       = mm_base + 0x0A;
 	const int mm_last_output     = mm_base + 0x0B;
 	const int mm_loop_count      = mm_base + 0x0C;
 	const int mm_loop_from       = mm_base + 0x0D;
 	const int mm_loop_to         = mm_base + 0x0E;
+	const int mm_write_mask      = mm_base + 0x0F;
 }

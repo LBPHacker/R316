@@ -32,7 +32,7 @@ bool handle_console_input(lua::state &L, SDL_Event &event)
 	if (input)
 	{
 		console_input_buffer += *input + "\n";
-		bool complete = L.execute("console", console_input_buffer);
+		bool complete = L.execute_incomplete("console", console_input_buffer);
 		process_input->set_value(complete);
 		if (complete)
 		{
