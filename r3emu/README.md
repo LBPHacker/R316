@@ -8,7 +8,7 @@ help a lot with figuring out what to put into that architecture.
 ### Release
 
 ```sh
-meson build && cd build
+meson build_release && cd build_release
 meson configure -Dwerror=true -Dwarning_level=3 -Dcpp_std=c++17 -Db_lto=true -Dbuildtype=release -Dstrip=true
 ninja
 ```

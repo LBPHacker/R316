@@ -12,6 +12,7 @@ namespace r3emu::lua
 namespace r3emu::emulator
 {
 	class core;
+	class disassembler_view;
 
 	class memory
 	{
@@ -23,5 +24,6 @@ namespace r3emu::emulator
 		memory(lua::state &L, std::string name);
 
 		friend class core;
+		friend class disassembler_view;
 	};
 }

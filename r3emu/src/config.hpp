@@ -41,4 +41,8 @@ namespace r3emu::config
 	const int mm_loop_from       = mm_base + 0x0D;
 	const int mm_loop_to         = mm_base + 0x0E;
 	const int mm_write_mask      = mm_base + 0x0F;
+
+	const int mm_screen_base     = 0xF000;
+	const int mm_screen_mode     = 0xF100;
+	const int mm_screen_colour   = 0xF101;
 }

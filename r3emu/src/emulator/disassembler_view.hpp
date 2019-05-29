@@ -2,7 +2,6 @@
 
 #include "../ui/view.hpp"
 
-#include <SDL.h>
 #include <string>
 
 namespace r3emu::ui
@@ -17,21 +16,19 @@ namespace r3emu::lua
 
 namespace r3emu::emulator
 {
-	class core;
-	class simulation;
+	class memory;
 
-	class core_view : public ui::view
+	class disassembler_view : public ui::view
 	{
 		lua::state &L;
 		std::string name;
-		core &co;
-		simulation &sim;
+		memory &mem;
 
-		int fps, ups;
-		Uint32 last_fps_ups_tick;
+		int top;
+		int highlight;
 
 	public:
-		core_view(lua::state &L, std::string name, core &co, simulation &sim, ui::host_window &hw);
+		disassembler_view(lua::state &L_param, std::string name_param, memory &mem_param, ui::host_window &hw);
 
 		void draw() final override;
 	};

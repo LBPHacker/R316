@@ -1,6 +1,11 @@
 local instructions = {
-	0x20C5DEAD,
-	0x20C6BEEF,
+	-- 0x28C1F000,
+	-- 0x28D1F448,
+	-- 0x28D1F449,
+	-- 0x21000000,
+	0x28C4F000,
+	0x28D44B67,
+	0x22C10001,
 }
 
 local counter = 0
@@ -58,3 +63,11 @@ print = setmetatable({format = "0x%04X"}, {__call = function(t, ...)
 	end
 	print_old(unpack(stuff))
 end})
+
+dis_follow_pc = true
+function pre_draw()
+	if dis_follow_pc then
+		dis.show(pc - 7)
+		dis.highlight(pc)
+	end
+end

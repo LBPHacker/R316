@@ -12,24 +12,20 @@ namespace r3emu::emulator
 	{
 		lua_newtable(L);
 
-		lua_pushlightuserdata(L, this);
-		lua_pushcclosure(L, [](lua_State *L) -> int {
+		L.set_ugly_func(this, [](lua_State *L) -> int {
 			auto *mem = static_cast<memory *>(lua_touserdata(L, lua_upvalueindex(1)));
 			uint16_t addr = luaL_checkinteger(L, 1);
 			uint32_t value = luaL_checkinteger(L, 2);
 			mem->data[addr] = value;
 			return 0;
-		}, 1);
-		lua_setfield(L, -2, "write");
+		}, "write");
 
-		lua_pushlightuserdata(L, this);
-		lua_pushcclosure(L, [](lua_State *L) -> int {
+		L.set_ugly_func(this, [](lua_State *L) -> int {
 			auto *mem = static_cast<memory *>(lua_touserdata(L, lua_upvalueindex(1)));
 			uint16_t addr = luaL_checkinteger(L, 1);
 			lua_pushinteger(L, mem->data[addr]);
 			return 1;
-		}, 1);
-		lua_setfield(L, -2, "read");
+		}, "read");
 
 		lua_setglobal(L, name.c_str());
 	}

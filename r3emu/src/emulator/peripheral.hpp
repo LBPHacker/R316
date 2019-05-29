@@ -4,10 +4,14 @@
 
 namespace r3emu::emulator
 {
+	class bus;
+	
 	class peripheral
 	{
 	protected:
-		peripheral();
+		bus &bu;
+
+		peripheral(bus &bu);
 		virtual ~peripheral();
 
 	public:

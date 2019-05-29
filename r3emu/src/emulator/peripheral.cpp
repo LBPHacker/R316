@@ -1,9 +1,12 @@
 #include "peripheral.hpp"
 
+#include "bus.hpp"
+
 namespace r3emu::emulator
 {
-	peripheral::peripheral()
+	peripheral::peripheral(bus &bu_param) : bu(bu_param)
 	{
+		bu.add_peripheral(this);
 	}
 
 	peripheral::~peripheral()

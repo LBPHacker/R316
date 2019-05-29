@@ -1,18 +1,16 @@
 project('r3emu', 'cpp')
 
-sdl2_dep = dependency('sdl2')
-luajit_dep = dependency('luajit')
-thread_dep = dependency('threads')
-libedit = dependency('libedit')
-
-client_exec = executable('r3emu', sources: [
+executable('r3emu', sources: [
 	'data/colours.cpp',
 	'data/font.cpp',
 	'src/emulator/bus.cpp',
 	'src/emulator/core.cpp',
 	'src/emulator/core_view.cpp',
+	'src/emulator/disassembler_view.cpp',
 	'src/emulator/memory.cpp',
 	'src/emulator/peripheral.cpp',
+	'src/emulator/screen.cpp',
+	'src/emulator/screen_view.cpp',
 	'src/emulator/simulation.cpp',
 	'src/lua/state.cpp',
 	'src/r3emu.cpp',
@@ -27,4 +25,9 @@ client_exec = executable('r3emu', sources: [
 	'src/ui/view.cpp',
 	'src/utility/console.cpp',
 	'src/utility/frequency_counter.cpp',
-], dependencies: [sdl2_dep, luajit_dep, thread_dep, libedit])
+], dependencies: [
+	dependency('sdl2'),
+	dependency('luajit'),
+	dependency('threads'),
+	dependency('libedit'),
+])

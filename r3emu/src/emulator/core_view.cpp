@@ -24,7 +24,7 @@ namespace r3emu::emulator
 		last_fps_ups_tick = SDL_GetTicks();
 	}
 
-	void core_view::frame()
+	void core_view::draw()
 	{
 		std::string rx_str("R?");
 		for (auto i = 0; i < 8; ++i)
@@ -47,10 +47,7 @@ namespace r3emu::emulator
 		hw.write(0, 13, "FPS      UPS", config::colour_frame);
 		hw.write(0, 14, "Core is", config::colour_frame);
 		hw.write(0, 15, "Sim. is", config::colour_frame);
-	}
-
-	void core_view::draw()
-	{
+		
 		for (auto i = 0; i < 8; ++i)
 		{
 			hw.write_16(3, i, co.gp_registers[i], 4);

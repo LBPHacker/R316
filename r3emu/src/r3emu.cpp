@@ -12,6 +12,9 @@
 #include "emulator/core_view.hpp"
 #include "emulator/memory.hpp"
 #include "emulator/simulation.hpp"
+#include "emulator/screen.hpp"
+#include "emulator/disassembler_view.hpp"
+#include "emulator/screen_view.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -60,11 +63,14 @@ int main(int argc, char *argv[])
 	sdl::event_timer render_timer(1000 / config::default_fps, sdl::context::event_render_frame);
 	sdl::event_timer update_timer(1000 / config::default_ups, sdl::context::event_update_emulator);
 
-	emulator::bus        bu (L, "bus");
-	emulator::memory     mem(L, "mem");
-	emulator::core       co (L, "core", bu, mem);
-	emulator::simulation sim(L, "sim", co);
-	emulator::core_view  cv (L, "core_view", co, sim, hw);
+	emulator::bus         bu (L, "bus");
+	emulator::memory      mem(L, "mem");
+	emulator::core        co (L, "core", bu, mem);
+	emulator::simulation  sim(L, "sim", co);
+	emulator::core_view   cv (L, "core_view", co, sim, hw);
+	emulator::screen      scr(L, "screen", bu);
+	emulator::screen_view sv (L, "screen_view", scr, hw);
+	emulator::disassembler_view dis(L, "dis", mem, hw);
 
 	hw.init_views();
 
@@ -133,6 +139,7 @@ int main(int argc, char *argv[])
 					break;
 
 				case sdl::context::event_render_frame:
+					L.global_callback("pre_draw");
 					hw.draw();
 					break;
 

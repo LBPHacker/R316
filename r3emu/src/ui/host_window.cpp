@@ -58,8 +58,6 @@ namespace r3emu::ui
 		int last_height = -1;
 		for (auto v : views)
 		{
-			v->frame();
-
 			top_row += std::string(v->width, box_thick_rl) + std::string(1, box_thick_drl);
 
 			for (auto y = 0; y < (v->height < last_height ? last_height : v->height); ++y)

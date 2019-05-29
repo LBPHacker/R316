@@ -24,6 +24,28 @@ namespace r3emu::lua
 	{
 		return L;
 	}
+	
+	void state::set_ugly_func(void *upv, lua_CFunction func, std::string const &name)
+	{
+		lua_pushlightuserdata(L, upv);
+		lua_pushcclosure(L, func, 1);
+		lua_setfield(L, -2, name.c_str());
+	}
+
+	void state::global_callback(std::string const &name)
+	{
+		lua_getglobal(L, name.c_str());
+		if (lua_type(L, -1) == LUA_TNIL)
+		{
+			lua_pop(L, 1);
+			return;
+		}
+		if (lua_pcall(L, 0, 0, 0))
+		{
+			std::cerr << lua_tostring(L, -1) << std::endl;
+			lua_pop(L, 1);
+		}
+	}
 
 	void state::execute(std::string const &chunk, std::string const &code)
 	{

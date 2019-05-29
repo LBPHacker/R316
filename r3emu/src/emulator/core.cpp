@@ -335,7 +335,7 @@ namespace r3emu::emulator
 			*loop_count -= 1;
 		}
 
-		if (jump && ((*flags >> (jump_cond >> 1)) & 1) == (jump_cond & 1))
+		if (jump && (((*flags | flag_true) >> (jump_cond >> 1)) & 1) == (jump_cond & 1))
 		{
 			*program_counter = op[2];
 		}
@@ -348,7 +348,6 @@ namespace r3emu::emulator
 
 	void core::update_secondary_flags()
 	{
-		*flags |= flag_true;
 		*flags = (*flags & ~flag_lower) | ((bool(*flags & flag_sign) != bool(*flags | flag_overflow)) ? flag_lower : 0);
 		*flags = (*flags & ~flag_below_equal) | ((*flags & (flag_carry | flag_zero)) ? flag_below_equal : 0);
 		*flags = (*flags & ~flag_not_greater) | ((*flags & (flag_lower | flag_zero)) ? flag_not_greater : 0);
@@ -367,8 +366,10 @@ namespace r3emu::emulator
 
 		switch (oper % 0x20)
 		{
-		// case 0x00: // ???
-		// 	break;
+		case 0x00: // mov
+			write_op_0 = true;
+			op[0] = op[2];
+			break;
 
 		case 0x01: // hlt
 			halted = true;
@@ -415,9 +416,10 @@ namespace r3emu::emulator
 			write_op_0 = true;
 			break;
 
-		case 0x08: // mov
+		case 0x08: // xor
 			write_op_0 = true;
-			op[0] = op[2];
+			op[0] = op[1] ^ op[2];
+			update_secondary_flags_zs();
 			break;
 
 		case 0x09: // or
@@ -434,9 +436,11 @@ namespace r3emu::emulator
 			update_secondary_flags_zs();
 			break;
 
-		case 0x0B: // xor
+		case 0x0B: // andn
 			write_op_0 = true;
-			op[0] = op[1] ^ op[2];
+			[[fallthrough]];
+		case 0x1B: // tstn
+			op[0] = op[1] & (op[2] ^ 0xFFFFU);
 			update_secondary_flags_zs();
 			break;
 
@@ -447,6 +451,7 @@ namespace r3emu::emulator
 			write_op_0 = true;
 			[[fallthrough]];
 		case 0x1E: // cmp
+		case 0x1F: // cmpc
 			{
 				uint16_t carry = ((oper & 0x01) && (*flags & (1 << flag_carry))) ? 1 : 0;
 				if (oper & 0x02)
@@ -476,7 +481,7 @@ namespace r3emu::emulator
 		case 0x17: // ror
 			{
 				uint16_t shift_in_from;
-				switch ((oper & 0x1E) & 0x06)
+				switch (oper & 0x06)
 				{
 				case 0x00:
 					shift_in_from = 0x0000U;
@@ -497,7 +502,7 @@ namespace r3emu::emulator
 
 				uint16_t mask = 0xFFFFU >> ((op[2] & 0xF0) >> 4);
 				uint16_t shift = op[2] & 0x0F;
-				if (oper & 1)
+				if (oper & 0x01)
 				{
 					op[0] = ((op[1] >> shift) | (shift_in_from << (16 - shift))) & mask;
 				}
@@ -509,15 +514,10 @@ namespace r3emu::emulator
 			write_op_0 = true;
 			break;
 
-		// case 0x18: // ???
-		// case 0x19: // ???
-		// case 0x1B: // ???
-		// case 0x1C: // ???
-		// case 0x1D: // ???
-		// case 0x1F: // ???
-		// 	break;
-			
-		default:
+		case 0x18: // ???
+		case 0x19: // ???
+		case 0x1C: // ???
+		case 0x1D: // ???
 			std::cerr << "0x";
 			std::cerr << std::hex << std::uppercase << std::setw(2) << std::setfill('0'); // aka %02X
 			std::cerr << oper << ": nyi" << std::endl;
