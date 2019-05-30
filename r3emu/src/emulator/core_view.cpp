@@ -34,10 +34,11 @@ namespace r3emu::emulator
 		}
 
 		hw.write(9, 0, "PC", config::colour_frame);
-		hw.write(9, 1, "WM", config::colour_frame);
-		hw.write(9, 2, "LO", config::colour_frame);
-		hw.write(9, 4, "NBLSZOC", config::colour_frame);
-		hw.write(9, 7, "#    /", config::colour_frame);
+		hw.write(9, 1, "LR", config::colour_frame);
+		hw.write(9, 2, "WM", config::colour_frame);
+		hw.write(9, 3, "LO", config::colour_frame);
+		hw.write(9, 5, "NBLSZOC", config::colour_frame);
+		hw.write(9, 8, "#    /", config::colour_frame);
 		hw.write(0, 9, "LC", config::colour_frame);
 		hw.write(0, 10, "LF", config::colour_frame);
 		hw.write(0, 11, "LT", config::colour_frame);
@@ -62,11 +63,12 @@ namespace r3emu::emulator
 		}
 
 		hw.write_16(12, 0, *co.program_counter, 4);
-		hw.write_16(12, 1, *co.write_mask & 0x1FFF, 4);
-		hw.write_16(12, 2, *co.last_output, 4);
-		hw.write_2(9, 5, *co.flags >> 1, 7);
-		hw.write_16(10, 7, co.cycle, 4);
-		hw.write_16(15, 7, co.subcycle, 1);
+		hw.write_16(12, 1, *co.return_to, 4);
+		hw.write_16(12, 2, *co.write_mask & 0x1FFF, 4);
+		hw.write_16(12, 3, *co.last_output, 4);
+		hw.write_2(9, 6, *co.flags >> 1, 7);
+		hw.write_16(10, 8, co.cycle, 4);
+		hw.write_16(15, 8, co.subcycle, 1);
 		hw.write_16(3, 9, *co.loop_count, 4);
 		hw.write_16(3, 10, *co.loop_from, 4);
 		hw.write_16(3, 11, *co.loop_to, 4);

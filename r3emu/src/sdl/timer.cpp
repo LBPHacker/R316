@@ -4,23 +4,33 @@
 
 namespace r3emu::sdl
 {
-	timer::timer(Uint32 interval, callback cb_param) : cb(cb_param)
+	timer::timer(callback cb_param) : cb(cb_param), active(false)
+	{
+	}
+
+	timer::~timer()
+	{
+		if (active)
+		{
+			SDL_RemoveTimer(id);
+		}
+	}
+
+	void timer::arm(Uint32 interval)
 	{
 		id = SDL_AddTimer(interval, wrapper, this);
 		if (!id)
 		{
 			throw sdl::nice_error("SDL_AddTimer: ");
 		}
+		active = true;
 	}
 
-	timer::~timer()
+	Uint32 timer::wrapper(Uint32, void *param)
 	{
-		SDL_RemoveTimer(id);
-	}
-
-	Uint32 timer::wrapper(Uint32 interval, void *param)
-	{
-		static_cast<timer *>(param)->cb();
-		return interval;
+		auto &tim = *static_cast<timer *>(param);
+		tim.cb();
+		tim.active = false;
+		return 0;
 	}
 }

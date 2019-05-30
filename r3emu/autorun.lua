@@ -1,11 +1,9 @@
 local instructions = {
-	-- 0x28C1F000,
-	-- 0x28D1F448,
-	-- 0x28D1F449,
-	-- 0x21000000,
-	0x28C4F000,
-	0x28D44B67,
-	0x22C10001,
+	0x20C44B00,
+	0x20047D01,
+	0x20C41C00,
+	0x20D40067,
+	0x22C10003,
 }
 
 local counter = 0
@@ -23,7 +21,14 @@ local mapped = {
 	r5 = 0x0705,
 	r6 = 0x0706,
 	r7 = 0x0707,
+	fl = 0x0708,
 	pc = 0x0709,
+	lr = 0x070A,
+	lo = 0x070B,
+	lc = 0x070C,
+	lf = 0x070D,
+	lt = 0x070E,
+	wm = 0x070F,
 }
 
 setmetatable(_G, {__index = function(t, k)

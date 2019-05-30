@@ -55,6 +55,7 @@ namespace r3emu::emulator
 		uint8_t incr_set, decr_set, wrbk_set;
 		uint32_t oper;
 		bool jump;
+		bool link;
 		bool write_op_0;
 
 		int cycle;

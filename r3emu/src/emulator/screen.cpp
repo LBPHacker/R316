@@ -19,10 +19,10 @@ namespace r3emu::emulator
 	{
 		if (write)
 		{
-			if (addr >= config::mm_screen_base && addr < config::mm_screen_base + 0x100)
+			if (addr >= config::mm_screen_buffer && addr < config::mm_screen_buffer + 0x100)
 			{
 				value |= colour;
-				auto &block = blocks[addr - config::mm_screen_base];
+				auto &block = blocks[addr - config::mm_screen_buffer];
 				block.ch = value & 0x00FF;
 				block.bgfg = (value & 0xFF00) >> 8;
 			}

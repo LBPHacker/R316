@@ -9,12 +9,15 @@ namespace r3emu::sdl
 	{
 		using callback = std::function<void ()>;
 		callback cb;
+		bool active;
 		SDL_TimerID id;
 
 		static Uint32 wrapper(Uint32 interval, void *param);
 
 	public:
-		timer(Uint32 interval, callback cb);
+		timer(callback cb);
 		~timer();
+
+		void arm(Uint32 interval);
 	};
 }

@@ -27,6 +27,11 @@ namespace r3emu::emulator
 		int top;
 		int highlight;
 
+		unsigned char colour_default;
+		unsigned char colour_frame;
+
+		void write_operand(int &x, int y, uint32_t operand);
+
 	public:
 		disassembler_view(lua::state &L_param, std::string name_param, memory &mem_param, ui::host_window &hw);
 

@@ -31,18 +31,19 @@ namespace r3emu::config
 		memory_size_8k = 13
 	} memory_size = memory_size_2k;
 
-	const int mm_base = (1 << memory_size) - 0x100;
-	const int mm_gp_registers    = mm_base + 0x00;
-	const int mm_flags           = mm_base + 0x08;
-	const int mm_program_counter = mm_base + 0x09;
-	const int mm_return_to       = mm_base + 0x0A;
-	const int mm_last_output     = mm_base + 0x0B;
-	const int mm_loop_count      = mm_base + 0x0C;
-	const int mm_loop_from       = mm_base + 0x0D;
-	const int mm_loop_to         = mm_base + 0x0E;
-	const int mm_write_mask      = mm_base + 0x0F;
+	const int mm_core_base = (1 << memory_size) - 0x100;
+	const int mm_core_gp_registers    = mm_core_base + 0x00;
+	const int mm_core_flags           = mm_core_base + 0x08;
+	const int mm_core_program_counter = mm_core_base + 0x09;
+	const int mm_core_return_to       = mm_core_base + 0x0A;
+	const int mm_core_last_output     = mm_core_base + 0x0B;
+	const int mm_core_loop_count      = mm_core_base + 0x0C;
+	const int mm_core_loop_from       = mm_core_base + 0x0D;
+	const int mm_core_loop_to         = mm_core_base + 0x0E;
+	const int mm_core_write_mask      = mm_core_base + 0x0F;
 
-	const int mm_screen_base     = 0xF000;
-	const int mm_screen_mode     = 0xF100;
-	const int mm_screen_colour   = 0xF101;
+	const int mm_screen_base     = 0x1C00;
+	const int mm_screen_buffer   = mm_screen_base + 0x000;
+	const int mm_screen_mode     = mm_screen_base + 0x100;
+	const int mm_screen_colour   = mm_screen_base + 0x101;
 }

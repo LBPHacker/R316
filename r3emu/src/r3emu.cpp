@@ -60,8 +60,10 @@ int main(int argc, char *argv[])
 	utility::console cons;
 	ui::host_window hw;
 
-	sdl::event_timer render_timer(1000 / config::default_fps, sdl::context::event_render_frame);
-	sdl::event_timer update_timer(1000 / config::default_ups, sdl::context::event_update_emulator);
+	sdl::event_timer render_timer(sdl::context::event_render_frame);
+	render_timer.arm(1000 / config::default_fps);
+	sdl::event_timer update_timer(sdl::context::event_update_emulator);
+	update_timer.arm(1000 / config::default_ups);
 
 	emulator::bus         bu (L, "bus");
 	emulator::memory      mem(L, "mem");
@@ -141,10 +143,12 @@ int main(int argc, char *argv[])
 				case sdl::context::event_render_frame:
 					L.global_callback("pre_draw");
 					hw.draw();
+					render_timer.arm(1000 / config::default_fps);
 					break;
 
 				case sdl::context::event_update_emulator:
 					sim.update();
+					update_timer.arm(1000 / config::default_ups);
 					break;
 
 				default:
