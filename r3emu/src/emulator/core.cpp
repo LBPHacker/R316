@@ -435,16 +435,12 @@ namespace r3emu::emulator
 
 		case 0x0A: // and
 			write_op_0 = true;
-			[[fallthrough]];
-		case 0x1A: // test
 			op[0] = op[1] & op[2];
 			update_secondary_flags_zs();
 			break;
 
 		case 0x0B: // andn
 			write_op_0 = true;
-			[[fallthrough]];
-		case 0x1B: // tstn
 			op[0] = op[1] & (op[2] ^ 0xFFFFU);
 			update_secondary_flags_zs();
 			break;
@@ -453,10 +449,6 @@ namespace r3emu::emulator
 		case 0x0D: // adc
 		case 0x0E: // sub
 		case 0x0F: // sbb
-			write_op_0 = true;
-			[[fallthrough]];
-		case 0x1E: // cmp
-		case 0x1F: // cmpc
 			{
 				uint16_t carry = ((oper & 0x01) && (*flags & (1 << flag_carry))) ? 1 : 0;
 				if (oper & 0x02)
@@ -521,8 +513,12 @@ namespace r3emu::emulator
 
 		case 0x18: // ???
 		case 0x19: // ???
+		case 0x1A: // ???
+		case 0x1B: // ???
 		case 0x1C: // ???
 		case 0x1D: // ???
+		case 0x1E: // ???
+		case 0x1F: // ???
 			std::cerr << "0x";
 			std::cerr << std::hex << std::uppercase << std::setw(2) << std::setfill('0'); // aka %02X
 			std::cerr << oper << ": nyi" << std::endl;
