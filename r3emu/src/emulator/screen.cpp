@@ -2,8 +2,6 @@
 
 #include "../config.hpp"
 
-#include <iostream>
-
 namespace r3emu::emulator
 {
 	screen::screen(lua::state &L_param, std::string name_param, bus &bu_param) :

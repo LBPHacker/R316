@@ -183,7 +183,7 @@ namespace r3emu::emulator
 		if (instruction & 0x20U)
 		{
 			mem_op[offs] = true;
-			mem_addr[offs] = (gp_registers[7] & 0xFFFFU) + (instruction % 0x20) - 0x10;
+			mem_addr[offs] = (gp_registers[7] & 0xFFFFU) + (instruction % 0x10) + ((instruction & 0x10) ? 0xFFF0U : 0x0000U);
 		}
 		else if (instruction & 0x10U)
 		{
@@ -227,8 +227,9 @@ namespace r3emu::emulator
 
 	void core::sc_gather()
 	{
-		uint32_t bus_buffer;
 		bu.pre_gather();
+
+		uint32_t bus_buffer;
 		uint16_t bus_addr = 0;
 		if (mem_op[1])
 		{
@@ -302,9 +303,9 @@ namespace r3emu::emulator
 					gp_registers[i] = op[0];
 				}
 			}
-		}
 
-		bu.post_spread();
+			*last_output = op[0];
+		}
 
 		for (auto i = 0U; i < 8U; ++i)
 		{
@@ -318,12 +319,12 @@ namespace r3emu::emulator
 			}
 			gp_registers[i] &= 0xFFFFU;
 		}
+
+		bu.post_spread();
 	}
 
 	void core::sc_branch()
 	{
-		*last_output = op[0];
-
 		*program_counter += 1;
 
 		*program_counter &= 0xFFFFU;
@@ -418,31 +419,32 @@ namespace r3emu::emulator
 			{
 				op[0] = 0xFFFFU;
 			}
+			update_secondary_flags_zs();
 			write_op_0 = true;
 			break;
 
 		case 0x08: // xor
-			write_op_0 = true;
 			op[0] = op[1] ^ op[2];
 			update_secondary_flags_zs();
+			write_op_0 = true;
 			break;
 
 		case 0x09: // or
-			write_op_0 = true;
 			op[0] = op[1] | op[2];
 			update_secondary_flags_zs();
+			write_op_0 = true;
 			break;
 
 		case 0x0A: // and
-			write_op_0 = true;
 			op[0] = op[1] & op[2];
 			update_secondary_flags_zs();
+			write_op_0 = true;
 			break;
 
 		case 0x0B: // andn
-			write_op_0 = true;
 			op[0] = op[1] & (op[2] ^ 0xFFFFU);
 			update_secondary_flags_zs();
+			write_op_0 = true;
 			break;
 
 		case 0x0C: // add
@@ -464,8 +466,9 @@ namespace r3emu::emulator
 				}
 				*flags = (*flags & ~flag_carry) | (carry_16 ? flag_carry : 0);
 				*flags = (*flags & ~flag_overflow) | ((carry_16 ^ carry_15) ? flag_overflow : 0);
-				update_secondary_flags_zs();
 			}
+			update_secondary_flags_zs();
+			write_op_0 = true;
 			break;
 
 		case 0x10: // mak
@@ -508,6 +511,7 @@ namespace r3emu::emulator
 					op[0] = ((op[1] << shift) | (shift_in_from >> (16 - shift))) & mask;
 				}
 			}
+			update_secondary_flags_zs();
 			write_op_0 = true;
 			break;
 
@@ -524,6 +528,5 @@ namespace r3emu::emulator
 			std::cerr << oper << ": nyi" << std::endl;
 			break;
 		}
-
 	}
 }

@@ -86,7 +86,7 @@ namespace r3emu::emulator
 			int x = 10;
 			hw.write_16(0, y, addr, 4, colour_frame);
 			hw.write(4, y, "      ", colour_default);
-			if (instr & 0x3FFFFFFFU)
+			if (instr & 0x1FFFFFFFU)
 			{
 				hw.write(5, y, mnemonics_displayed[(instr & 0x1F000000U) >> 24], colour_default);
 				if ((instr & 0x1E000000U) == 0x02000000U && (instr & 0x000F0000U) != 0x00010000U)
@@ -137,6 +137,12 @@ namespace r3emu::emulator
 				{
 					hw.write(5, y, mnemonics_displayed_ns[(instr & 0x1F000000U) >> 24], colour_default);
 					operands &= ~1;
+				}
+
+				if (instr == (0x22814000U | config::mm_core_return_to))
+				{
+					hw.write(5, y, "RET ", colour_default);
+					operands = 0;
 				}
 
 				switch (operands & 7)
@@ -193,8 +199,17 @@ namespace r3emu::emulator
 				uint32_t reg = operand % 8;
 				if (operand & 0x20U)
 				{
-					hw.write(x, y, (operand & 0x10) ? "T?" : "S?", colour_default);
-					hw.write_16(x + 1, y, operand % 0x10, 1, colour_default); x += 2;
+					hw.write(x, y, "[S???]", colour_default); x += 6;
+					if (operand & 0x10)
+					{
+						hw.write(x - 4, y, "-", colour_default);
+						hw.write_16(x - 3, y, 0x10 - operand % 0x10, 2, colour_default);
+					}
+					else
+					{
+						hw.write(x - 4, y, "+", colour_default);
+						hw.write_16(x - 3, y, operand % 0x10, 2, colour_default);
+					}
 				}
 				else if (operand & 0x10U)
 				{
