@@ -125,7 +125,6 @@ local ok, err = pcall(function()
 	
 	local message = "Hi. I'm a relatively long message being decompressed on the fly from triplets of 16-bit cells holding eight 6-bit LUT indices each. Magically enough, I'm displayed one character per frame. Marvelous, isn't it?"
 
-	message = message .. ("\0"):rep(({[0] = 1, 3, 2, 1, 3, 2, 1, 2})[#message % 8])
 	local lut_at = 0x2C
 	local data_at = 0x6C
 	local data_size = 0
@@ -133,7 +132,7 @@ local ok, err = pcall(function()
 	local lut_size = 1
 	local shift = 0
 	local buffer = 0
-	for character in message:gmatch(".") do
+	for character in (message .. ("\0"):rep(({[0] = 1, 3, 2, 1, 3, 2, 1, 2})[#message % 8])):gmatch(".") do
 		local ch = character:byte()
 		if not lut[ch] then
 			if lut_size == 64 then
