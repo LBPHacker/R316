@@ -10,20 +10,11 @@ local env_copy = {}
 for key, value in pairs(_G) do
 	env_copy[key] = value
 end
-setfenv(1, setmetatable(env_copy, {__index = function()
+setfenv(1, setmetatable(env_copy, { __index = function()
 	error("__index")
 end, __newindex = function()
 	error("__newindex")
-end}))
-
-local PATH_SEP
-do
-	local package_config = {}
-	for conf in package.config:gmatch("[^\n]+") do
-		table.insert(package_config, conf)
-	end
-	PATH_SEP = package_config[1]
-end
+end }))
 
 --------------------------------------------------------------------------------
 ---- printf --------------------------------------------------------------------
@@ -36,12 +27,12 @@ do
 		log_handle = false,
 		colour = false,
 		err_called = false
-	}, {__call = function(self, ...)
+	}, { __call = function(self, ...)
 		self.print(string.format(...))
-	end})
+	end })
 	function printf:debug(first, ...)
-		local things = {tostring(first)}
-		for ix_thing, thing in ipairs({...}) do
+		local things = { tostring(first) }
+		for ix_thing, thing in ipairs({ ... }) do
 			table.insert(things, tostring(thing))
 		end
 		self((self.colour and "[r3asm] " or "[r3asm] [DD] ") .. "%s", table.concat(things, "\t"))
@@ -94,9 +85,61 @@ local function failf(...)
 	error(failf)
 end
 
-local function resolve_relative(base, relative)
-	local dir = file_path:match("^(.+)" .. package_config[1] .. "[^" .. package_config[1] .. "]+$")
-	return dir or (file_path .. package_config[1] .. "..")
+local function resolve_relative(base_with_file, relative)
+	local components = {}
+	local parent_depth = 0
+	for component in (base_with_file .. "/../" .. relative):gmatch("[^/]+") do
+		if component == "." then
+			-- nothing
+		elseif component == ".." then
+			if #components > 0 then
+				components[#components] = nil
+			else
+				parent_depth = parent_depth + 1
+			end
+		else
+			table.insert(components, component)
+		end
+	end
+	for _ = 1, parent_depth do
+		table.insert(components, 1, "..")
+	end
+	return table.concat(components, "/")
+end
+
+--------------------------------------------------------------------------------
+---- Arguments -----------------------------------------------------------------
+--------------------------------------------------------------------------------
+local named_args = {}
+local unnamed_args = {}
+local populate_args
+do
+	local args = { ... }
+	function populate_args()
+		-- * Get arguments. Some of those may not be strings when r3asm is run inside TPT.
+		if #args == 1 and type(args[1]) == "table" then
+			for ix_arg, arg in ipairs(args) do
+				table.insert(unnamed_args, arg)
+			end
+			for key, arg in pairs(args) do
+				if type(key) ~= "number" then
+					unnamed_args[key] = arg
+				end
+			end
+		else
+			for ix_arg, arg in ipairs(args) do
+				local key_value = type(arg) == "string" and { arg:match("^([^=]+)=(.+)$") }
+				if key_value and key_value[1] then
+					if named_args[key_value[1]] then
+						printf:warn("argument #%i overrides earlier specification of %s", ix_arg, key_value[1])
+					end
+					named_args[key_value[1]] = key_value[2]
+				else
+					table.insert(unnamed_args, arg)
+				end
+			end
+		end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -104,12 +147,30 @@ end
 --------------------------------------------------------------------------------
 local tokenise
 do
-	-- * The transition table is consulted whenever a new character is consumed
-	--   from the line. This may result in a state change.
-	-- * State changes occur when the transition table points to a state
-	--   different from the currently active state. The transition table is
-	--   consulted on these occasions as well, possibly yielding more state
-	--   changes.
+	local token_i = {}
+	local token_mt = { __index = token_i }
+	function token_i:is(type, value)
+		return self.type == type and (not value or self.value == value)
+	end
+	function token_i:punctuator(...)
+		return self:is("punctuator", ...)
+	end
+	function token_i:identifier(...)
+		return self:is("identifier", ...)
+	end
+	function token_i:stringlit(...)
+		return self:is("stringlit", ...)
+	end
+	function token_i:comma()
+		return self:is("punctuator", ",")
+	end
+	function token_i:blamef(failf, format, ...)
+		failf("%s:%i:%i: " .. format, self.path, self.line, self.char, ...)
+	end
+	function token_i:blamef_after(failf, format, ...)
+		failf("%s:%i:%i: " .. format, self.path, self.line, self.char + #self.value, ...)
+	end
+
 	local transition = {}
 	local all_8bit = ""
 	for ix = 0, 255 do
@@ -126,45 +187,41 @@ do
 				tbl[cond] = action
 			end
 		end
-		for ix, ix_trans in ipairs(transition_list) do
+		for _, ix_trans in ipairs(transition_list) do
 			add_transition(ix_trans[1], ix_trans[2])
 		end
 		return tbl
 	end
 
 	transition.push = transitions({
-		{        "'", { consume =  true, state = "quote1"       }},
-		{       "\"", { consume =  true, state = "quote2"       }},
-		{    "[;\n]", { consume = false, state = "done"         }},
-		{        ",", { consume = false, state = "comma"        }},
-		{    "[0-9]", { consume =  true, state = "number"       }},
-		{"[_A-Za-z]", { consume =  true, state = "identifier"   }},
-		{"[%[%]%(%)%+%-%*/%%:%?&#<>=!^~%.{}\\|@$]", { consume = false, state = "punctuator" }},
+		{         "'", { consume =  true, state = "charlit"    }},
+		{        "\"", { consume =  true, state = "stringlit"  }},
+		{     "[;\n]", { consume = false, state = "done"       }},
+		{     "[0-9]", { consume =  true, state = "number"     }},
+		{ "[_A-Za-z]", { consume =  true, state = "identifier" }},
+		{ "[%[%]%(%)%+%-%*/%%:%?&#<>=!^~%.{}\\|@$,]", { consume = false, state = "punctuator" }},
 	})
 	transition.identifier = transitions({
-		{"[_A-Za-z0-9]", { consume =  true, state = "identifier" }},
-		{         false, { consume = false, state = "push"       }},
+		{ "[_A-Za-z0-9]", { consume =  true, state = "identifier" }},
+		{          false, { consume = false, state = "push"       }},
 	})
 	transition.number = transitions({
-		{"[_A-Za-z0-9]", { consume =  true, state = "number" }},
-		{         false, { consume = false, state = "push"   }},
+		{ "[_A-Za-z0-9]", { consume =  true, state = "number" }},
+		{          false, { consume = false, state = "push"   }},
 	})
-	transition.quote1 = transitions({
-		{ "'", { consume = true, state = "push"         }},
-		{"\n", { error = "unfinished character literal" }},
+	transition.charlit = transitions({
+		{  "'", { consume = true, state = "push"         }},
+		{ "\n", { error = "unfinished character literal" }},
 	})
-	transition.quote2 = transitions({
-		{"\"", { consume = true, state = "push"      }},
-		{"\n", { error = "unfinished string literal" }},
-	})
-	transition.comma = transitions({
-		{",", { consume = true, state = "push" }},
+	transition.stringlit = transitions({
+		{ "\"", { consume = true, state = "push"      }},
+		{ "\n", { error = "unfinished string literal" }},
 	})
 	transition.punctuator = transitions({
-		{".", { consume = true, state = "push" }},
+		{ ".", { consume = true, state = "push" }},
 	})
 
-	function tokenise(line)
+	function tokenise(line, path, line_number)
 		line = line .. "\n"
 		local tokens = {}
 		local state = "push"
@@ -196,19 +253,24 @@ do
 			end
 			if old_state ~= "push" and state == "push" then
 				local token_end = cursor - 1
-				table.insert(tokens, {
+				table.insert(tokens, setmetatable({
 					type = old_state,
-					value = line:sub(token_begin, token_end)
-				})
+					value = line:sub(token_begin, token_end),
+					path = path,
+					line = line_number,
+					char = token_begin
+				}, token_mt))
 			end
 		end
-		if #tokens >= 2 and tokens[1].type == "punctuator" and tokens[1].value == "%" and tokens[2].type == "identifier" then
-			table.remove(tokens, 1)
-			tokens[1].type = "directive"
-		elseif #tokens >= 1 and tokens[1].type == "identifier" then
-			tokens[1].type = "verb"
-		end
 		return true, tokens
+	end
+end
+
+local function blame_token(report, tokens, ix, ...)
+	if tokens[ix] then
+		tokens[ix]:blamef(report, ...)
+	else
+		tokens[ix - 1]:blamef_after(report, ...)
 	end
 end
 
@@ -217,83 +279,104 @@ end
 --------------------------------------------------------------------------------
 local preprocess
 do
-	local include_stack = {}
-	local function preprocess_failf(...)
-		printf:err(...)
-		for ix = #include_stack, 1, -1 do
-			printf:info("  included from %s:%i", include_stack[ix].path, include_stack[ix].line)
-		end
-		failf("preprocessing stage failed, bailing")
-	end
-	function preprocess(path)
-		if #include_stack > MAX_INCLUDE_DEPTH then
-			preprocess_failf("max include depth reached while including '%s'", path)
-		end
-		local handle = io.open(path, "r")
-		if not handle then
-			preprocess_failf("failed to open '%s' for reading", path)
+	function preprocess(path, lines)
+		local include_stack = {}
+
+		local parent_failf = failf
+		local function failf(...)
+			printf:err(...)
+			for ix = #include_stack, 1, -1 do
+				printf:info("  included from %s:%i", include_stack[ix].path, include_stack[ix].line)
+			end
+			parent_failf("preprocessing stage failed, bailing")
 		end
 
-		local line_number = 0
-		for line in handle:lines() do
-			line_number = line_number + 1
-			local ok, tokens, err = tokenise(line)
-			if ok then
-				printf:info("line %i:", line_number)
-				for ix, ix_token in ipairs(tokens) do
-					printf:info("  %s [%s]", ix_token.value, ix_token.type)
-				end
-			else
-				preprocess_failf("%s:%i:%i: %s", path, line_number, tokens, err)
+		local function include(path, lines)
+			if #include_stack > MAX_INCLUDE_DEPTH then
+				failf("max include depth reached while including '%s'", path)
 			end
+			local handle = io.open(path, "r")
+			if not handle then
+				failf("failed to open '%s' for reading", path)
+			end
+
+			local line_number = 0
+			for line in handle:lines() do
+				line_number = line_number + 1
+				local ok, tokens, err = tokenise(line, path, line_number)
+				if not ok then
+					failf("%s:%i:%i: %s", path, line_number, tokens, err)
+				end
+				if #tokens >= 1 and tokens[1]:punctuator("%") then
+					if #tokens >= 2 and tokens[2]:identifier() then
+
+						if tokens[2].value == "include" then
+							if not (#tokens >= 3 and tokens[3]:stringlit()) then
+								blame_token(failf, tokens, 3, "expected path (string literal)")
+							end
+							local relative_path = tokens[3].value:gsub("^\"(.*)\"$", "%1")
+							local resolved_path = resolve_relative(path, relative_path)
+							include_stack[#include_stack + 1] = {
+								path = path,
+								line = line_number
+							}
+							include(resolved_path, lines)
+							include_stack[#include_stack] = nil
+
+						elseif tokens[2].value == "warning" or tokens[2].value == "error" then
+							if not (#tokens >= 3 and tokens[3]:stringlit()) then
+								blame_token(failf, tokens, 3, "expected message (string literal)")
+							end
+							local err = tokens[3].value:gsub("^\"(.*)\"$", "%1")
+							if tokens[2].value == "error" then
+								failf("%s:%i: %s: %s", path, line_number, tokens[2].value, err)
+							else
+								printf:warn("%s:%i: %s: %s", path, line_number, tokens[2].value, err)
+							end
+
+						else
+							blame_token(failf, tokens, 2, "unknown preprocessing directive")
+
+						end
+					end
+				else
+					table.insert(lines, {
+						path = path,
+						line = line_number,
+						tokens = tokens
+					})
+				end
+			end
+			handle:close()
 		end
-		handle:close()
+
+		include(path, lines)
 	end
 end
 
 --------------------------------------------------------------------------------
----- Putting it all together ---------------------------------------------------
+---- Everything else -----------------------------------------------------------
 --------------------------------------------------------------------------------
-local args = {...}
 xpcall(function()
 
-	-- * Get arguments. Some of those may not be strings when r3asm is run inside TPT.
-	local named_args = {}
-	local unnamed_args = {}
-	if #args == 1 and type(args[1]) == "table" then
-		for ix_arg, arg in ipairs(args) do
-			table.insert(unnamed_args, arg)
-		end
-		for key, arg in pairs(args) do
-			if type(key) ~= "number" then
-				unnamed_args[key] = arg
-			end
-		end
-	else
-		for ix_arg, arg in ipairs(args) do
-			local key_value = type(arg) == "string" and {arg:match("^([^=]+)=(.+)$")}
-			if key_value and key_value[1] then
-				if named_args[key_value[1]] then
-					printf:warn("argument #%i overrides earlier specification of %s", ix_arg, key_value[1])
-				end
-				named_args[key_value[1]] = key_value[2]
-			else
-				table.insert(unnamed_args, arg)
-			end
-		end
-	end
+	populate_args()
 
-	do
-		local log_path = named_args.log or unnamed_args[3]
-		if log_path then
-			printf:redirect(tostring(log_path))
-		end
+	local log_path = named_args.log or unnamed_args[3]
+	if log_path then
+		printf:redirect(tostring(log_path))
 	end
 
 	local root_source_path = named_args.source or unnamed_args[1] or failf("no source specified")
 	root_source_path = tostring(root_source_path)
 
-	local commands = preprocess(root_source_path)
+	local lines = {}
+	preprocess(root_source_path, lines)
+	for _, ix_line in ipairs(lines) do
+		printf:info("%s:%i:", ix_line.path, ix_line.line)
+		for _, ix_token in ipairs(ix_line.tokens) do
+			printf:info("  %s [%s]", ix_token.value, ix_token.type)
+		end
+	end
 
 	-- local target_cpu = named_args.target or unnamed_args[2]
 	-- target_cpu = target_cpu and tonumber(target_cpu)
