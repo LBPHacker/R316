@@ -4,10 +4,7 @@
 ---- Configuration -------------------------------------------------------------
 --------------------------------------------------------------------------------
 local MAX_INCLUDE_DEPTH = 100
-local ADDITIONAL_COMPOUND_PUNCTUATORS = {
-	"++",
-	"--"
-}
+local MAX_EXPANSION_DEPTH = 100
 
 local tpt = tpt
 local env_copy = {}
@@ -32,53 +29,58 @@ do
 		colour = false,
 		err_called = false
 	}, { __call = function(self, ...)
-		self.print(string.format(...))
+		printf.print(string.format(...))
 	end })
-	function printf:debug(first, ...)
+	function printf.debug(first, ...)
 		local things = { tostring(first) }
 		for ix_thing, thing in ipairs({ ... }) do
 			table.insert(things, tostring(thing))
 		end
-		self((self.colour and "[r3asm] " or "[r3asm] [DD] ") .. "%s", table.concat(things, "\t"))
+		printf((printf.colour and "[r3asm] " or "[r3asm] [DD] ") .. "%s", table.concat(things, "\t"))
 	end
-	function printf:info(format, ...)
-		self((self.colour and "\008l[r3asm]\008w " or "[r3asm] [II] ") .. format, ...)
+	function printf.info(format, ...)
+		printf((printf.colour and "\008l[r3asm]\008w " or "[r3asm] [II] ") .. format, ...)
 	end
-	function printf:warn(format, ...)
-		self((self.colour and "\008o[r3asm]\008w " or "[r3asm] [WW] ") .. format, ...)
+	function printf.warn(format, ...)
+		printf((printf.colour and "\008o[r3asm]\008w " or "[r3asm] [WW] ") .. format, ...)
 	end
-	function printf:err(format, ...)
-		self((self.colour and "\008t[r3asm]\008w " or "[r3asm] [EE] ") .. format, ...)
-		self.err_called = true
+	function printf.err(format, ...)
+		printf((printf.colour and "\008t[r3asm]\008w " or "[r3asm] [EE] ") .. format, ...)
+		printf.err_called = true
 	end
-	function printf:redirect(log_path)
+	function printf.redirect(log_path)
 		local handle = io.open(log_path, "w")
 		if handle then
-			self.log_path = log_path
-			self.log_handle = handle
-			self:info("redirecting log to '%s'", self.log_path)
-			self.print = function(str)
-				self.log_handle:write(str .. "\n")
+			printf.log_path = log_path
+			printf.log_handle = handle
+			printf.info("redirecting log to '%s'", printf.log_path)
+			printf.print = function(str)
+				printf.log_handle:write(str .. "\n")
 			end
 		else
-			self:warn("failed to open '%s' for writing, log not redirected", log_path)
+			printf.warn("failed to open '%s' for writing, log not redirected", log_path)
 		end
 	end
-	function printf:unredirect()
-		if self.log_handle then
-			self.log_handle:close()
-			self.log_handle = false
-			self.print = self.print_old
-			self:info("closed log '%s'", self.log_path)
+	function printf.unredirect()
+		if printf.log_handle then
+			printf.log_handle:close()
+			printf.log_handle = false
+			printf.print = printf.print_old
+			printf.info("closed log '%s'", printf.log_path)
 		end
 	end
-	function printf:update_colour()
-		self.colour = tpt and not self.log_handle
+	function printf.update_colour()
+		printf.colour = tpt and not printf.log_handle
 	end
-	printf:update_colour()
+	printf.update_colour()
 end
 local function print(...)
-	printf:debug(...)
+	printf.debug(...)
+end
+
+local function failf(...)
+	printf.err(...)
+	error(failf)
 end
 
 local args = { ... }
@@ -87,24 +89,18 @@ xpcall(function()
 --------------------------------------------------------------------------------
 ---- Convenience functions -----------------------------------------------------
 --------------------------------------------------------------------------------
-	local function failf(...)
-		printf:err(...)
-		error(failf)
-	end
 
 	local function resolve_relative(base_with_file, relative)
 		local components = {}
 		local parent_depth = 0
 		for component in (base_with_file .. "/../" .. relative):gmatch("[^/]+") do
-			if component == "." then
-				-- nothing
-			elseif component == ".." then
+			if component == ".." then
 				if #components > 0 then
 					components[#components] = nil
 				else
 					parent_depth = parent_depth + 1
 				end
-			else
+			elseif component ~= "." then
 				table.insert(components, component)
 			end
 		end
@@ -136,17 +132,28 @@ xpcall(function()
 		function token_i:comma()
 			return self:is("punctuator", ",")
 		end
-		function token_i:blamef(failf, format, ...)
-			failf("%s:%i:%i: " .. format, self.path, self.line, self.char, ...)
-		end
-		function token_i:blamef_after(failf, format, ...)
-			failf("%s:%i:%i: " .. format, self.path, self.line, self.char + #self.value, ...)
+		function token_i:number()
+			return self:is("number")
 		end
 		function token_i:point(other)
-			other.path = self.path
-			other.line = self.line
-			other.char = self.char
+			other.sline = self.sline
+			other.soffs = self.soffs
 			return setmetatable(other, token_mt)
+		end
+		function token_i:blamef(report, format, ...)
+			report("%s:%i:%i: " .. format, self.sline.path, self.sline.line, self.soffs, ...)
+			self.sline:dump_itop()
+			if self.expanded_from then
+				self.expanded_from:blamef(printf.info, "expanded from this")
+			end
+		end
+		function token_i:expand_by(other)
+			local clone = setmetatable({}, token_mt)
+			for key, value in pairs(self) do
+				clone[key] = value
+			end
+			clone.expanded_from = other
+			return clone
 		end
 
 		local transition = {}
@@ -199,18 +206,8 @@ xpcall(function()
 			{ ".", { consume = true, state = "push" }},
 		})
 
-		local compound_punctuators = {
-			"<=", ">=", "==", "!="
-		}
-		for _, ix_punc in ipairs(ADDITIONAL_COMPOUND_PUNCTUATORS) do
-			table.insert(compound_punctuators, ix_punc)
-		end
-		table.sort(compound_punctuators, function(a, b)
-			return #b < #a
-		end)
-
-		function tokenise(line, path, line_number)
-			line = line .. "\n"
+		function tokenise(sline)
+			local line = sline.str .. "\n"
 			local tokens = {}
 			local state = "push"
 			local token_begin
@@ -244,21 +241,12 @@ xpcall(function()
 					table.insert(tokens, setmetatable({
 						type = old_state,
 						value = line:sub(token_begin, token_end),
-						path = path,
-						line = line_number,
-						char = token_begin
+						sline = sline,
+						soffs = token_begin
 					}, token_mt))
 				end
 			end
 			return true, tokens
-		end
-	end
-
-	local function blame_token(report, tokens, ix, ...)
-		if tokens[ix] then
-			tokens[ix]:blamef(report, ...)
-		else
-			tokens[ix - 1]:blamef_after(report, ...)
 		end
 	end
 
@@ -267,26 +255,62 @@ xpcall(function()
 --------------------------------------------------------------------------------
 	local preprocess
 	do
-		function preprocess(path, lines)
-			local include_stack = {}
+		local source_line_i = {}
+		local source_line_mt = { __index = source_line_i }
+		function source_line_i:dump_itop()
+			local included_from = self.itop
+			while included_from do
+				printf.info("  included from %s:%i", included_from.path, included_from.line)
+				included_from = included_from.next
+			end
+		end
+		function source_line_i:blamef(report, format, ...)
+			report("%s:%i: " .. format, self.path, self.line, ...)
+			self:dump_itop()
+		end
+		function source_line_i:blamef_after(report, token, format, ...)
+			report("%s:%i:%i " .. format, self.path, self.line, token.soffs + #token.value, ...)
+			self:dump_itop()
+		end
 
-			local parent_failf = failf
-			local function failf(...)
-				printf:err(...)
-				for ix = #include_stack, 1, -1 do
-					printf:info("  included from %s:%i", include_stack[ix].path, include_stack[ix].line)
-				end
-				parent_failf("preprocessing stage failed, bailing")
+		function preprocess(path, lines)
+			local include_top = false
+			local include_depth = 0
+
+			local function preprocess_fail()
+				failf("preprocessing stage failed, bailing")
+			end
+
+			local function evaluate(tokens, first, last)
+				-- for ix = first, last do
+				--	TODO: implement evaluation with shunting yard algorithm
+				-- end
+				return true, 0
 			end
 
 			local aliases = {}
-			local function evaluate(tokens, first, last)
-				-- TODO...
-				return true, 0
+			local function expand_aliases(tokens, first, last, depth)
+				local expanded = {}
+				for ix = first, last do
+					local alias = tokens[ix]:identifier() and aliases[tokens[ix].value]
+					if alias then
+						if depth > MAX_EXPANSION_DEPTH then
+							tokens[ix]:blamef(printf.err, "max expansion depth reached while expanding alias '%s'", tokens[ix].value)
+							preprocess_fail()
+						end
+						for _, token in ipairs(expand_aliases(alias, 1, #alias, depth + 1, tokens[ix])) do
+							table.insert(expanded, token:expand_by(tokens[ix]))
+						end
+					else
+						table.insert(expanded, tokens[ix])
+					end
+				end
+				return expanded
 			end
 			local function define(identifier, tokens, first, last)
 				if aliases[identifier.value] then
-					blame_token(failf, { identifier }, 1, "alias %s is defined", identifier.value)
+					identifier:blamef(printf.err, "alias '%s' is defined", identifier.value)
+					preprocess_fail()
 				end
 				local alias = {}
 				for ix = first, last do
@@ -296,9 +320,107 @@ xpcall(function()
 			end
 			local function undefine(identifier)
 				if not aliases[identifier.value] then
-					blame_token(failf, { identifier }, 1, "alias %s is not defined", identifier.value)
+					identifier:blamef(printf.err, "alias '%s' is not defined", identifier.value)
+					preprocess_fail()
 				end
 				aliases[identifier.value] = nil
+			end
+
+			local macros = {}
+			local defining_macro = false
+			local function expand_macro(tokens, depth)
+				local expanded = expand_aliases(tokens, 1, #tokens, depth + 1)
+				local macro = expanded[1]:identifier() and macros[expanded[1].value]
+				if macro then
+					if depth > MAX_EXPANSION_DEPTH then
+						expanded[1]:blamef(printf.err, "max expansion depth reached while expanding macro '%s'", expanded[1].value)
+						preprocess_fail()
+					end
+					local expanded_lines = {}
+					local parameter_cursor = 0
+					local parameters_passed = {}
+					local parameter_buffer = {}
+					local function flush_parameter()
+						parameters_passed[macro.params[parameter_cursor] or false] = parameter_buffer
+						parameter_buffer = {}
+					end
+					if #expanded > 1 then
+						parameter_cursor = 1
+						for ix = 2, #expanded do
+							if expanded[ix]:comma() then
+								flush_parameter()
+								parameter_cursor = parameter_cursor + 1
+							else
+								table.insert(parameter_buffer, expanded[ix])
+							end
+						end
+						flush_parameter()
+					end
+					if #macro.params ~= parameter_cursor then
+						expanded[1]:blamef(printf.err, "macro '%s' invoked with %i parameters, expects %i", expanded[1].value, parameter_cursor, #macro.params)
+						preprocess_fail()
+					end
+					local old_aliases = {}
+					for param, value in pairs(parameters_passed) do
+						old_aliases[param] = aliases[param]
+						aliases[param] = value
+					end
+					for _, line in ipairs(macro) do
+						for _, expanded_line in ipairs(expand_macro(line.tokens, depth + 1)) do
+							local cloned_line = {}
+							for _, token in ipairs(expanded_line) do
+								table.insert(cloned_line, token:expand_by(expanded[1]))
+							end
+							table.insert(expanded_lines, cloned_line)
+						end
+					end
+					for param, value in pairs(parameters_passed) do
+						aliases[param] = old_aliases[param]
+					end
+					return expanded_lines
+				else
+					return { expanded }
+				end
+			end
+			local function macro(identifier, tokens, first, last)
+				if macros[identifier.value] then
+					identifier:blamef(printf.err, "macro '%s' is defined", identifier.value)
+					preprocess_fail()
+				end
+				local params = {}
+				local params_assoc = {}
+				for ix = first, last, 2 do
+					if not tokens[ix]:identifier() then
+						tokens[ix]:blamef(printf.err, "expected parameter name")
+					end
+					if params_assoc[tokens[ix].value] then
+						tokens[ix]:blamef(printf.err, "duplicate parameter")
+					end
+					params_assoc[tokens[ix].value] = true
+					table.insert(params, tokens[ix].value)
+					if ix == last then
+						break
+					end
+					if not tokens[ix + 1]:punctuator(",") then
+						tokens[ix + 1]:blamef(printf.err, "expected comma")
+						preprocess_fail()
+					end
+				end
+				defining_macro = {
+					params = params,
+					name = identifier.value
+				}
+			end
+			local function endmacro()
+				macros[defining_macro.name] = defining_macro
+				defining_macro = false
+			end
+			local function unmacro(identifier)
+				if not macros[identifier.value] then
+					identifier:blamef(printf.err, "macro '%s' is not defined", identifier.value)
+					preprocess_fail()
+				end
+				macros[identifier.value] = nil
 			end
 
 			local condition_stack = { {
@@ -308,61 +430,96 @@ xpcall(function()
 				opened_by = false
 			} }
 
-			local function include(path, lines)
-				if #include_stack > MAX_INCLUDE_DEPTH then
-					failf("max include depth reached while including '%s'", path)
+			local function include(path, lines, req)
+				if include_depth > MAX_INCLUDE_DEPTH then
+					req:blamef(printf.err, "max include depth reached while including '%s'", path)
+					preprocess_fail()
 				end
 				local handle = io.open(path, "r")
 				if not handle then
-					failf("failed to open '%s' for reading", path)
+					req:blamef(printf.err, "failed to open '%s' for reading", path)
+					preprocess_fail()
 				end
 
 				local line_number = 0
 				for line in handle:lines() do
 					line_number = line_number + 1
-					local ok, tokens, err = tokenise(line, path, line_number)
+					local sline = setmetatable({
+						path = path,
+						line = line_number,
+						itop = include_top,
+						str = line
+					}, source_line_mt)
+					local ok, tokens, err = tokenise(sline)
 					if not ok then
-						failf("%s:%i:%i: %s", path, line_number, tokens, err)
+						printf.err("%s:%i:%i: %s", sline.path, sline.line, tokens, err)
+						preprocess_fail()
 					end
 					if #tokens >= 1 and tokens[1]:punctuator("%") then
 						if #tokens >= 2 and tokens[2]:identifier() then
 
 							if tokens[2].value == "include" then
 								if condition_stack[#condition_stack].condition then
-									if not (#tokens >= 3 and tokens[3]:stringlit()) then
-										blame_token(failf, tokens, 3, "expected path")
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected path")
+										preprocess_fail()
+									elseif not tokens[3]:stringlit() then
+										tokens[3]:blamef(printf.err, "expected path")
+										preprocess_fail()
+									end
+									if #tokens > 3 then
+										tokens[4]:blamef(printf.err, "expected end of line")
+										preprocess_fail()
 									end
 									local relative_path = tokens[3].value:gsub("^\"(.*)\"$", "%1")
 									local resolved_path = resolve_relative(path, relative_path)
-									include_stack[#include_stack + 1] = {
+									include_top = {
 										path = path,
-										line = line_number
+										line = line_number,
+										next = include_top
 									}
-									include(resolved_path, lines)
-									include_stack[#include_stack] = nil
+									include_depth = include_depth + 1
+									include(resolved_path, lines, sline)
+									include_depth = include_depth - 1
+									include_top = include_top.next
 								end
 
 							elseif tokens[2].value == "warning" or tokens[2].value == "error" then
 								if condition_stack[#condition_stack].condition then
-									if not (#tokens >= 3 and tokens[3]:stringlit()) then
-										blame_token(failf, tokens, 3, "expected message")
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected message")
+										preprocess_fail()
+									elseif not tokens[3]:stringlit() then
+										tokens[3]:blamef(printf.err, "expected message")
+										preprocess_fail()
+									end
+									if #tokens > 3 then
+										tokens[4]:blamef(printf.err, "expected end of line")
+										preprocess_fail()
 									end
 									local err = tokens[3].value:gsub("^\"(.*)\"$", "%1")
 									if tokens[2].value == "error" then
-										failf("%s:%i: %%error: %s", path, line_number, err)
+										printf.err("%s:%i: %%error: %s", path, line_number, err)
+										preprocess_fail()
 									else
-										printf:warn("%s:%i: %%warning: %s", path, line_number, err)
+										printf.warn("%s:%i: %%warning: %s", path, line_number, err)
 									end
 								end
 
 							elseif tokens[2].value == "eval" then
 								if condition_stack[#condition_stack].condition then
-									if not (#tokens >= 3 and tokens[3]:identifier()) then
-										blame_token(failf, tokens, 3, "expected alias name")
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected alias name")
+										preprocess_fail()
+									elseif not tokens[3]:identifier() then
+										tokens[3]:blamef(printf.err, "expected alias name")
+										preprocess_fail()
 									end
-									local ok, result = evaluate(tokens, 4, #tokens)
+									local expanded = expand_aliases(tokens, 4, #tokens, 0)
+									local ok, result = evaluate(expanded)
 									if not ok then
-										blame_token(failf, tokens, 4, "evaluation failed: %s", result)
+										expanded[result]:blamef(printf.err, "evaluation failed")
+										preprocess_fail()
 									end
 									define(tokens[3], { tokens[3]:point({
 										type = "number",
@@ -372,8 +529,12 @@ xpcall(function()
 
 							elseif tokens[2].value == "define" then
 								if condition_stack[#condition_stack].condition then
-									if not (#tokens >= 3 and tokens[3]:identifier()) then
-										blame_token(failf, tokens, 3, "expected alias name")
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected alias name")
+										preprocess_fail()
+									elseif not tokens[3]:identifier() then
+										tokens[3]:blamef(printf.err, "expected alias name")
+										preprocess_fail()
 									end
 									if #tokens == 3 then
 										define(tokens[3], { tokens[3]:point({
@@ -387,19 +548,26 @@ xpcall(function()
 
 							elseif tokens[2].value == "undef" then
 								if condition_stack[#condition_stack].condition then
-									if not (#tokens >= 3 and tokens[3]:identifier()) then
-										blame_token(failf, tokens, 3, "expected alias name")
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected alias name")
+										preprocess_fail()
+									elseif not tokens[3]:identifier() then
+										tokens[3]:blamef(printf.err, "expected alias name")
+										preprocess_fail()
 									end
 									if #tokens > 3 then
-										blame_token(failf, tokens, 4, "expected end of line")
+										tokens[4]:blamef(printf.err, "expected end of line")
+										preprocess_fail()
 									end
 									undefine(tokens[3])
 								end
 
 							elseif tokens[2].value == "if" then
-								local ok, result = evaluate(tokens, 3, #tokens)
+								local expanded = expand_aliases(tokens, 3, #tokens, 0)
+								local ok, result = evaluate(expanded)
 								if not ok then
-									blame_token(failf, tokens, 3, "evaluation failed: %s", result)
+									expanded[result]:blamef(printf.err, "evaluation failed")
+									preprocess_fail()
 								end
 								local evals_to_true = result ~= 0
 								condition_stack[#condition_stack + 1] = {
@@ -410,11 +578,16 @@ xpcall(function()
 								}
 
 							elseif tokens[2].value == "ifdef" then
-								if not (#tokens >= 3 and tokens[3]:identifier()) then
-									blame_token(failf, tokens, 3, "expected alias name")
+								if #tokens < 3 then
+									sline:blamef_after(printf.err, tokens[2], "expected alias name")
+									preprocess_fail()
+								elseif not tokens[3]:identifier() then
+									tokens[3]:blamef(printf.err, "expected alias name")
+									preprocess_fail()
 								end
 								if #tokens > 3 then
-									blame_token(failf, tokens, 4, "expected end of line")
+									tokens[4]:blamef(printf.err, "expected end of line")
+									preprocess_fail()
 								end
 								local evals_to_true = aliases[tokens[3].value] and true
 								condition_stack[#condition_stack + 1] = {
@@ -425,11 +598,16 @@ xpcall(function()
 								}
 
 							elseif tokens[2].value == "ifndef" then
-								if not (#tokens >= 3 and tokens[3]:identifier()) then
-									blame_token(failf, tokens, 3, "expected alias name")
+								if #tokens < 3 then
+									sline:blamef_after(printf.err, tokens[2], "expected alias name")
+									preprocess_fail()
+								elseif not tokens[3]:identifier() then
+									tokens[3]:blamef(printf.err, "expected alias name")
+									preprocess_fail()
 								end
 								if #tokens > 3 then
-									blame_token(failf, tokens, 4, "expected end of line")
+									tokens[4]:blamef(printf.err, "expected end of line")
+									preprocess_fail()
 								end
 								local evals_to_true = not aliases[tokens[3].value] and true
 								condition_stack[#condition_stack + 1] = {
@@ -441,10 +619,12 @@ xpcall(function()
 
 							elseif tokens[2].value == "else" then
 								if #condition_stack == 1 then
-									blame_token(failf, tokens, 2, "unpaired %%else")
+									tokens[2]:blamef(printf.err, "unpaired %%else")
+									preprocess_fail()
 								end
 								if condition_stack[#condition_stack].seen_else then
-									blame_token(failf, tokens, 2, "%%else after %%else")
+									tokens[2]:blamef(printf.err, "%%else after %%else")
+									preprocess_fail()
 								end
 								condition_stack[#condition_stack].seen_else = true
 								if condition_stack[#condition_stack].been_true then
@@ -455,18 +635,26 @@ xpcall(function()
 								end
 
 							elseif tokens[2].value == "elif" then
+								if #tokens > 2 then
+									tokens[3]:blamef(printf.err, "expected end of line")
+									preprocess_fail()
+								end
 								if #condition_stack == 1 then
-									blame_token(failf, tokens, 2, "unpaired %%elif")
+									tokens[2]:blamef(printf.err, "unpaired %%elif")
+									preprocess_fail()
 								end
 								if condition_stack[#condition_stack].seen_else then
-									blame_token(failf, tokens, 2, "%%elif after %%else")
+									tokens[2]:blamef(printf.err, "%%elif after %%else")
+									preprocess_fail()
 								end
 								if condition_stack[#condition_stack].been_true then
 									condition_stack[#condition_stack].condition = false
 								else
-									local ok, result = evaluate(tokens, 3, #tokens)
+									local expanded = expand_aliases(tokens, 3, #tokens, 0)
+									local ok, result = evaluate(expanded)
 									if not ok then
-										blame_token(failf, tokens, 3, "evaluation failed: %s", result)
+										expanded[result]:blamef(printf.err, "evaluation failed")
+										preprocess_fail()
 									end
 									local evals_to_true = result ~= 0
 									condition_stack[#condition_stack].condition = evals_to_true
@@ -474,42 +662,91 @@ xpcall(function()
 								end
 
 							elseif tokens[2].value == "endif" then
+								if #tokens > 2 then
+									tokens[3]:blamef(printf.err, "expected end of line")
+									preprocess_fail()
+								end
 								if #condition_stack == 1 then
-									blame_token(failf, tokens, 2, "unpaired %%endif")
+									tokens[2]:blamef(printf.err, "unpaired %%endif")
+									preprocess_fail()
 								end
 								condition_stack[#condition_stack] = nil
 
-							-- elseif tokens[2].value == "macro" then
-							-- 	if condition_stack[#condition_stack].condition then
-							-- 		-- TODO...
-							-- 	end
+							elseif tokens[2].value == "macro" then
+								if condition_stack[#condition_stack].condition then
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected macro name")
+										preprocess_fail()
+									elseif not tokens[3]:identifier() then
+										tokens[3]:blamef(printf.err, "expected macro name")
+										preprocess_fail()
+									end
+									if defining_macro then
+										tokens[2]:blamef(printf.err, "%%macro after %%macro")
+										preprocess_fail()
+									end
+									macro(tokens[3], tokens, 4, #tokens)
+								end
 								
-							-- elseif tokens[2].value == "endmacro" then
-							-- 	if condition_stack[#condition_stack].condition then
-							-- 		-- TODO...
-							-- 	end
+							elseif tokens[2].value == "endmacro" then
+								if condition_stack[#condition_stack].condition then
+									if #tokens > 2 then
+										tokens[3]:blamef(printf.err, "expected end of line")
+										preprocess_fail()
+									end
+									if not defining_macro then
+										tokens[2]:blamef(printf.err, "unpaired %%endmacro")
+										preprocess_fail()
+									end
+									endmacro()
+								end
+
+							elseif tokens[2].value == "unmacro" then
+								if condition_stack[#condition_stack].condition then
+									if #tokens < 3 then
+										sline:blamef_after(printf.err, tokens[2], "expected macro name")
+										preprocess_fail()
+									elseif not tokens[3]:identifier() then
+										tokens[3]:blamef(printf.err, "expected macro name")
+										preprocess_fail()
+									end
+									if #tokens > 3 then
+										tokens[4]:blamef(printf.err, "expected end of line")
+										preprocess_fail()
+									end
+									unmacro(tokens[3])
+								end
 
 							else
-								blame_token(failf, tokens, 2, "unknown preprocessing directive")
+								tokens[2]:blamef(printf.err, "unknown preprocessing directive")
+								preprocess_fail()
 
 							end
 						end
 					else
 						if condition_stack[#condition_stack].condition and #tokens > 0 then
-							table.insert(lines, {
-								path = path,
-								line = line_number,
-								tokens = tokens
-							})
+							if defining_macro then
+								table.insert(defining_macro, {
+									sline = sline,
+									tokens = tokens
+								})
+							else
+								for _, line in ipairs(expand_macro(tokens, 0)) do
+									table.insert(lines, line)
+								end
+							end
 						end
 					end
 				end
 				handle:close()
 			end
 
-			include(path, lines)
+			include(path, lines, { blamef = function(self, report, ...)
+				report(...)
+			end })
 			if #condition_stack > 1 then
-				blame_token(failf, { condition_stack[#condition_stack].opened_by }, 1, "unfinished conditional block")
+				condition_stack[#condition_stack].opened_by:blamef(printf.err, "unfinished conditional block")
+				preprocess_fail()
 			end
 		end
 	end
@@ -535,7 +772,7 @@ xpcall(function()
 			local key_value = type(arg) == "string" and { arg:match("^([^=]+)=(.+)$") }
 			if key_value and key_value[1] then
 				if named_args[key_value[1]] then
-					printf:warn("argument #%i overrides earlier specification of %s", ix_arg, key_value[1])
+					printf.warn("argument #%i overrides earlier specification of %s", ix_arg, key_value[1])
 				end
 				named_args[key_value[1]] = key_value[2]
 			else
@@ -546,7 +783,7 @@ xpcall(function()
 
 	local log_path = named_args.log or unnamed_args[3]
 	if log_path then
-		printf:redirect(tostring(log_path))
+		printf.redirect(tostring(log_path))
 	end
 
 	local root_source_path = named_args.source or unnamed_args[1] or failf("no source specified")
@@ -555,9 +792,8 @@ xpcall(function()
 	local lines = {}
 	preprocess(root_source_path, lines)
 	for _, ix_line in ipairs(lines) do
-		printf:info("%s:%i:", ix_line.path, ix_line.line)
-		for _, ix_token in ipairs(ix_line.tokens) do
-			printf:info("  %s [%s]", ix_token.value, ix_token.type)
+		for _, ix_token in ipairs(ix_line) do
+			ix_token:blamef(printf.info, "%s [%s]", ix_token.value, ix_token.type)
 		end
 	end
 
@@ -566,16 +802,16 @@ xpcall(function()
 
 
 end, function(err)
-	
+
 	if err ~= failf then
 		-- * Dang.
-		printf:err("error: %s", tostring(err))
-		printf:info("traceback:\n  %s", debug.traceback():gsub("\n", "\n  "))
-		printf:info("this is an assembler bug, tell LBPHacker!")
-		printf:info("https://github.com/LBPHacker/R316")
+		printf.err("error: %s", tostring(err))
+		printf.info("%s", debug.traceback())
+		printf.info("this is an assembler bug, tell LBPHacker!")
+		printf.info("https://github.com/LBPHacker/R316")
 	end
 
 end)
 
-printf:unredirect()
-printf:info("done")
+printf.unredirect()
+printf.info("done")
