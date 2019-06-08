@@ -48,21 +48,14 @@ namespace r3emu::emulator
 			"MOV ", "HLT ", "JMP ", "CALL", "BSF ", "BSR ", "ZSF ", "ZSR ",
 			"XOR ", "OR  ", "AND ", "ANDN", "ADD ", "ADC ", "SUB ", "SBB ",
 			"MAK ", "EXT ", "MAK1", "EXT1", "SCL ", "SCR ", "ROL ", "ROR ",
-			"OP18", "OP19", "OP1A", "OP1B", "OP1C", "OP1D", "OP1E", "OP1F"
+			"OP18", "OP19", "TEST", "TSTN", "OP1C", "OP1D", "CMP ", "CMPC"
 		};
-
-		static char const *mnemonics_displayed_ns[0x20] = {
-			"BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!",
-			"BUG!", "BUG!", "TEST", "TSTN", "BUG!", "BUG!", "CMP ", "CMPC",
-			"BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!",
-			"BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!", "BUG!"
-		};
-
+		
 		static uint32_t has_operands[0x20] = {
-			 5,  0,  4,  4,  7,  7,  7,  7,
-			 7,  7, 15, 15,  7,  7, 15, 15,
+			 5,  0,  4,  4,  5,  5,  5,  5,
 			 7,  7,  7,  7,  7,  7,  7,  7,
-			 0,  0,  0,  0,  0,  0,  0,  0
+			 7,  7,  7,  7,  7,  7,  7,  7,
+			 0,  0,  6,  6,  0,  0,  6,  6
 		};
 
 		static char const *conditions_displayed[0x10] = {
@@ -133,11 +126,6 @@ namespace r3emu::emulator
 				}
 
 				uint32_t operands = has_operands[(instr & 0x1F000000U) >> 24];
-				if ((operands & 8) && op[0] == 0x0F) // non-storing version has different name
-				{
-					hw.write(5, y, mnemonics_displayed_ns[(instr & 0x1F000000U) >> 24], colour_default);
-					operands &= ~1;
-				}
 
 				if (instr == (0x22814000U | config::mm_core_return_to))
 				{

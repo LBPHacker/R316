@@ -4,11 +4,13 @@ local MAX_INCLUDE_DEPTH = 100
 local MAX_EXPANSION_DEPTH = 100
 local MAX_EVAL_DEPTH = 100
 
-local RESERVED_DEFINED  = "_Defined"
-local RESERVED_DW       = "_Dw"
-local RESERVED_IDENTITY = "_Identity"
-local RESERVED_ORG      = "_Org"
-local RESERVED_UNIQUE   = "_Unique"
+local RESERVED = {
+	DEFINED  = "_Defined",
+	DW       = "_Dw",
+	IDENTITY = "_Identity",
+	ORG      = "_Org",
+	UNIQUE   = "_Unique",
+}
 
 local tpt = tpt
 local env_copy = {}
@@ -87,7 +89,6 @@ end
 local args = { ... }
 xpcall(function()
 
-	-- * Get arguments. Some of those may not be strings when r3asm is run inside TPT.
 	local named_args = {}
 	local unnamed_args = {}
 	if #args == 1 and type(args[1]) == "table" then
@@ -212,6 +213,338 @@ xpcall(function()
 		end
 	end
 
+	local builtin_nop = 0x20000000
+	local builtin_entities = {
+		["r0"] = { type = "register", offset = 0 },
+		["r1"] = { type = "register", offset = 1 },
+		["r2"] = { type = "register", offset = 2 },
+		["r3"] = { type = "register", offset = 3 },
+		["r4"] = { type = "register", offset = 4 },
+		["r5"] = { type = "register", offset = 5 },
+		["r6"] = { type = "register", offset = 6 },
+		["r7"] = { type = "register", offset = 7 },
+		["lo"] = { type = "last_output" },
+	}
+	local builtin_mnemonics = {}
+	do
+		local mnemonic_to_class_code = {
+			[ "nop"] = { class = "nop", code = 0x20000000 },
+			[ "mov"] = { class =  "02", code = 0x20000000 },
+			[ "hlt"] = { class = "nop", code = 0x21000000 },
+			[  "jn"] = { class =   "2", code = 0x22000000 },
+			[ "jmp"] = { class =   "2", code = 0x22010000 },
+			[ "jnb"] = { class =   "2", code = 0x22020000 },
+			[ "jae"] = { class =   "2", code = 0x22020000 },
+			[ "jnc"] = { class =   "2", code = 0x22020000 },
+			[  "jb"] = { class =   "2", code = 0x22030000 },
+			["jnae"] = { class =   "2", code = 0x22030000 },
+			[  "jc"] = { class =   "2", code = 0x22030000 },
+			[ "jno"] = { class =   "2", code = 0x22040000 },
+			[  "jo"] = { class =   "2", code = 0x22050000 },
+			[ "jne"] = { class =   "2", code = 0x22060000 },
+			[ "jnz"] = { class =   "2", code = 0x22060000 },
+			[  "je"] = { class =   "2", code = 0x22070000 },
+			[  "jz"] = { class =   "2", code = 0x22070000 },
+			[ "jns"] = { class =   "2", code = 0x22080000 },
+			[  "js"] = { class =   "2", code = 0x22090000 },
+			[ "jnl"] = { class =   "2", code = 0x220A0000 },
+			[ "jge"] = { class =   "2", code = 0x220A0000 },
+			[  "jl"] = { class =   "2", code = 0x220B0000 },
+			["jnge"] = { class =   "2", code = 0x220B0000 },
+			["jnbe"] = { class =   "2", code = 0x220C0000 },
+			[  "ja"] = { class =   "2", code = 0x220C0000 },
+			[ "jbe"] = { class =   "2", code = 0x220D0000 },
+			[ "jna"] = { class =   "2", code = 0x220D0000 },
+			["jnle"] = { class =   "2", code = 0x220E0000 },
+			[  "jg"] = { class =   "2", code = 0x220E0000 },
+			[ "jle"] = { class =   "2", code = 0x220F0000 },
+			[ "jng"] = { class =   "2", code = 0x220F0000 },
+			["call"] = { class =   "2", code = 0x23010000 },
+			[ "bsf"] = { class =  "02", code = 0x24000000 },
+			[ "bsr"] = { class =  "02", code = 0x25000000 },
+			[ "zsf"] = { class =  "02", code = 0x26000000 },
+			[ "zsr"] = { class =  "02", code = 0x27000000 },
+			[ "xor"] = { class = "012", code = 0x28000000 },
+			[  "or"] = { class = "012", code = 0x29000000 },
+			[ "and"] = { class = "012", code = 0x2A000000 },
+			[ "add"] = { class = "012", code = 0x2C000000 },
+			[ "adc"] = { class = "012", code = 0x2D000000 },
+			[ "sub"] = { class = "012", code = 0x2E000000 },
+			[ "sbb"] = { class = "012", code = 0x2F000000 },
+			[ "mak"] = { class = "012", code = 0x30000000 },
+			[ "ext"] = { class = "012", code = 0x31000000 },
+			["mak1"] = { class = "012", code = 0x32000000 },
+			["ext1"] = { class = "012", code = 0x33000000 },
+			[ "scl"] = { class = "012", code = 0x34000000 },
+			[ "scr"] = { class = "012", code = 0x35000000 },
+			[ "rol"] = { class = "012", code = 0x36000000 },
+			[ "ror"] = { class = "012", code = 0x37000000 },
+			["op18"] = { class = "nop", code = 0x38000000 },
+			["op19"] = { class = "nop", code = 0x39000000 },
+			["test"] = { class =  "12", code = 0x3A000000 },
+			["andn"] = { class =  "12", code = 0x3B000000 },
+			["op1c"] = { class = "nop", code = 0x3C000000 },
+			["op1d"] = { class = "nop", code = 0x3D000000 },
+			[ "cmp"] = { class =  "12", code = 0x3E000000 },
+			["cmpc"] = { class =  "12", code = 0x3F000000 },
+		}
+
+		local operand_modes = {
+			{ "nop", {                                                                     }, false, false, 0x00000000 },
+			{  "02", { { "[imm]", 13,  0 }, {  "creg",        16 }                         }, false, false, 0x00006000 },
+			{  "02", { { "[imm]", 13,  0 }, { "[imm]", 13,    -1 }                         },  true, false, 0x00806000 },
+			{ "012", { { "[imm]", 13,  0 }, {  "creg",        16 }                         }, false, false, 0x00006000 },
+			{ "012", { { "[imm]", 13,  0 }, {  "creg",        16 }, { "[imm]", 13,    -1 } }, false,  true, 0x00806000 },
+			{ "012", { {  "creg",     16 }, { "immsx",  8, 0, 14 }, {  "creg",         8 } }, false, false, 0x00008000 },
+			{ "012", { {  "creg",     16 }, {  "creg",         8 }, { "immsx",  8, 0, 14 } }, false, false, 0x00808000 },
+			{ "012", { {  "creg",     16 }, {  "creg",         8 }, {  "creg",         0 } }, false, false, 0x00800000 },
+			{ "012", { {  "creg",     16 }, {   "imm", 16,     0 }, {  "creg",        -1 } }, false,  true, 0x00400000 },
+			{ "012", { {  "creg",     16 }, { "[imm]", 13,     0 }, {  "creg",        -1 } }, false,  true, 0x00004000 },
+			{  "12", { {   "imm", 16,  0 }, {  "creg",        16 }                         }, false, false, 0x00400000 },
+			{  "12", { { "[imm]", 13,  0 }, {  "creg",        16 }                         }, false, false, 0x00004000 },
+			{  "02", { {  "creg",     16 }, { "[imm]", 13,     0 }                         }, false, false, 0x00804000 },
+			{  "02", { {  "creg",     16 }, {   "imm", 16,     0 }                         }, false, false, 0x00C00000 },
+			{  "02", { {  "creg",     16 }, {  "creg",         8 }                         }, false, false, 0x00000000 },
+			{   "2", { { "[imm]", 13,     0 }                                              }, false, false, 0x00804000 },
+			{   "2", { {   "imm", 16,     0 }                                              }, false, false, 0x00C00000 },
+			{   "2", { {  "creg",         8 }                                              }, false, false, 0x00000000 },
+			{ "012", { {  "creg",     16 }, { "[imm]", 13,     0 }                         }, false, false, 0x00804000 },
+			{ "012", { {  "creg",     16 }, {  "creg",        -1 }, {   "imm", 16,     0 } },  true, false, 0x00C00000 },
+			{ "012", { {  "creg",     16 }, {  "creg",         0 }, {  "creg",         8 } }, false, false, 0x00000000 },
+			{  "12", { {  "creg",      0 }, { "[imm]", 13,     0 }                         }, false, false, 0x00804000 },
+			{  "12", { {  "creg",      0 }, {   "imm", 16,     0 }                         }, false, false, 0x00C00000 },
+			{  "12", { {  "creg",      0 }, {  "creg",         8 }                         }, false, false, 0x00000000 },
+		}
+		local mnemonic_desc = {}
+		function mnemonic_desc.length()
+			return true, 1 -- * RISC :)
+		end
+
+		function mnemonic_desc.emit(mnemonic_token, parameters)
+			local operands = {}
+			for ix, ix_param in ipairs(parameters) do
+				if #ix_param == 1
+				   and ix_param[1]:is("entity") and ix_param[1].entity.type == "last_output" then
+					table.insert(operands, {
+						type = "lo"
+					})
+
+				elseif #ix_param == 1
+				   and ix_param[1]:is("entity") and ix_param[1].entity.type == "register" then
+					table.insert(operands, {
+						type = "reg",
+						value = ix_param[1].entity.offset
+					})
+
+				elseif #ix_param == 1
+				   and ix_param[1]:number() then
+					table.insert(operands, {
+						type = "imm",
+						value = ix_param[1].parsed,
+						token = ix_param[1]
+					})
+
+				elseif #ix_param == 3
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:is("entity") and ix_param[2].entity.type == "register"
+				   and ix_param[3]:punctuator("]") then
+					table.insert(operands, {
+						type = "[reg]",
+						value = ix_param[2].entity.offset
+					})
+
+				elseif #ix_param == 3
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:number()
+				   and ix_param[3]:punctuator("]") then
+					table.insert(operands, {
+						type = "[imm]",
+						value = ix_param[2].parsed,
+						token = ix_param[2]
+					})
+
+				elseif #ix_param == 5
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:is("entity") and ix_param[2].entity.type == "register"
+				   and ix_param[3]:punctuator("+")
+				   and ix_param[4]:punctuator("+")
+				   and ix_param[5]:punctuator("]") then
+					table.insert(operands, {
+						type = "[reg++]",
+						value = ix_param[2].entity.offset
+					})
+
+				elseif #ix_param == 5
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:punctuator("-")
+				   and ix_param[3]:punctuator("-")
+				   and ix_param[4]:is("entity") and ix_param[4].entity.type == "register"
+				   and ix_param[5]:punctuator("]") then
+					table.insert(operands, {
+						type = "[--reg]",
+						value = ix_param[4].entity.offset
+					})
+
+				elseif #ix_param == 5
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:is("entity") and ix_param[2].entity.offset == 7
+				   and ix_param[4]:number()
+				   and (
+				   		(ix_param[3]:punctuator("+") and ix_param[4].parsed <  16) or
+				   		(ix_param[3]:punctuator("-") and ix_param[4].parsed <= 16)
+				       )
+				   and ix_param[5]:punctuator("]") then
+					table.insert(operands, {
+						type = "[sp+s5]",
+						value = ix_param[3]:punctuator("-") and (0x20 - ix_param[4].parsed) or ix_param[4].parsed
+					})
+
+				elseif #ix_param == 3
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:is("entity") and ix_param[2].offset == 7
+				   and ix_param[3]:punctuator("]") then
+					table.insert(operands, {
+						type = "[sp+s5]",
+						value = 0
+					})
+				   
+				else
+					if ix_param[1] then
+						ix_param[1]:blamef(printf.err, "operand format not recognised")
+					else
+						ix_param.before:blamef_after(printf.err, "operand format not recognised")
+					end
+					return false
+
+				end
+			end
+
+			local opcode
+			local max_score = -math.huge
+			local warnings_emitted
+			for _, ix_operand_mode in ipairs(operand_modes) do
+				local class, takes, check12, check13, code = unpack(ix_operand_mode)
+				code = code + mnemonic_to_class_code[mnemonic_token.value].code
+				local score = 0
+				local warnings = {}
+				local check123 = {}
+				local viable = true
+				if class ~= mnemonic_to_class_code[mnemonic_token.value].class then
+					viable = false
+				end
+				if viable then
+					if #takes ~= #operands then
+						viable = false
+					end
+				end
+				if viable then
+					for ix, ix_takes in ipairs(takes) do
+						if ix_takes[1] == "creg" and operands[ix].type == "reg" then
+							local creg = operands[ix].value
+							if ix_takes[2] ~= -1 then
+								code = code + creg * 2 ^ ix_takes[2]
+							end
+							table.insert(check123, ("creg %i"):format(creg))
+
+						elseif ix_takes[1] == "creg" and operands[ix].type == "[reg]" then
+							local creg = 0x08 + operands[ix].value
+							if ix_takes[2] ~= -1 then
+								code = code + creg * 2 ^ ix_takes[2]
+							end
+							table.insert(check123, ("creg %i"):format(creg))
+
+						elseif ix_takes[1] == "creg" and operands[ix].type == "[reg++]" then
+							local creg = 0x10 + operands[ix].value
+							if ix_takes[2] ~= -1 then
+								code = code + creg * 2 ^ ix_takes[2]
+							end
+							table.insert(check123, ("creg %i"):format(creg))
+
+						elseif ix_takes[1] == "creg" and operands[ix].type == "[--reg]" then
+							local creg = 0x18 + operands[ix].value
+							if ix_takes[2] ~= -1 then
+								code = code + creg * 2 ^ ix_takes[2]
+							end
+							table.insert(check123, ("creg %i"):format(creg))
+
+						elseif ix_takes[1] == "creg" and operands[ix].type == "[sp+s5]" then
+							local creg = 0x20 + operands[ix].value
+							if ix_takes[2] ~= -1 then
+								code = code + creg * 2 ^ ix_takes[2]
+							end
+							table.insert(check123, ("creg %i"):format(creg))
+
+						elseif ix_takes[1] == "creg" and operands[ix].type == "lo" then
+							local creg = 0x0F
+							if ix_takes[2] ~= -1 then
+								code = code + creg * 2 ^ ix_takes[2]
+							end
+							table.insert(check123, ("creg %i"):format(creg))
+
+						elseif (ix_takes[1] == "imm" and operands[ix].type == "imm") or
+						       (ix_takes[1] == "[imm]" and operands[ix].type == "[imm]") then
+							local imm = operands[ix].value
+							local trunc = 2 ^ ix_takes[2]
+							if imm >= trunc then
+								imm = imm % trunc
+								table.insert(warnings, { operands[ix].token, "number truncated to %i bits", ix_takes[2] })
+							end
+							if ix_takes[3] ~= -1 then
+								code = code + imm * 2 ^ ix_takes[3]
+							end
+							table.insert(check123, ("imm %i"):format(imm))
+
+						elseif ix_takes[1] == "immsx" and operands[ix].type == "imm" then
+							local imm = operands[ix].value
+							local trunc = 2 ^ (ix_takes[2] + 1)
+							if imm >= trunc then
+								imm = imm % trunc
+								table.insert(warnings, { operands[ix].token, "number truncated to %i bits", ix_takes[2] })
+							end
+							local sign = math.floor(imm / 2 ^ ix_takes[2])
+							imm = imm % 2 ^ ix_takes[2]
+							if ix_takes[3] ~= -1 then
+								code = code + imm * 2 ^ ix_takes[3] + sign * 2 ^ ix_takes[4]
+							end
+							table.insert(check123, ("immsx %i %i"):format(imm, sign))
+
+						else
+							viable = false
+
+						end
+					end
+				end
+				if viable and check12 and check123[1] ~= check123[2] then
+					viable = false
+				end
+				if viable and check13 and check123[1] ~= check123[3] then
+					viable = false
+				end
+				if viable and max_score < score then
+					max_score = score
+					warnings_emitted = warnings
+					opcode = code
+				end
+			end
+
+			if not opcode then
+				local operands_repr = {}
+				for _, ix_oper in ipairs(operands) do
+					table.insert(operands_repr, ix_oper.type)
+				end
+				mnemonic_token:blamef(printf.err, "no variant of %s exists that takes %s operands", mnemonic, table.concat(operands_repr, ", "))
+				return false
+			end
+			for _, ix_warning in ipairs(warnings_emitted) do
+				ix_warning[1]:blamef(printf.warn, unpack(ix_warning, 2))
+			end
+			return true, { opcode }
+		end
+		for mnemonic in pairs(mnemonic_to_class_code) do
+			builtin_mnemonics[mnemonic] = mnemonic_desc
+		end
+	end
+
 	local function resolve_relative(base_with_file, relative)
 		local components = {}
 		local parent_depth = 0
@@ -232,19 +565,22 @@ xpcall(function()
 		return table.concat(components, "/")
 	end
 
-	local function parse_parameter_list(expanded, first, last)
+	local function parse_parameter_list(before, expanded, first, last)
 		local parameters = {}
 		local parameter_buffer = {}
+		local parameter_cursor = 0
+		local last_comma = before
 		local function flush_parameter()
 			parameters[parameter_cursor] = parameter_buffer
+			parameters[parameter_cursor].before = last_comma
 			parameter_buffer = {}
 		end
-		local parameter_cursor = 0
 		if first <= last then
 			parameter_cursor = 1
 			for ix = first, last do
 				if expanded[ix]:punctuator(",") then
 					flush_parameter()
+					last_comma = expanded[ix]
 					parameter_cursor = parameter_cursor + 1
 				else
 					table.insert(parameter_buffer, expanded[ix])
@@ -279,8 +615,8 @@ xpcall(function()
 		end
 		local function parse_number_base(str, base)
 			local out = 0
-			for ix = #str, 1, -1 do
-				local pos = base:find(str:sub(ix, ix))
+			for ix, ch in str:gmatch("()(.)") do
+				local pos = base:find(ch)
 				if not pos then
 					return false, ("invalid digit at position %i"):format(ix)
 				end
@@ -309,6 +645,7 @@ xpcall(function()
 		function token_i:point(other)
 			other.sline = self.sline
 			other.soffs = self.soffs
+			other.expanded_from = self.expanded_from
 			return setmetatable(other, token_mt)
 		end
 		function token_i:blamef_after(report, format, ...)
@@ -462,8 +799,8 @@ xpcall(function()
 			["&" ] = { params = { "number", "number" }, does =    bit32_and },
 			["|" ] = { params = { "number", "number" }, does =     bit32_or },
 			["^" ] = { params = { "number", "number" }, does =    bit32_xor },
-			[RESERVED_DEFINED] = { params = { "alias" }, does = function(a) return a and 1 or 0 end },
-			[RESERVED_IDENTITY] = { params = { "number" }, does = function(a) return a end },
+			[RESERVED.DEFINED] = { params = { "alias" }, does = function(a) return a and 1 or 0 end },
+			[RESERVED.IDENTITY] = { params = { "number" }, does = function(a) return a end },
 		}
 		local operators = {}
 		for key in pairs(operator_funcs) do
@@ -546,6 +883,7 @@ xpcall(function()
 						depth = 1
 					})
 					cursor = cursor + 1
+
 				elseif tokens[cursor]:punctuator() then
 					local found
 					for _, known_operator in ipairs(operators) do
@@ -569,8 +907,10 @@ xpcall(function()
 					end
 					apply_operator(found)
 					cursor = cursor + #found
+
 				elseif tokens[cursor]:identifier() and operator_funcs[tokens[cursor].value] then
 					apply_operator(tokens[cursor].value)
+
 				elseif token[cursor]:identifier() then
 					table.insert(stack, {
 						type = "alias",
@@ -579,12 +919,14 @@ xpcall(function()
 						depth = 1
 					})
 					cursor = cursor + 1
+
 				else
 					return false, cursor, "not a number, an identifier or an operator"
+
 				end
 			end
 
-			apply_operator(RESERVED_IDENTITY)
+			apply_operator(RESERVED.IDENTITY)
 			if #stack > 1 then
 				return false, stack[2].position, "excess value"
 			end
@@ -597,8 +939,12 @@ xpcall(function()
 
 	local preprocess
 	do
+		local reserved_lookup = {}
+		for key, value in pairs(RESERVED) do
+			reserved_lookup[value] = true
+		end
 		local function reserved_identifier(str)
-			return str:find("^_[_A-Z]") and true
+			return (str:find("^_[_A-Z]") or reserved_lookup[str]) and true
 		end
 
 		local source_line_i = {}
@@ -679,15 +1025,15 @@ xpcall(function()
 					end
 					local expanded_lines = {}
 					local parameters_passed = {}
-					for ix, ix_param in ipairs(parse_parameter_list(expanded, 2, #expanded)) do
+					for ix, ix_param in ipairs(parse_parameter_list(expanded[1], expanded, 2, #expanded)) do
 						parameters_passed[macro.params[ix] or false] = ix_param
 					end
-					if #macro.params ~= parameter_cursor then
-						expanded[1]:blamef(printf.err, "macro '%s' invoked with %i parameters, expects %i", expanded[1].value, parameter_cursor, #macro.params)
+					if #macro.params ~= #parameters_passed then
+						expanded[1]:blamef(printf.err, "macro '%s' invoked with %i parameters, expects %i", expanded[1].value, #parameters_passed, #macro.params)
 						preprocess_fail()
 					end
 					macro_invocation_unique = macro_invocation_unique + 1
-					parameters_passed[RESERVED_UNIQUE] = ("_%i_"):format(macro_invocation_unique)
+					parameters_passed[RESERVED.UNIQUE] = ("_%i_"):format(macro_invocation_unique)
 					local old_aliases = {}
 					for param, value in pairs(parameters_passed) do
 						old_aliases[param] = aliases[param]
@@ -1104,240 +1450,352 @@ xpcall(function()
 		end
 	end
 
-	local resolve_instructions
-	do
-		local builtin_entities = {
-			["r0"] = { type = "register", offset = 0 }
-			-- TODO
-		}
-		local builtin_mnemonics = {
-			["mov"] = {
-				["register , register"  ] = { length = 1, emit = function() end },
-				["register , number"    ] = { length = 1, emit = function() end },
-				["register , [ number ]"] = { length = 1, emit = function() end },
-			}
-			-- TODO
-		}
-
-		function resolve_instructions(lines)
-			local label_context = {}
-			local output_pointer = 0
-			local to_emit = {}
-			local labels = {}
-
-			local hooks = {}
-			hooks[RESERVED_ORG] = function(hook_token, parameters)
-				-- * Maybe put this in a nice type-checking wrapper for hooks?
-				if #parameters < 1 then
-					hook_token:blamef_after(printf.err, "expected origin")
-					return
-				end
-				if #parameters > 1 then
-					parameters[1][#parameters[1]]:blamef_after(printf.err, "excess parameters")
-					return
-				end
-				local org_pack = parameters[1]
-				if #org_pack > 1 then
-					org_pack[2]:blamef(printf.err, "excess tokens")
-					return
-				end
-				local org = org_pack[1]
-				if not org:number() then
-					org:blamef(printf.err, "not a number")
-					return
-				end
-				local ok, number = org:parse_number()
-				if not ok then
-					org:blamef(printf.err, "invalid number: %s", number)
-					return
-				end
-				output_pointer = number
-			end
-			hooks[RESERVED_DW] = function(hook_token, parameters)
-				-- TODO
-			end
-
-			local known_identifiers = {}
-			for key in pairs(builtin_entities) do
-				known_identifiers[key] = true
-			end
-			for key in pairs(builtin_mnemonics) do
-				known_identifiers[key] = true
-			end
-			for key in pairs(hooks) do
-				known_identifiers[key] = true
-			end
-
-			for _, tokens in ipairs(lines) do
-				local line_failed = false
-
-				if not line_failed then
-					local cursor = #tokens
-					while cursor >= 1 do
-						if tokens[cursor]:stringlit() then
-							while cursor > 1 and tokens[cursor - 1]:stringlit() do
-								tokens[cursor - 1].value = tokens[cursor - 1].value .. tokens[cursor].value
-								table.remove(tokens, cursor)
-								cursor = cursor - 1
-							end
-						elseif tokens[cursor]:charlit() then
-							while cursor > 1 and tokens[cursor - 1]:charlit() do
-								tokens[cursor - 1].value = tokens[cursor - 1].value .. tokens[cursor].value
-								table.remove(tokens, cursor)
-								cursor = cursor - 1
-							end
-						elseif tokens[cursor]:identifier() and not known_identifiers[tokens[cursor].value] then
-							while cursor > 1 and tokens[cursor - 1]:identifier() and not known_identifiers[tokens[cursor - 1].value] do
-								tokens[cursor - 1].value = tokens[cursor - 1].value .. tokens[cursor].value
-								table.remove(tokens, cursor)
-								cursor = cursor - 1
-							end
-							while cursor > 1 and tokens[cursor - 1]:punctuator(".") do
-								tokens[cursor - 1].value = "." .. tokens[cursor].value
-								tokens[cursor - 1].type = "identifier"
-								table.remove(tokens, cursor)
-								cursor = cursor - 1
-							end
-							tokens[cursor].type = "label"
-						end
-						cursor = cursor - 1
-					end
-				end
-
-				if not line_failed then
-					local cursor = 1
-					while cursor <= #tokens do
-						if tokens[cursor]:punctuator("{") then
-							local brace_end = cursor + 1
-							local last
-							while brace_end <= #tokens do
-								if tokens[brace_end]:punctuator("}") then
-									last = brace_end
-									break
-								end
-							end
-							if not last then
-								tokens[cursor]:blamef(printf.err, "unfinished evalation block")
-								line_failed = true
-								break
-							end
-							local eval_tokens = {}
-							for ix = cursor + 1, last - 1 do
-								table.remove(eval_tokens, tokens[ix])
-							end
-							for _ = cursor + 1, last do
-								table.remove(tokens, cursor + 1)
-							end
-							tokens[cursor].type = "evaluation"
-							tokens[cursor].value = eval_tokens
-						end
-						cursor = cursor + 1
-					end
-				end
-
-				if not line_failed then
-					if #tokens == 2 and tokens[1]:is("label") and not known_identifiers[tokens[1].value] and tokens[2]:punctuator(":") then
-						local dots, rest = tokens[1].value:match("^(%.*)(.+)$")
-						local level = #dots
-						if level > #label_context then
-							tokens[1]:blamef(printf.err, "level %i label declaration without preceding level %i label declaration", level, level - 1)
-							line_failed = true
-						else
-							for ix = level + 1, #label_context do
-								label_context[ix] = nil
-							end
-							label_context[level + 1] = rest
-							labels[table.concat(label_context, ".")] = output_pointer
-						end
-					elseif #tokens >= 1 and tokens[1]:identifier() and builtin_mnemonics[tokens[1].value] then
-						local canonical_form = {}
-						local parameters = {}
-						for ix = 2, #tokens do
-							if tokens[ix]:is("number") or tokens[ix]:is("label") or tokens[ix]:is("evaluation") then
-								table.insert(canonical_form, "number")
-								if tokens[ix]:is("label") then
-									local dots, rest = tokens[ix].value:match("^(%.*)(.+)$")
-									local level = #dots
-									if level > #label_context then
-										tokens[ix]:blamef(printf.err, "level %i label reference without preceding level %i label declaration", level, level - 1)
-										line_failed = true
-									else
-										tokens[ix].value = table.concat(label_context, ".", 1, level) .. "." .. rest
-									end
-								end
-								table.insert(parameters, tokens[ix])
-							elseif tokens[ix]:identifier() and builtin_entities[tokens[ix].value] then
-								table.insert(canonical_form, builtin_entities[tokens[ix].value].type)
-								table.insert(parameters, builtin_entities[tokens[ix].value])
-							elseif tokens[ix]:punctuator() then
-								table.insert(canonical_form, tokens[ix].value)
-							else
-								tokens[ix]:blamef(printf.err, "not a number, a label, an evaluation block or any other known entity", level, level - 1)
-								line_failed = true
-								break
-							end
-						end
-						if not line_failed then
-							local canonical_str = table.concat(canonical_form, " ")
-							local operand_patterns = builtin_mnemonics[tokens[1].value]
-							local desc = operand_patterns[canonical_str]
-							if desc then
-								local overwrites = {}
-								for ix = output_pointer, output_pointer + desc.length - 1 do
-									local overwritten = to_emit[ix]
-									if overwritten then
-										overwrites[overwritten] = true
-									end
-								end
-								if next(overwrites) then
-									local overwritten_count = 0
-									for _ in pairs(overwrites) do
-										overwritten_count = overwritten_count + 1
-									end
-									tokens[1]:blamef(printf.warn, "opcode emitted here (offs 0x%X, size %i) overwrites the following %i opcodes:", output_pointer, desc.length, overwritten_count)
-									for overwritten in pairs(overwrites) do
-										overwritten.emitted_by:blamef(printf.info, "opcode emitted here (offs 0x%X, size %i)", overwritten.offset, overwritten.length)
-									end
-								end
-								to_emit[output_pointer] = {
-									emit = desc.emit,
-									offset = output_pointer,
-									length = desc.length,
-									parameters = parameters,
-									emitted_by = tokens[1]
-								}
-								to_emit[output_pointer].head = to_emit[output_pointer]
-								for ix = output_pointer + 1, output_pointer + desc.length - 1 do
-									to_emit[ix] = {
-										head = to_emit[output_pointer]
-									}
-								end
-								output_pointer = output_pointer + desc.length
-							else
-								tokens[1]:blamef(printf.err, "invalid operand list")
-								line_failed = true
-							end
-						end
-					elseif #tokens >= 1 and tokens[1]:identifier() and hooks[tokens[1].value] then
-						hooks[tokens[1].value](tokens[1], parse_parameter_list(tokens, 2, #tokens))
-					else
-						tokens[1]:blamef(printf.err, "expected label declaration, instruction or hook invocation")
-					end
+	local function resolve_labels_inplace(tokens, labels)
+		for ix, ix_token in ipairs(tokens) do
+			if ix_token:is("label") then
+				local offs = labels[ix_token.value]
+				if offs then
+					ix_token.type = "number"
+					ix_token.value = offs
+				else
+					return false, ix, ix_token.value
 				end
 			end
-			if printf.err_called then
-				failf("instruction resolution stage failed, bailing")
-			end
-
-			return to_emit, labels
 		end
+		return true
+	end
+
+	local function resolve_evaluations_inplace(tokens, labels)
+		for ix, ix_token in ipairs(tokens) do
+			if ix_token:is("evaluation") then
+				local ok, result, err = evaluate(ix_token.value, 1, #ix_token.value, {})
+				if ok then
+					ix_token.type = "number"
+					ix_token.value = tostring(result)
+				else
+					return false, result, err
+				end
+			end
+		end
+		return true
+	end
+
+	local function parse_numbers_inplace(tokens)
+		for ix, ix_token in ipairs(tokens) do
+			if ix_token:number() then
+				local ok, number = ix_token:parse_number()
+				if not ok then
+					return false, ix, number
+				end
+				ix_token.parsed = number
+			end
+		end
+		return true
+	end
+
+	local function resolve_instructions(lines)
+		local label_context = {}
+		local output_pointer = 0
+		local to_emit = {}
+		local labels = {}
+
+		local hooks = {}
+		hooks[RESERVED.ORG] = function(hook_token, parameters)
+			if #parameters < 1 then
+				hook_token:blamef_after(printf.err, "expected origin")
+				return false
+			end
+			if #parameters > 1 then
+				parameters[1][#parameters[1]]:blamef_after(printf.err, "excess parameters")
+				return false
+			end
+			local org_pack = parameters[1]
+			if #org_pack > 1 then
+				org_pack[2]:blamef(printf.err, "excess tokens")
+				return false
+			end
+			local org = org_pack[1]
+			if not org:is("number") then
+				org:blamef(printf.err, "not a number")
+				return false
+			end
+			output_pointer = org.parsed
+			return true
+		end
+		hooks[RESERVED.DW] = function(hook_token, parameters)
+			hook_token:blamef(printf.err, "NYI")
+			return false
+			-- * TODO
+		end
+
+		local known_identifiers = {}
+		for key in pairs(builtin_entities) do
+			known_identifiers[key] = true
+		end
+		for key in pairs(builtin_mnemonics) do
+			known_identifiers[key] = true
+		end
+		for key in pairs(hooks) do
+			known_identifiers[key] = true
+		end
+
+		for _, tokens in ipairs(lines) do
+			local line_failed = false
+
+			if not line_failed then
+				local cursor = #tokens
+				while cursor >= 1 do
+					if tokens[cursor]:stringlit() then
+						while cursor > 1 and tokens[cursor - 1]:stringlit() do
+							tokens[cursor - 1] = tokens[cursor - 1]:point({
+								type = "stringlit",
+								value = tokens[cursor - 1].value .. tokens[cursor].value
+							})
+							table.remove(tokens, cursor)
+							cursor = cursor - 1
+						end
+
+					elseif tokens[cursor]:charlit() then
+						while cursor > 1 and tokens[cursor - 1]:charlit() do
+							tokens[cursor - 1] = tokens[cursor - 1]:point({
+								type = "charlit",
+								value = tokens[cursor - 1].value .. tokens[cursor].value
+							})
+							table.remove(tokens, cursor)
+							cursor = cursor - 1
+						end
+
+					elseif tokens[cursor]:identifier() and builtin_entities[tokens[cursor].value] then
+						tokens[cursor] = tokens[cursor]:point({
+							type = "entity",
+							value = tokens[cursor].value,
+							entity = builtin_entities[tokens[cursor].value]
+						})
+
+					elseif tokens[cursor]:identifier() and builtin_mnemonics[tokens[cursor].value] then
+						tokens[cursor] = tokens[cursor]:point({
+							type = "mnemonic",
+							value = tokens[cursor].value,
+							mnemonic = builtin_mnemonics[tokens[cursor].value]
+						})
+
+					elseif tokens[cursor]:identifier() and hooks[tokens[cursor].value] then
+						tokens[cursor] = tokens[cursor]:point({
+							type = "hook",
+							value = tokens[cursor].value,
+							hook = hooks[tokens[cursor].value]
+						})
+
+					elseif tokens[cursor]:identifier() and not known_identifiers[tokens[cursor].value] then
+						while cursor > 1 and tokens[cursor - 1]:identifier() and not known_identifiers[tokens[cursor - 1].value] do
+							tokens[cursor - 1] = tokens[cursor - 1]:point({
+								type = "identifier",
+								value = tokens[cursor - 1].value .. tokens[cursor].value
+							})
+							table.remove(tokens, cursor)
+							cursor = cursor - 1
+						end
+						while cursor > 1 and tokens[cursor - 1]:punctuator(".") do
+							tokens[cursor - 1] = tokens[cursor - 1]:point({
+								type = "identifier",
+								value = "." .. tokens[cursor].value
+							})
+							table.remove(tokens, cursor)
+							cursor = cursor - 1
+						end
+						tokens[cursor] = tokens[cursor]:point({
+							type = "label",
+							value = tokens[cursor].value
+						})
+					end
+					cursor = cursor - 1
+				end
+			end
+
+			if not line_failed then
+				local cursor = 1
+				while cursor <= #tokens do
+					if tokens[cursor]:punctuator("{") then
+						local brace_end = cursor + 1
+						local last
+						while brace_end <= #tokens do
+							if tokens[brace_end]:punctuator("}") then
+								last = brace_end
+								break
+							end
+						end
+						if not last then
+							tokens[cursor]:blamef(printf.err, "unfinished evalation block")
+							line_failed = true
+							break
+						end
+						local eval_tokens = {}
+						for ix = cursor + 1, last - 1 do
+							table.insert(eval_tokens, tokens[ix])
+						end
+						for _ = cursor + 1, last do
+							table.remove(tokens, cursor + 1)
+						end
+						tokens[cursor].type = "evaluation"
+						tokens[cursor].value = eval_tokens
+					end
+					cursor = cursor + 1
+				end
+			end
+
+			if not line_failed then
+				if #tokens == 2 and tokens[1]:is("label") and tokens[2]:punctuator(":") then
+					local dots, rest = tokens[1].value:match("^(%.*)(.+)$")
+					local level = #dots
+					if level > #label_context then
+						tokens[1]:blamef(printf.err, "level %i label declaration without preceding level %i label declaration", level, level - 1)
+						line_failed = true
+					else
+						for ix = level + 1, #label_context do
+							label_context[ix] = nil
+						end
+						label_context[level + 1] = rest
+						labels[table.concat(label_context, ".")] = tostring(output_pointer)
+					end
+
+				elseif #tokens >= 1 and tokens[1]:is("mnemonic") then
+					local funcs = tokens[1].mnemonic
+					local parameters = parse_parameter_list(tokens[1], tokens, 2, #tokens)
+					local ok, length = funcs.length(tokens[1], parameters)
+					if ok then
+						local overwrites = {}
+						for ix = output_pointer, output_pointer + length - 1 do
+							local overwritten = to_emit[ix]
+							if overwritten then
+								overwrites[overwritten.head] = true
+							end
+						end
+						if next(overwrites) then
+							local overwritten_count = 0
+							for _ in pairs(overwrites) do
+								overwritten_count = overwritten_count + 1
+							end
+							tokens[1]:blamef(printf.warn, "opcode emitted here (offs 0x%X, size %i) overwrites the following %i opcodes:", output_pointer, length, overwritten_count)
+							for overwritten in pairs(overwrites) do
+								overwritten.emitted_by:blamef(printf.info, "opcode emitted here (offs 0x%X, size %i)", overwritten.offset, overwritten.length)
+							end
+						end
+						to_emit[output_pointer] = {
+							emit = funcs.emit,
+							parameters = parameters,
+							length = length,
+							emitted_by = tokens[1],
+							offset = output_pointer
+						}
+						to_emit[output_pointer].head = to_emit[output_pointer]
+						for ix = output_pointer + 1, output_pointer + length - 1 do
+							to_emit[ix] = {
+								head = to_emit[output_pointer]
+							}
+						end
+						output_pointer = output_pointer + length
+					else
+						line_failed = true
+					end
+
+				elseif #tokens >= 1 and tokens[1]:is("hook") then
+					local parameters = parse_parameter_list(tokens[1], tokens, 2, #tokens)
+					for ix, ix_param in ipairs(parameters) do
+						local labels_ok, ix, err = resolve_labels_inplace(ix_param, labels)
+						if labels_ok then
+							local evals_ok, ix, err = resolve_evaluations_inplace(ix_param)
+							if evals_ok then
+								local numbers_ok, ix, err = parse_numbers_inplace(ix_param)
+								if not numbers_ok then
+									ix_param[ix]:blamef(printf.err, "invalid number: %s", err)
+									line_failed = true
+								end
+							else
+								ix_param[ix]:blamef(printf.err, "evaluation failed: %s", err)
+								line_failed = true
+							end
+						else
+							ix_param[ix]:blamef(printf.err, "failed to resolve label: %s", err)
+							line_failed = true
+						end
+					end
+					if not line_failed then
+						line_failed = not tokens[1].hook(tokens[1], parameters)
+					end
+
+				else
+					tokens[1]:blamef(printf.err, "expected label declaration, instruction or hook invocation")
+					line_failed = true
+
+				end
+			end
+
+			if line_failed then
+				printf.err_called = true
+			end
+		end
+		if printf.err_called then
+			failf("instruction resolution stage failed, bailing")
+		end
+
+		return to_emit, labels
 	end
 
 	local emit_opcodes
 	do
 		function emit_opcodes(to_emit, labels)
 			local opcodes = {}
-			-- TODO
+			do
+				local max_pointer = 0
+				for _, rec in pairs(to_emit) do
+					local after_end = rec.offset + rec.length
+					if max_pointer < after_end then
+						max_pointer = after_end
+					end
+				end
+				for ix = 0, max_pointer - 1 do
+					opcodes[ix] = builtin_nop
+				end
+			end
+			for offset, rec in pairs(to_emit) do
+				if rec.emit then
+					local emission_ok = true
+					for ix, ix_param in ipairs(rec.parameters) do
+						local labels_ok, ix, err = resolve_labels_inplace(ix_param, labels)
+						if labels_ok then
+							local evals_ok, ix, err = resolve_evaluations_inplace(ix_param)
+							if evals_ok then
+								local numbers_ok, ix, err = parse_numbers_inplace(ix_param)
+								if not numbers_ok then
+									ix_param[ix]:blamef(printf.err, "invalid number: %s", err)
+									emission_ok = true
+								end
+							else
+								ix_param[ix]:blamef(printf.err, "evaluation failed: %s", err)
+								emission_ok = false
+							end
+						else
+							ix_param[ix]:blamef(printf.err, "failed to resolve label: %s", err)
+							emission_ok = false
+						end
+					end
+					if emission_ok then
+						local emitted
+						emission_ok, emitted = rec.emit(rec.emitted_by, rec.parameters)
+						if emission_ok then
+							for ix = 1, rec.length do
+								opcodes[offset + ix - 1] = emitted[ix]
+							end
+						end
+					end
+					if not emission_ok then
+						printf.err_called = true
+					end
+				end
+			end
+			if printf.err_called then
+				failf("opcode emission stage failed, bailing")
+			end
 
 			return opcodes
 		end
@@ -1347,6 +1805,10 @@ xpcall(function()
 	local lines = preprocess(root_source_path)
 	local to_emit, labels = resolve_instructions(lines)
 	local opcodes = emit_opcodes(to_emit, labels)
+
+	for ix = 0, #opcodes do
+		printf.info("OPCODE: %04X: %08X", ix, opcodes[ix])
+	end
 
 	local target = named_args.target or unnamed_args[2]
 	if type(target) == "table" then
