@@ -213,6 +213,7 @@ xpcall(function()
 		end
 	end
 
+	local builtin_freebits = 29
 	local builtin_nop = 0x20000000
 	local builtin_entities = {
 		["r0"] = { type = "register", offset = 0 },
@@ -223,11 +224,13 @@ xpcall(function()
 		["r5"] = { type = "register", offset = 5 },
 		["r6"] = { type = "register", offset = 6 },
 		["r7"] = { type = "register", offset = 7 },
+		["sp"] = { type = "register", offset = 7 },
 		["lo"] = { type = "last_output" },
 	}
 	local builtin_mnemonics = {}
 	do
 		local mnemonic_to_class_code = {
+			[ "ret"] = { class = "nop", code = 0x2281470A },
 			[ "nop"] = { class = "nop", code = 0x20000000 },
 			[ "mov"] = { class =  "02", code = 0x20000000 },
 			[ "hlt"] = { class = "nop", code = 0x21000000 },
@@ -305,11 +308,12 @@ xpcall(function()
 			{  "02", { {  "creg",     16 }, { "[imm]", 13,     0 }                         }, false, false, 0x00804000 },
 			{  "02", { {  "creg",     16 }, {   "imm", 16,     0 }                         }, false, false, 0x00C00000 },
 			{  "02", { {  "creg",     16 }, {  "creg",         8 }                         }, false, false, 0x00000000 },
-			{   "2", { { "[imm]", 13,     0 }                                              }, false, false, 0x00804000 },
-			{   "2", { {   "imm", 16,     0 }                                              }, false, false, 0x00C00000 },
-			{   "2", { {  "creg",         8 }                                              }, false, false, 0x00000000 },
+			{   "2", { { "[imm]", 13,  0 }                                                 }, false, false, 0x00804000 },
+			{   "2", { {   "imm", 16,  0 }                                                 }, false, false, 0x00C00000 },
+			{   "2", { {  "creg",      8 }                                                 }, false, false, 0x00000000 },
 			{ "012", { {  "creg",     16 }, { "[imm]", 13,     0 }                         }, false, false, 0x00804000 },
 			{ "012", { {  "creg",     16 }, {  "creg",        -1 }, {   "imm", 16,     0 } },  true, false, 0x00C00000 },
+			{ "012", { {  "creg",     16 }, {   "imm", 16,     0 }                         }, false, false, 0x00C00000 },
 			{ "012", { {  "creg",     16 }, {  "creg",         0 }, {  "creg",         8 } }, false, false, 0x00000000 },
 			{  "12", { {  "creg",      0 }, { "[imm]", 13,     0 }                         }, false, false, 0x00804000 },
 			{  "12", { {  "creg",      0 }, {   "imm", 16,     0 }                         }, false, false, 0x00C00000 },
@@ -342,6 +346,29 @@ xpcall(function()
 						type = "imm",
 						value = ix_param[1].parsed,
 						token = ix_param[1]
+					})
+
+				elseif #ix_param == 5
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:is("entity") and ix_param[2].entity.type == "register" and ix_param[2].entity.offset == 7
+				   and ix_param[4]:number()
+				   and (
+				   		(ix_param[3]:punctuator("+") and ix_param[4].parsed <  16) or
+				   		(ix_param[3]:punctuator("-") and ix_param[4].parsed <= 16)
+				       )
+				   and ix_param[5]:punctuator("]") then
+					table.insert(operands, {
+						type = "[sp+s5]",
+						value = ix_param[3]:punctuator("-") and (0x20 - ix_param[4].parsed) or ix_param[4].parsed
+					})
+
+				elseif #ix_param == 3
+				   and ix_param[1]:punctuator("[")
+				   and ix_param[2]:is("entity") and ix_param[2].entity.type == "register" and ix_param[2].entity.offset == 7
+				   and ix_param[3]:punctuator("]") then
+					table.insert(operands, {
+						type = "[sp+s5]",
+						value = 0
 					})
 
 				elseif #ix_param == 3
@@ -383,29 +410,6 @@ xpcall(function()
 					table.insert(operands, {
 						type = "[--reg]",
 						value = ix_param[4].entity.offset
-					})
-
-				elseif #ix_param == 5
-				   and ix_param[1]:punctuator("[")
-				   and ix_param[2]:is("entity") and ix_param[2].entity.offset == 7
-				   and ix_param[4]:number()
-				   and (
-				   		(ix_param[3]:punctuator("+") and ix_param[4].parsed <  16) or
-				   		(ix_param[3]:punctuator("-") and ix_param[4].parsed <= 16)
-				       )
-				   and ix_param[5]:punctuator("]") then
-					table.insert(operands, {
-						type = "[sp+s5]",
-						value = ix_param[3]:punctuator("-") and (0x20 - ix_param[4].parsed) or ix_param[4].parsed
-					})
-
-				elseif #ix_param == 3
-				   and ix_param[1]:punctuator("[")
-				   and ix_param[2]:is("entity") and ix_param[2].offset == 7
-				   and ix_param[3]:punctuator("]") then
-					table.insert(operands, {
-						type = "[sp+s5]",
-						value = 0
 					})
 				   
 				else
@@ -532,7 +536,7 @@ xpcall(function()
 				for _, ix_oper in ipairs(operands) do
 					table.insert(operands_repr, ix_oper.type)
 				end
-				mnemonic_token:blamef(printf.err, "no variant of %s exists that takes %s operands", mnemonic, table.concat(operands_repr, ", "))
+				mnemonic_token:blamef(printf.err, "no variant of %s exists that takes '%s' operands", mnemonic_token.value, table.concat(operands_repr, ", "))
 				return false
 			end
 			for _, ix_warning in ipairs(warnings_emitted) do
@@ -1488,6 +1492,14 @@ xpcall(function()
 					return false, ix, number
 				end
 				ix_token.parsed = number
+			elseif ix_token:charlit() then
+				local number = 0
+				for ch in ix_token.value:gsub("^'(.*)'$", "%1"):gmatch(".") do
+					number = bit32_add(bit32_lshift(number, 8), ch:byte())
+				end
+				ix_token.type = "number"
+				ix_token.value = tostring(number)
+				ix_token.parsed = number
 			end
 		end
 		return true
@@ -1498,6 +1510,17 @@ xpcall(function()
 		local output_pointer = 0
 		local to_emit = {}
 		local labels = {}
+
+		local function emit_raw(token, values)
+			to_emit[output_pointer] = {
+				emit = values,
+				length = #values,
+				emitted_by = token,
+				offset = output_pointer
+			}
+			to_emit[output_pointer].head = to_emit[output_pointer]
+			output_pointer = output_pointer + 1
+		end
 
 		local hooks = {}
 		hooks[RESERVED.ORG] = function(hook_token, parameters)
@@ -1523,9 +1546,33 @@ xpcall(function()
 			return true
 		end
 		hooks[RESERVED.DW] = function(hook_token, parameters)
-			hook_token:blamef(printf.err, "NYI")
-			return false
-			-- * TODO
+			for _, ix_param in ipairs(parameters) do
+				if #ix_param < 1 then
+					ix_param.before:blamef_after(printf.err, "no tokens")
+					return false
+				elseif #ix_param > 1 then
+					ix_param[2]:blamef(printf.err, "excess tokens")
+					return false
+				end
+				if ix_param[1]:number() then
+					local number = ix_param[1].parsed
+					if number >= 2 ^ builtin_freebits then
+						number = number % 2 ^ builtin_freebits
+						ix_param[1]:blamef(printf.warn, "number truncated to %i bits", builtin_freebits)
+					end
+					emit_raw(ix_param[1], { builtin_nop + number })
+				elseif ix_param[1]:stringlit() then
+					local values = {}
+					for ch in ix_param[1].value:gsub("^\"(.*)\"$", "%1"):gmatch(".") do
+						table.insert(values, builtin_nop + ch:byte())
+					end
+					emit_raw(ix_param[1], values)
+				else
+					ix_param[1]:blamef(printf.err, "expected string literal or number")
+					return false
+				end
+			end
+			return true
 		end
 
 		local known_identifiers = {}
@@ -1603,10 +1650,23 @@ xpcall(function()
 							table.remove(tokens, cursor)
 							cursor = cursor - 1
 						end
-						tokens[cursor] = tokens[cursor]:point({
-							type = "label",
-							value = tokens[cursor].value
-						})
+						local dots, rest = tokens[cursor].value:match("^(%.*)(.+)$")
+						local level = #dots
+						if level > #label_context then
+							tokens[cursor]:blamef(printf.err, "level %i label declaration without preceding level %i label declaration", level, level - 1)
+							line_failed = true
+							break
+						else
+							for ix = level + 1, #label_context do
+								label_context[ix] = nil
+							end
+							label_context[level + 1] = rest
+							tokens[cursor] = tokens[cursor]:point({
+								type = "label",
+								value = table.concat(label_context, ".")
+							})
+						end
+
 					end
 					cursor = cursor - 1
 				end
@@ -1645,18 +1705,7 @@ xpcall(function()
 
 			if not line_failed then
 				if #tokens == 2 and tokens[1]:is("label") and tokens[2]:punctuator(":") then
-					local dots, rest = tokens[1].value:match("^(%.*)(.+)$")
-					local level = #dots
-					if level > #label_context then
-						tokens[1]:blamef(printf.err, "level %i label declaration without preceding level %i label declaration", level, level - 1)
-						line_failed = true
-					else
-						for ix = level + 1, #label_context do
-							label_context[ix] = nil
-						end
-						label_context[level + 1] = rest
-						labels[table.concat(label_context, ".")] = tostring(output_pointer)
-					end
+					labels[tokens[1].value] = tostring(output_pointer)
 
 				elseif #tokens >= 1 and tokens[1]:is("mnemonic") then
 					local funcs = tokens[1].mnemonic
@@ -1675,9 +1724,9 @@ xpcall(function()
 							for _ in pairs(overwrites) do
 								overwritten_count = overwritten_count + 1
 							end
-							tokens[1]:blamef(printf.warn, "opcode emitted here (offs 0x%X, size %i) overwrites the following %i opcodes:", output_pointer, length, overwritten_count)
+							tokens[1]:blamef(printf.warn, "opcode emitted here (offs 0x%04X, size %i) overwrites the following %i opcodes:", output_pointer, length, overwritten_count)
 							for overwritten in pairs(overwrites) do
-								overwritten.emitted_by:blamef(printf.info, "opcode emitted here (offs 0x%X, size %i)", overwritten.offset, overwritten.length)
+								overwritten.emitted_by:blamef(printf.info, "opcode emitted here (offs 0x%04X, size %i)", overwritten.offset, overwritten.length)
 							end
 						end
 						to_emit[output_pointer] = {
@@ -1758,7 +1807,7 @@ xpcall(function()
 				end
 			end
 			for offset, rec in pairs(to_emit) do
-				if rec.emit then
+				if type(rec.emit) == "function" then
 					local emission_ok = true
 					for ix, ix_param in ipairs(rec.parameters) do
 						local labels_ok, ix, err = resolve_labels_inplace(ix_param, labels)
@@ -1791,6 +1840,12 @@ xpcall(function()
 					if not emission_ok then
 						printf.err_called = true
 					end
+
+				elseif type(rec.emit) == "table" then
+					for ix = 1, rec.length do
+						opcodes[offset + ix - 1] = rec.emit[ix]
+					end
+
 				end
 			end
 			if printf.err_called then
