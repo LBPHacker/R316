@@ -492,6 +492,7 @@ xpcall(function()
 							if imm >= trunc then
 								imm = imm % trunc
 								table.insert(warnings, { operands[ix].token, "number truncated to %i bits", ix_takes[2] })
+								score = score - 1
 							end
 							if ix_takes[3] ~= -1 then
 								code = code + imm * 2 ^ ix_takes[3]
@@ -504,6 +505,7 @@ xpcall(function()
 							if imm >= trunc then
 								imm = imm % trunc
 								table.insert(warnings, { operands[ix].token, "number truncated to %i bits", ix_takes[2] })
+								score = score - 1
 							end
 							local sign = math.floor(imm / 2 ^ ix_takes[2])
 							imm = imm % 2 ^ ix_takes[2]
