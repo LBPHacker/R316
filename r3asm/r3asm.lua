@@ -30,9 +30,12 @@ do
 		print_old = print,
 		log_handle = false,
 		colour = false,
-		err_called = false
+		err_called = false,
+		silent = false
 	}, { __call = function(self, ...)
-		printf.print(string.format(...))
+		if not printf.silent then
+			printf.print(string.format(...))
+		end
 	end })
 	function printf.debug(first, ...)
 		local things = { tostring(first) }
@@ -92,12 +95,12 @@ xpcall(function()
 	local named_args = {}
 	local unnamed_args = {}
 	if #args == 1 and type(args[1]) == "table" then
-		for ix_arg, arg in ipairs(args) do
+		for _, arg in ipairs(args[1]) do
 			table.insert(unnamed_args, arg)
 		end
-		for key, arg in pairs(args) do
+		for key, arg in pairs(args[1]) do
 			if type(key) ~= "number" then
-				unnamed_args[key] = arg
+				named_args[key] = arg
 			end
 		end
 	else
@@ -112,6 +115,10 @@ xpcall(function()
 				table.insert(unnamed_args, arg)
 			end
 		end
+	end
+
+	if named_args.silent then
+		printf.silent = true
 	end
 
 	local log_path = named_args.log or unnamed_args[3]
@@ -230,7 +237,6 @@ xpcall(function()
 	local builtin_mnemonics = {}
 	do
 		local mnemonic_to_class_code = {
-			[ "ret"] = { class = "nop", code = 0x2281470A },
 			[ "nop"] = { class = "nop", code = 0x20000000 },
 			[ "mov"] = { class =  "02", code = 0x20000000 },
 			[ "hlt"] = { class = "nop", code = 0x21000000 },
@@ -1869,7 +1875,7 @@ xpcall(function()
 
 	local target = named_args.target or unnamed_args[2]
 	if type(target) == "table" then
-		for ix, ix_opcode in ipairs(opcodes) do
+		for ix, ix_opcode in pairs(opcodes) do
 			target[ix] = ix_opcode
 		end
 	else
