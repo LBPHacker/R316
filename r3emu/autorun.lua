@@ -1,3 +1,5 @@
+fps.set(60)
+
 local mapped = {
 	r0 = 0x0700,
 	r1 = 0x0701,

@@ -3,8 +3,6 @@
 #include "utility/console.hpp"
 #include "ui/host_window.hpp"
 #include "sdl/context.hpp"
-#include "sdl/nice_error.hpp"
-#include "sdl/event_timer.hpp"
 #include "lua/state.hpp"
 
 #include "emulator/bus.hpp"
@@ -23,6 +21,8 @@
 #include <SDL.h>
 #include <vector>
 #include <fstream>
+#include <sstream>
+#include <chrono>
 
 using namespace r3emu;
 
@@ -59,11 +59,7 @@ int main(int argc, char *argv[])
 	lua::state L;
 	utility::console cons;
 	ui::host_window hw;
-
-	sdl::event_timer render_timer(sdl::context::event_render_frame);
-	render_timer.arm(1000 / config::default_fps);
-	sdl::event_timer update_timer(sdl::context::event_update_emulator);
-	update_timer.arm(1000 / config::default_ups);
+	SDL_SetWindowTitle(hw, config::window_title.c_str());
 
 	emulator::bus         bu (L, "bus");
 	emulator::memory      mem(L, "mem");
@@ -75,6 +71,15 @@ int main(int argc, char *argv[])
 	emulator::disassembler_view dis(L, "dis", mem, hw);
 
 	hw.init_views();
+
+	lua_newtable(L);
+	unsigned int desired_fps = config::default_fps;
+	L.set_ugly_func(&desired_fps, [](lua_State *L) -> int {
+		auto *desired_fps = static_cast<unsigned int *>(lua_touserdata(L, lua_upvalueindex(1)));
+		*desired_fps = luaL_checkinteger(L, 1);
+		return 0;
+	}, "set");
+	lua_setglobal(L, "fps");
 
 	{
 		std::string autorun_path("autorun.lua");
@@ -89,72 +94,85 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	using clock = std::chrono::high_resolution_clock;
+
+	auto next_frame = clock::now();
+	auto last_fps_at = clock::now();
+	auto frame_count = 0U;
 	SDL_Event event;
 	bool running = true;
 	while (running)
 	{
-		if (!SDL_WaitEvent(&event))
+		while (SDL_PollEvent(&event))
 		{
-			throw sdl::nice_error("SDL_WaitEvent");
-		}
-
-		switch (event.type)
-		{
-		case SDL_QUIT:
-			running = false;
-			break;
-
-		case SDL_KEYDOWN:
-			switch (event.key.keysym.sym)
+			switch (event.type)
 			{
-			case SDLK_SPACE:
-				sim.toggle_pause();
+			case SDL_QUIT:
+				running = false;
 				break;
 
-			case SDLK_f:
-				sim.step(event.key.keysym.mod & KMOD_SHIFT);
-				break;
-
-			case SDLK_s:
-				co.request_start();
-				break;
-
-			case SDLK_r:
-				co.request_reset();
-				break;
-
-			default:
-				break;
-			}
-			break;
-
-		default:
-			if (event.type == sdl::context::sdl_event_type)
-			{
-				switch (event.user.code)
+			case SDL_KEYDOWN:
+				switch (event.key.keysym.sym)
 				{
-				case sdl::context::event_console_input:
-					if (handle_console_input(L, event))
-					{
-						running = false;
-					}
+				case SDLK_SPACE:
+					sim.toggle_pause();
 					break;
 
-				case sdl::context::event_render_frame:
-					L.global_callback("pre_draw");
-					hw.draw();
-					render_timer.arm(1000 / config::default_fps);
+				case SDLK_f:
+					sim.step(event.key.keysym.mod & KMOD_SHIFT);
 					break;
 
-				case sdl::context::event_update_emulator:
-					sim.update();
-					update_timer.arm(1000 / config::default_ups);
+				case SDLK_s:
+					co.request_start();
+					break;
+
+				case SDLK_r:
+					co.request_reset();
 					break;
 
 				default:
 					break;
 				}
+				break;
+
+			default:
+				if (event.type == sdl::context::sdl_event_type)
+				{
+					switch (event.user.code)
+					{
+					case sdl::context::event_console_input:
+						if (handle_console_input(L, event))
+						{
+							running = false;
+						}
+						break;
+
+					default:
+						break;
+					}
+				}
 			}
+		}
+
+		sim.update();
+		L.global_callback("pre_draw");
+		hw.draw();
+
+		std::this_thread::sleep_until(next_frame);
+		if (next_frame < clock::now())
+		{
+			next_frame = clock::now();
+		}
+		next_frame += std::chrono::nanoseconds(1000000000) / desired_fps;
+		frame_count += 1;
+
+		if (last_fps_at + std::chrono::seconds(1) < clock::now())
+		{
+			std::ostringstream ss;
+			ss << config::window_title << " (" << frame_count << " FPS)";
+			frame_count = 0U;
+			SDL_SetWindowTitle(hw, ss.str().c_str());
+			last_fps_at = clock::now();
 		}
 	}
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "../utility/frequency_counter.hpp"
-
 #include <string>
 
 namespace r3emu::lua
@@ -23,8 +21,6 @@ namespace r3emu::emulator
 		std::string name;
 		core &co;
 
-		utility::frequency_counter fq;
-
 	public:
 		simulation(lua::state &L, std::string name, core &co);
 
@@ -32,6 +28,5 @@ namespace r3emu::emulator
 		void toggle_pause();
 		void update();
 		bool is_paused() const;
-		int get_effective_ups() const;
 	};
 }

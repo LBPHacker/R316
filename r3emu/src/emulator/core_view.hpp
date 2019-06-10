@@ -27,9 +27,6 @@ namespace r3emu::emulator
 		core &co;
 		simulation &sim;
 
-		int fps, ups;
-		Uint32 last_fps_ups_tick;
-
 	public:
 		core_view(lua::state &L, std::string name, core &co, simulation &sim, ui::host_window &hw);
 

@@ -19,9 +19,6 @@ namespace r3emu::emulator
 		co(co_param),
 		sim(sim_param)
 	{
-		ups = 0;
-		fps = 0;
-		last_fps_ups_tick = SDL_GetTicks();
 	}
 
 	void core_view::draw()
@@ -45,21 +42,12 @@ namespace r3emu::emulator
 		hw.write(9, 9, "SC", config::colour_frame);
 		hw.write(9, 10, "RS", config::colour_frame);
 		hw.write(9, 11, "RR", config::colour_frame);
-		hw.write(0, 13, "FPS      UPS", config::colour_frame);
 		hw.write(0, 14, "Core is", config::colour_frame);
 		hw.write(0, 15, "Sim. is", config::colour_frame);
 		
 		for (auto i = 0; i < 8; ++i)
 		{
 			hw.write_16(3, i, co.gp_registers[i], 4);
-		}
-
-		Uint32 current_tick = SDL_GetTicks();
-		if (current_tick - last_fps_ups_tick >= 1000)
-		{
-			ups = sim.get_effective_ups();
-			fps = hw.get_effective_fps();
-			last_fps_ups_tick = current_tick;
 		}
 
 		hw.write_16(12, 0, *co.program_counter, 4);
@@ -75,8 +63,6 @@ namespace r3emu::emulator
 		hw.write(12, 9, co.skip_subcycle ? "SKIP" : "TAKE");
 		hw.write(12, 10, co.start_requested ? "REQU" : "NOPE");
 		hw.write(12, 11, co.reset_requested ? "REQU" : "NOPE");
-		hw.write_10(4, 13, fps, 3);
-		hw.write_10(13, 13, ups, 3);
 		hw.write(8, 14, co.halted ? "stopped!" : "running!");
 		hw.write(8, 15, sim.is_paused() ? "stopped!" : "running!");
 	}

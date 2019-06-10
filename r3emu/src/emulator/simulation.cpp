@@ -12,8 +12,6 @@ namespace r3emu::emulator
 		paused = true;
 		request_cycle = false;
 		request_subcycle = false;
-		
-		fq.reset();
 	}
 
 	void simulation::step(bool subcycle)
@@ -36,11 +34,6 @@ namespace r3emu::emulator
 
 	void simulation::update()
 	{
-		fq.tick();
-		// Uint32 current_tick = SDL_GetTicks();
-		// effective_ups = 1000 / (current_tick - last_tick);
-		// last_tick = current_tick;
-
 		if (paused)
 		{
 			if (request_cycle)
@@ -63,10 +56,5 @@ namespace r3emu::emulator
 	bool simulation::is_paused() const
 	{
 		return paused;
-	}
-
-	int simulation::get_effective_ups() const
-	{
-		return fq.get();
 	}
 }

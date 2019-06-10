@@ -4,7 +4,6 @@
 #include "../sdl/window.hpp"
 #include "../config.hpp"
 #include "../utility/singleton.hpp"
-#include "../utility/frequency_counter.hpp"
 
 #include <vector>
 #include <memory>
@@ -25,8 +24,6 @@ namespace r3emu::ui
 		void init_render_target();
 		void frame();
 
-		utility::frequency_counter fq;
-
 	public:
 		host_window();
 		~host_window();
@@ -37,8 +34,6 @@ namespace r3emu::ui
 		void write_16(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
 		void write_10(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
 		void write_2(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
-
-		int get_effective_fps() const;
 
 		friend class view;
 	};

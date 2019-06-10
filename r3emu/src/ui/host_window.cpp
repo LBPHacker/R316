@@ -19,11 +19,7 @@ namespace r3emu::ui
 
 	host_window::host_window()
 	{
-		SDL_SetWindowTitle(*this, config::window_title.c_str());
-
 		ft = std::make_unique<font_texture>(*this);
-
-		fq.reset();
 	}
 
 	host_window::~host_window()
@@ -121,8 +117,6 @@ namespace r3emu::ui
 
 	void host_window::draw()
 	{
-		fq.tick();
-
 		SDL_SetRenderTarget(*this, *rt);
 
 		y_offs = 1;
@@ -198,10 +192,5 @@ namespace r3emu::ui
 			v /= 2;
 		}
 		write(x, y, str, bgfg);
-	}
-
-	int host_window::get_effective_fps() const
-	{
-		return fq.get();
 	}
 }
