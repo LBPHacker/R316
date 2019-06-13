@@ -230,6 +230,9 @@ namespace r3emu::emulator
 	{
 		bu.pre_gather();
 
+		*program_counter += 1;
+		*program_counter &= 0xFFFFU;
+
 		uint32_t bus_buffer;
 		uint16_t bus_addr = 0;
 		if (mem_op[1])
@@ -326,9 +329,6 @@ namespace r3emu::emulator
 
 	void core::sc_branch()
 	{
-		*program_counter += 1;
-
-		*program_counter &= 0xFFFFU;
 		*loop_count &= 0xFFFFU;
 		*loop_from &= 0xFFFFU;
 		*loop_to &= 0xFFFFU;
