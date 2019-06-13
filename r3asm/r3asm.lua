@@ -23,6 +23,11 @@ end, __newindex = function()
 	error("__newindex")
 end }))
 
+local function get_line(up)
+	local _, err = pcall(error, "@", up + 2)
+	return err:match("^(.-)%s*:%s*@$")
+end
+
 local printf
 do
 	printf = setmetatable({
@@ -37,12 +42,12 @@ do
 			printf.print(string.format(...))
 		end
 	end })
-	function printf.debug(first, ...)
+	function printf.debug(from, first, ...)
 		local things = { tostring(first) }
 		for ix_thing, thing in ipairs({ ... }) do
 			table.insert(things, tostring(thing))
 		end
-		printf((printf.colour and "[r3asm] " or "[r3asm] [DD] ") .. "%s", table.concat(things, "\t"))
+		printf((printf.colour and "[r3asm] " or "[r3asm] [DD] ") .. "[%s] %s", from, table.concat(things, "\t"))
 	end
 	function printf.info(format, ...)
 		printf((printf.colour and "\008l[r3asm]\008w " or "[r3asm] [II] ") .. format, ...)
@@ -81,7 +86,7 @@ do
 	printf.update_colour()
 end
 local function print(...)
-	printf.debug(...)
+	printf.debug(get_line(2), ...)
 end
 
 local function failf(...)
@@ -219,6 +224,31 @@ xpcall(function()
 			return out
 		end
 	end
+
+	local builtin_includes = {
+		["r3"] = [==[
+%define dw _Dw
+%define org _Org
+%define defined _Defined
+%define unique _Unique
+%define fl [0x0708]
+%define pc [0x0709]
+%define lr [0x070A]
+%define lc [0x070C]
+%define lf [0x070D]
+%define lt [0x070E]
+%define wm [0x070F]
+%define ret jmp lr
+
+%macro push thing
+	mov [--sp], thing
+%endmacro
+
+%macro pop thing
+	mov thing, [sp++]
+%endmacro
+		]==]
+	}
 
 	local builtin_freebits = 29
 	local builtin_nop = 0x20000000
@@ -1037,11 +1067,12 @@ xpcall(function()
 					end
 					local expanded_lines = {}
 					local parameters_passed = {}
-					for ix, ix_param in ipairs(parse_parameter_list(expanded[1], expanded, 2, #expanded)) do
+					local parameter_list = parse_parameter_list(expanded[1], expanded, 2, #expanded)
+					for ix, ix_param in ipairs(parameter_list) do
 						parameters_passed[macro.params[ix] or false] = ix_param
 					end
-					if #macro.params ~= #parameters_passed then
-						expanded[1]:blamef(printf.err, "macro '%s' invoked with %i parameters, expects %i", expanded[1].value, #parameters_passed, #macro.params)
+					if #macro.params ~= #parameter_list then
+						expanded[1]:blamef(printf.err, "macro '%s' invoked with %i parameters, expects %i", expanded[1].value, #parameter_list, #macro.params)
 						preprocess_fail()
 					end
 					macro_invocation_unique = macro_invocation_unique + 1
@@ -1122,19 +1153,24 @@ xpcall(function()
 				opened_by = false
 			} }
 
-			local function include(path, lines, req)
+			local function include(base_path, relative_path, lines, req)
 				if include_depth > MAX_INCLUDE_DEPTH then
 					req:blamef(printf.err, "maximum include depth reached while including '%s'", path)
 					preprocess_fail()
 				end
-				local handle = io.open(path, "r")
-				if not handle then
-					req:blamef(printf.err, "failed to open '%s' for reading", path)
-					preprocess_fail()
+				local content = builtin_includes[relative_path]
+				if not content then
+					local handle = io.open(resolve_relative(base_path, relative_path), "r")
+					if not handle then
+						req:blamef(printf.err, "failed to open '%s' for reading", path)
+						preprocess_fail()
+					end
+					content = handle:read("*a")
+					handle:close()
 				end
 
 				local line_number = 0
-				for line in handle:lines() do
+				for line in (content .. "\n"):gmatch("([^\n]*)\n") do
 					line_number = line_number + 1
 					local sline = setmetatable({
 						path = path,
@@ -1164,14 +1200,13 @@ xpcall(function()
 										preprocess_fail()
 									end
 									local relative_path = tokens[3].value:gsub("^\"(.*)\"$", "%1")
-									local resolved_path = resolve_relative(path, relative_path)
 									include_top = {
 										path = path,
 										line = line_number,
 										next = include_top
 									}
 									include_depth = include_depth + 1
-									include(resolved_path, lines, sline)
+									include(path, relative_path, lines, sline)
 									include_depth = include_depth - 1
 									include_top = include_top.next
 								end
@@ -1447,10 +1482,9 @@ xpcall(function()
 						end
 					end
 				end
-				handle:close()
 			end
 
-			include(path, lines, { blamef = function(self, report, ...)
+			include("_", path, lines, { blamef = function(self, report, ...)
 				report(...)
 			end })
 			if #condition_stack > 1 then
@@ -1869,8 +1903,10 @@ xpcall(function()
 	local to_emit, labels = resolve_instructions(lines)
 	local opcodes = emit_opcodes(to_emit, labels)
 
-	for ix = 0, #opcodes do
-		printf.info("OPCODE: %04X: %08X", ix, opcodes[ix])
+	if next(opcodes) then
+		for ix = 0, #opcodes do
+			printf.info("OPCODE: %04X: %08X", ix, opcodes[ix])
+		end
 	end
 
 	local target = named_args.target or unnamed_args[2]

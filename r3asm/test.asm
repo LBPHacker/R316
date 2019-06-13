@@ -1,4 +1,4 @@
-%define ret jmp [0x070A]
+%include "r3"
 
 start:
 	mov sp, 0x0800
@@ -50,4 +50,4 @@ print_16_to_6:
 	add sp, 1
 	ret
 .lut:
-	_Dw 0xDEAD
+	dw 0xDEAD
