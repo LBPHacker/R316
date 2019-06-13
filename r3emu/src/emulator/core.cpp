@@ -48,6 +48,7 @@ namespace r3emu::emulator
 	{
 		reset_requested = false;
 		*program_counter = 0;
+		*loop_count = 0;
 		halted = true;
 	}
 
