@@ -78,9 +78,9 @@ local ok, err = pcall(function()
 	
 	local message = "Hi. I'm a relatively long message being decompressed on the fly from triplets of 16-bit cells holding eight 6-bit LUT indices each. Magically enough, I'm displayed one character per frame. Marvelous, isn't it?"
 
-	mem[0x2C] = 0
-	local lut_at = 0x2C
-	local data_at = 0x6C
+	local lut_at = #code + 1
+	mem[lut_at] = 0x20000000
+	local data_at = lut_at + 0x40
 	local data_size = 0
 	local lut = { [0] = 0 }
 	local lut_size = 1
@@ -105,7 +105,7 @@ local ok, err = pcall(function()
 			buffer = bit.rshift(buffer, 16)
 		end
 	end
-	mem.write(data_at + data_size, 0x20000000 + buffer)
+	mem[data_at + data_size] = 0x20000000 + buffer
 end)
 if not ok then
 	print(err)

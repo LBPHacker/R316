@@ -5,11 +5,14 @@ local MAX_EXPANSION_DEPTH = 100
 local MAX_EVAL_DEPTH = 100
 
 local RESERVED = {
-	DEFINED  = "_Defined",
-	DW       = "_Dw",
-	IDENTITY = "_Identity",
-	ORG      = "_Org",
-	UNIQUE   = "_Unique",
+	DEFINED      = "_Defined",
+	DW           = "_Dw",
+	IDENTITY     = "_Identity",
+	LABELCONTEXT = "_Labelcontext",
+	MACROUNIQUE  = "_Macrounique",
+	ORG          = "_Org",
+	PEERLABEL    = "_Peerlabel",
+	SUPERLABEL   = "_Superlabel",
 }
 
 local tpt = tpt
@@ -226,28 +229,55 @@ xpcall(function()
 	end
 
 	local builtin_includes = {
-		["r3"] = [==[
-%define dw _Dw
-%define org _Org
-%define defined _Defined
-%define unique _Unique
-%define fl [0x0708]
-%define pc [0x0709]
-%define lr [0x070A]
-%define lc [0x070C]
-%define lf [0x070D]
-%define lt [0x070E]
-%define wm [0x070F]
-%define ret jmp lr
+		["r3"] = ([==[
+			%define dw `DW'
+			%define org `ORG'
 
-%macro push thing
-	mov [--sp], thing
-%endmacro
+			%define fl 0x0708
+			%define pc 0x0709
+			%define lr 0x070A
+			%define _loopcontrolbase 0x070C
+			%eval lc _loopcontrolbase 0 +
+			%eval lf _loopcontrolbase 1 +
+			%eval lt _loopcontrolbase 2 +
+			%define wm 0x070F
 
-%macro pop thing
-	mov thing, [sp++]
-%endmacro
-		]==]
+			%define ret jmp [lr]
+
+			%macro push Thing
+				mov [--sp], Thing
+			%endmacro
+
+			%macro pop Thing
+				mov Thing, [sp++]
+			%endmacro
+
+			%macro _loop_internal Reg, Count, Done, Loop
+				mov Reg, _loopcontrolbase
+				mov [Reg++], Count
+				mov [Reg++], Done
+				mov [Reg++], Loop
+				jmp Done
+			%endmacro
+
+			%macro loop Count, Done
+			`PEERLABEL' . `MACROUNIQUE' begin:
+				push r0
+				_loop_internal r0, Count, Done, `PEERLABEL' `MACROUNIQUE' loop_until
+				pop r0
+			`PEERLABEL' `MACROUNIQUE' loop_until:
+			`SUPERLABEL' `LABELCONTEXT':
+			%endmacro
+
+			%macro loop_reg Reg, Count, Done
+			`PEERLABEL' . `MACROUNIQUE' begin:
+				_loop_internal Reg, Count, Done, `PEERLABEL' `MACROUNIQUE' loop_until
+			`PEERLABEL' `MACROUNIQUE' loop_until:
+			`SUPERLABEL' `LABELCONTEXT':
+			%endmacro
+		]==]):gsub("`([A-Z]+)'", function(cap)
+			return RESERVED[cap]
+		end)
 	}
 
 	local builtin_freebits = 29
@@ -888,8 +918,11 @@ xpcall(function()
 						elseif operands[ix].type == "alias" then
 							local alias = operands[ix].value
 							if alias then
-								local ok, number = alias[1]:parse_number()
-								operands[ix] = (#alias == 1 and ok) and number or 1
+								local ok, number
+								if #alias == 1 then
+									ok, number = alias[1]:parse_number()
+								end
+								operands[ix] = ok and number or 1
 							else
 								operands[ix] = 0
 							end
@@ -953,10 +986,10 @@ xpcall(function()
 				elseif tokens[cursor]:identifier() and operator_funcs[tokens[cursor].value] then
 					apply_operator(tokens[cursor].value)
 
-				elseif token[cursor]:identifier() then
+				elseif tokens[cursor]:identifier() then
 					table.insert(stack, {
 						type = "alias",
-						value = aliases[token[cursor].value] or false,
+						value = aliases[tokens[cursor].value] or false,
 						position = cursor,
 						depth = 1
 					})
@@ -981,14 +1014,6 @@ xpcall(function()
 
 	local preprocess
 	do
-		local reserved_lookup = {}
-		for key, value in pairs(RESERVED) do
-			reserved_lookup[value] = true
-		end
-		local function reserved_identifier(str)
-			return (str:find("^_[_A-Z]") or reserved_lookup[str]) and true
-		end
-
 		local source_line_i = {}
 		local source_line_mt = { __index = source_line_i }
 		function source_line_i:dump_itop()
@@ -1007,7 +1032,7 @@ xpcall(function()
 			self:dump_itop()
 		end
 
-		local macro_invocation_unique = 0
+		local macro_invocation_Macrounique = 0
 		function preprocess(path)
 			local lines = {}
 			local include_top = false
@@ -1027,7 +1052,7 @@ xpcall(function()
 							tokens[ix]:blamef(printf.err, "maximum expansion depth reached while expanding alias '%s'", tokens[ix].value)
 							preprocess_fail()
 						end
-						for _, token in ipairs(expand_aliases(alias, 1, #alias, depth + 1, tokens[ix])) do
+						for _, token in ipairs(expand_aliases(alias, 1, #alias, depth + 1)) do
 							table.insert(expanded, token:expand_by(tokens[ix]))
 						end
 					else
@@ -1075,8 +1100,11 @@ xpcall(function()
 						expanded[1]:blamef(printf.err, "macro '%s' invoked with %i parameters, expects %i", expanded[1].value, #parameter_list, #macro.params)
 						preprocess_fail()
 					end
-					macro_invocation_unique = macro_invocation_unique + 1
-					parameters_passed[RESERVED.UNIQUE] = ("_%i_"):format(macro_invocation_unique)
+					macro_invocation_Macrounique = macro_invocation_Macrounique + 1
+					parameters_passed[RESERVED.MACROUNIQUE] = { expanded[1]:point({
+						type = "identifier",
+						value = ("_%i_"):format(macro_invocation_Macrounique)
+					}) }
 					local old_aliases = {}
 					for param, value in pairs(parameters_passed) do
 						old_aliases[param] = aliases[param]
@@ -1109,10 +1137,6 @@ xpcall(function()
 				for ix = first, last, 2 do
 					if not tokens[ix]:identifier() then
 						tokens[ix]:blamef(printf.err, "expected parameter name")
-						preprocess_fail()
-					end
-					if reserved_identifier(tokens[ix].value) then
-						tokens[ix]:blamef(printf.err, "reserved identifier")
 						preprocess_fail()
 					end
 					if params_assoc[tokens[ix].value] then
@@ -1155,12 +1179,14 @@ xpcall(function()
 
 			local function include(base_path, relative_path, lines, req)
 				if include_depth > MAX_INCLUDE_DEPTH then
-					req:blamef(printf.err, "maximum include depth reached while including '%s'", path)
+					req:blamef(printf.err, "maximum include depth reached while including '%s'", relative_path)
 					preprocess_fail()
 				end
+				local path = relative_path
 				local content = builtin_includes[relative_path]
 				if not content then
-					local handle = io.open(resolve_relative(base_path, relative_path), "r")
+					path = resolve_relative(base_path, relative_path)
+					local handle = io.open(path, "r")
 					if not handle then
 						req:blamef(printf.err, "failed to open '%s' for reading", path)
 						preprocess_fail()
@@ -1242,10 +1268,6 @@ xpcall(function()
 										tokens[3]:blamef(printf.err, "expected alias name")
 										preprocess_fail()
 									end
-									if reserved_identifier(tokens[3].value) then
-										tokens[3]:blamef(printf.err, "reserved identifier")
-										preprocess_fail()
-									end
 									local ok, result, err = evaluate(tokens, 4, #tokens, aliases)
 									if not ok then
 										tokens[result]:blamef(printf.err, "evaluation failed: %s", err)
@@ -1266,18 +1288,7 @@ xpcall(function()
 										tokens[3]:blamef(printf.err, "expected alias name")
 										preprocess_fail()
 									end
-									if reserved_identifier(tokens[3].value) then
-										tokens[3]:blamef(printf.err, "reserved identifier")
-										preprocess_fail()
-									end
-									if #tokens == 3 then
-										define(tokens[3], { tokens[3]:point({
-											type = "number",
-											value = "1"
-										}) }, 1, 1)
-									else
-										define(tokens[3], tokens, 4, #tokens)
-									end
+									define(tokens[3], tokens, 4, #tokens)
 								end
 
 							elseif tokens[2].value == "undef" then
@@ -1287,10 +1298,6 @@ xpcall(function()
 										preprocess_fail()
 									elseif not tokens[3]:identifier() then
 										tokens[3]:blamef(printf.err, "expected alias name")
-										preprocess_fail()
-									end
-									if reserved_identifier(tokens[3].value) then
-										tokens[3]:blamef(printf.err, "reserved identifier")
 										preprocess_fail()
 									end
 									if #tokens > 3 then
@@ -1417,10 +1424,6 @@ xpcall(function()
 										tokens[3]:blamef(printf.err, "expected macro name")
 										preprocess_fail()
 									end
-									if reserved_identifier(tokens[3].value) then
-										tokens[3]:blamef(printf.err, "reserved identifier")
-										preprocess_fail()
-									end
 									if defining_macro then
 										tokens[2]:blamef(printf.err, "%%macro after %%macro")
 										preprocess_fail()
@@ -1448,10 +1451,6 @@ xpcall(function()
 										preprocess_fail()
 									elseif not tokens[3]:identifier() then
 										tokens[3]:blamef(printf.err, "expected macro name")
-										preprocess_fail()
-									end
-									if reserved_identifier(tokens[3].value) then
-										tokens[3]:blamef(printf.err, "reserved identifier")
 										preprocess_fail()
 									end
 									if #tokens > 3 then
@@ -1514,12 +1513,17 @@ xpcall(function()
 	local function resolve_evaluations_inplace(tokens, labels)
 		for ix, ix_token in ipairs(tokens) do
 			if ix_token:is("evaluation") then
-				local ok, result, err = evaluate(ix_token.value, 1, #ix_token.value, {})
-				if ok then
-					ix_token.type = "number"
-					ix_token.value = tostring(result)
+				local labels_ok, jx, err = resolve_labels_inplace(ix_token.value, labels)
+				if labels_ok then
+					local ok, result, err = evaluate(ix_token.value, 1, #ix_token.value, {})
+					if ok then
+						ix_token.type = "number"
+						ix_token.value = tostring(result)
+					else
+						return false, ix, result, err
+					end
 				else
-					return false, result, err
+					return false, ix, jx, err
 				end
 			end
 		end
@@ -1627,6 +1631,9 @@ xpcall(function()
 		for key in pairs(hooks) do
 			known_identifiers[key] = true
 		end
+		for key, value in pairs(RESERVED) do
+			known_identifiers[value] = true
+		end
 
 		for _, tokens in ipairs(lines) do
 			local line_failed = false
@@ -1675,38 +1682,78 @@ xpcall(function()
 							hook = hooks[tokens[cursor].value]
 						})
 
-					elseif tokens[cursor]:identifier() and not known_identifiers[tokens[cursor].value] then
-						while cursor > 1 and tokens[cursor - 1]:identifier() and not known_identifiers[tokens[cursor - 1].value] do
-							tokens[cursor - 1] = tokens[cursor - 1]:point({
-								type = "identifier",
-								value = tokens[cursor - 1].value .. tokens[cursor].value
-							})
-							table.remove(tokens, cursor)
-							cursor = cursor - 1
-						end
-						while cursor > 1 and tokens[cursor - 1]:punctuator(".") do
-							tokens[cursor - 1] = tokens[cursor - 1]:point({
-								type = "identifier",
-								value = "." .. tokens[cursor].value
-							})
-							table.remove(tokens, cursor)
-							cursor = cursor - 1
-						end
-						local dots, rest = tokens[cursor].value:match("^(%.*)(.+)$")
-						local level = #dots
-						if level > #label_context then
-							tokens[cursor]:blamef(printf.err, "level %i label declaration without preceding level %i label declaration", level, level - 1)
-							line_failed = true
-							break
-						else
-							for ix = level + 1, #label_context do
-								label_context[ix] = nil
+					elseif (tokens[cursor]:identifier() and not known_identifiers[tokens[cursor].value]) or
+						   (tokens[cursor]:identifier(RESERVED.LABELCONTEXT)) then
+						while cursor > 1 do
+							if tokens[cursor - 1]:identifier() and not known_identifiers[tokens[cursor - 1].value] then
+								tokens[cursor - 1] = tokens[cursor - 1]:point({
+									type = "identifier",
+									value = tokens[cursor - 1].value .. tokens[cursor].value
+								})
+								table.remove(tokens, cursor)
+								cursor = cursor - 1
+
+							elseif tokens[cursor - 1]:identifier(RESERVED.PEERLABEL) then
+								if #label_context < 1 then
+									tokens[cursor - 1]:blamef(printf.err, "peer-label reference in level %i context", #label_context - 1)
+									line_failed = true
+									break
+								end
+								tokens[cursor - 1] = tokens[cursor - 1]:point({
+									type = "identifier",
+									value = ("."):rep(#label_context - 1) .. tokens[cursor].value
+								})
+								table.remove(tokens, cursor)
+								cursor = cursor - 1
+
+							elseif tokens[cursor - 1]:identifier(RESERVED.SUPERLABEL) then
+								if #label_context < 2 then
+									tokens[cursor - 1]:blamef(printf.err, "super-label reference in level %i context", #label_context - 1)
+									line_failed = true
+									break
+								end
+								tokens[cursor - 1] = tokens[cursor - 1]:point({
+									type = "identifier",
+									value = ("."):rep(#label_context - 2) .. tokens[cursor].value
+								})
+								table.remove(tokens, cursor)
+								cursor = cursor - 1
+
+							elseif tokens[cursor - 1]:punctuator(".") then
+								tokens[cursor - 1] = tokens[cursor - 1]:point({
+									type = "identifier",
+									value = "." .. tokens[cursor].value
+								})
+								table.remove(tokens, cursor)
+								cursor = cursor - 1
+
+							else
+								break
+
 							end
-							label_context[level + 1] = rest
-							tokens[cursor] = tokens[cursor]:point({
-								type = "label",
-								value = table.concat(label_context, ".")
-							})
+						end
+
+						if not line_failed then
+							local dots, rest = tokens[cursor].value:match("^(%.*)(.+)$")
+							local level = #dots
+							if level > #label_context then
+								tokens[cursor]:blamef(printf.err, "level %i label declaration without preceding level %i label declaration", level, level - 1)
+								line_failed = true
+								break
+							else
+								local name_tbl = {}
+								for ix = 1, level do
+									table.insert(name_tbl, label_context[ix])
+								end
+								table.insert(name_tbl, rest)
+								tokens[cursor] = tokens[cursor]:point({
+									type = "label",
+									value = table.concat(name_tbl, "."),
+									ignore = rest == RESERVED.LABELCONTEXT,
+									level = level,
+									rest = rest
+								})
+							end
 						end
 
 					end
@@ -1725,6 +1772,7 @@ xpcall(function()
 								last = brace_end
 								break
 							end
+							brace_end = brace_end + 1
 						end
 						if not last then
 							tokens[cursor]:blamef(printf.err, "unfinished evalation block")
@@ -1747,7 +1795,17 @@ xpcall(function()
 
 			if not line_failed then
 				if #tokens == 2 and tokens[1]:is("label") and tokens[2]:punctuator(":") then
-					labels[tokens[1].value] = tostring(output_pointer)
+					if tokens[1].ignore then
+						for ix = tokens[1].level + 2, #label_context do
+							label_context[ix] = nil
+						end
+					else
+						for ix = tokens[1].level + 1, #label_context do
+							label_context[ix] = nil
+						end
+						labels[tokens[1].value] = tostring(output_pointer)
+						label_context[tokens[1].level + 1] = tokens[1].rest
+					end
 
 				elseif #tokens >= 1 and tokens[1]:is("mnemonic") then
 					local funcs = tokens[1].mnemonic
@@ -1794,7 +1852,7 @@ xpcall(function()
 					for ix, ix_param in ipairs(parameters) do
 						local labels_ok, ix, err = resolve_labels_inplace(ix_param, labels)
 						if labels_ok then
-							local evals_ok, ix, err = resolve_evaluations_inplace(ix_param)
+							local evals_ok, ix, jx, err = resolve_evaluations_inplace(ix_param, labels)
 							if evals_ok then
 								local numbers_ok, ix, err = parse_numbers_inplace(ix_param)
 								if not numbers_ok then
@@ -1802,7 +1860,7 @@ xpcall(function()
 									line_failed = true
 								end
 							else
-								ix_param[ix]:blamef(printf.err, "evaluation failed: %s", err)
+								ix_param[ix].value[jx]:blamef(printf.err, "evaluation failed: %s", err)
 								line_failed = true
 							end
 						else
@@ -1854,7 +1912,7 @@ xpcall(function()
 					for ix, ix_param in ipairs(rec.parameters) do
 						local labels_ok, ix, err = resolve_labels_inplace(ix_param, labels)
 						if labels_ok then
-							local evals_ok, ix, err = resolve_evaluations_inplace(ix_param)
+							local evals_ok, ix, jx, err = resolve_evaluations_inplace(ix_param, labels)
 							if evals_ok then
 								local numbers_ok, ix, err = parse_numbers_inplace(ix_param)
 								if not numbers_ok then
@@ -1862,7 +1920,7 @@ xpcall(function()
 									emission_ok = true
 								end
 							else
-								ix_param[ix]:blamef(printf.err, "evaluation failed: %s", err)
+								ix_param[ix].value[jx]:blamef(printf.err, "evaluation failed: %s", err)
 								emission_ok = false
 							end
 						else

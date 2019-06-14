@@ -2,14 +2,25 @@
 
 start:
 	mov sp, 0x0800
-	mov r0, 0x006C
+	call test_loop
+	mov r0, data.compressed
 	mov r1, 0x1C00
+	mov r2, data.lut
 	call print_16_to_6
 .die:
 	hlt
 	jmp .die
+
+test_loop:
+	mov r4, 9
+	loop 8, .done
+	add r4, 7
+.done:
+	nop
+	ret
+
 print_16_to_6:
-	mov [--sp], .lut
+	mov [--sp], r2
 	ext [sp-1], [r0], 0xA0   ; extract #0
 	ext [sp-2], [r0], 0xA6   ; extract #1
 	add r2, [sp-1], [sp]     ; index #0
@@ -49,5 +60,8 @@ print_16_to_6:
 .done:
 	add sp, 1
 	ret
+
+data:
 .lut:
-	dw 0xDEAD
+org { .lut 0x40 + }
+.compressed:

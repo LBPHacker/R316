@@ -332,11 +332,6 @@ namespace r3emu::emulator
 		*loop_count &= 0xFFFFU;
 		*loop_from &= 0xFFFFU;
 		*loop_to &= 0xFFFFU;
-		if (*loop_count && *program_counter == *loop_from)
-		{
-			*program_counter = *loop_to;
-			*loop_count -= 1;
-		}
 
 		if (jump && (((*flags | flag_true) >> (jump_cond >> 1)) & 1) == (jump_cond & 1))
 		{
@@ -345,6 +340,12 @@ namespace r3emu::emulator
 				*return_to = *program_counter;
 			}
 			*program_counter = op[2];
+		}
+
+		if (*loop_count && *program_counter == *loop_from)
+		{
+			*program_counter = *loop_to;
+			*loop_count -= 1;
 		}
 
 		*program_counter &= 0xFFFFU;
