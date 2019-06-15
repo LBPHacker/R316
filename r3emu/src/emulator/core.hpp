@@ -38,7 +38,6 @@ namespace r3emu::emulator
 		uint32_t *gp_registers;
 		uint32_t *flags;
 		uint32_t *program_counter;
-		uint32_t *return_to;
 		uint32_t *last_output;
 
 		uint32_t *loop_count;
@@ -55,7 +54,7 @@ namespace r3emu::emulator
 		uint8_t incr_set, decr_set, wrbk_set;
 		uint32_t oper;
 		bool jump;
-		bool link;
+		uint16_t jump_to;
 		bool write_op_0;
 
 		int cycle;

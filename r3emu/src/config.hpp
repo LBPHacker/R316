@@ -34,7 +34,6 @@ namespace r3emu::config
 	const int mm_core_gp_registers    = mm_core_base + 0x00;
 	const int mm_core_flags           = mm_core_base + 0x08;
 	const int mm_core_program_counter = mm_core_base + 0x09;
-	const int mm_core_return_to       = mm_core_base + 0x0A;
 	const int mm_core_last_output     = mm_core_base + 0x0B;
 	const int mm_core_loop_count      = mm_core_base + 0x0C;
 	const int mm_core_loop_from       = mm_core_base + 0x0D;

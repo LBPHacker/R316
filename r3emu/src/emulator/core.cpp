@@ -18,7 +18,6 @@ namespace r3emu::emulator
 		gp_registers    = mem.data.data() + config::mm_core_gp_registers;
 		flags           = mem.data.data() + config::mm_core_flags;
 		program_counter = mem.data.data() + config::mm_core_program_counter;
-		return_to       = mem.data.data() + config::mm_core_return_to;
 		last_output     = mem.data.data() + config::mm_core_last_output;
 		loop_count      = mem.data.data() + config::mm_core_loop_count;
 		loop_from       = mem.data.data() + config::mm_core_loop_from;
@@ -119,7 +118,6 @@ namespace r3emu::emulator
 		decr_set = 0;
 		wrbk_set = 0;
 		jump = false;
-		link = false;
 		write_op_0 = false;
 
 		uint32_t instruction = 0x20000000U | (mem.data[*program_counter & ((1 << config::memory_size) - 1)] & 0x1FFFFFFFU);
@@ -335,11 +333,7 @@ namespace r3emu::emulator
 
 		if (jump && (((*flags | flag_true) >> (jump_cond >> 1)) & 1) == (jump_cond & 1))
 		{
-			if (link)
-			{
-				*return_to = *program_counter;
-			}
-			*program_counter = op[2];
+			*program_counter = jump_to;
 		}
 
 		if (*loop_count && *program_counter == *loop_from)
@@ -374,20 +368,24 @@ namespace r3emu::emulator
 
 		switch (oper % 0x20)
 		{
+		case 0x01: // call
+			jump = true;
+			jump_cond = 1;
+			jump_to = op[2];
+			op[2] = *program_counter;
+			[[fallthrough]];
 		case 0x00: // mov
 			write_op_0 = true;
 			op[0] = op[2];
 			break;
 
-		case 0x01: // hlt
-			halted = true;
-			break;
-
-		case 0x03: // call
-			link = true;
-			[[fallthrough]];
 		case 0x02: // jcc
 			jump = true;
+			jump_to = op[2];
+			break;
+
+		case 0x03: // hlt
+			halted = true;
 			break;
 
 		case 0x04: // bsf

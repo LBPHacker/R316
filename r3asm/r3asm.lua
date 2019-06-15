@@ -235,14 +235,11 @@ xpcall(function()
 
 			%define fl 0x0708
 			%define pc 0x0709
-			%define lr 0x070A
 			%define _loopcontrolbase 0x070C
 			%eval lc _loopcontrolbase 0 +
 			%eval lf _loopcontrolbase 1 +
 			%eval lt _loopcontrolbase 2 +
 			%define wm 0x070F
-
-			%define ret jmp [lr]
 
 			%macro push Thing
 				mov [--sp], Thing
@@ -254,22 +251,13 @@ xpcall(function()
 
 			%macro _loop_internal Reg, Count, Done, Loop
 				mov Reg, _loopcontrolbase
-				mov [Reg++], Count
+				mov [Reg], Count
+				sub [Reg++], 1
 				mov [Reg++], Done
 				mov [Reg++], Loop
-				jmp Done
 			%endmacro
 
-			%macro loop Count, Done
-			`PEERLABEL' . `MACROUNIQUE' begin:
-				push r0
-				_loop_internal r0, Count, Done, `PEERLABEL' `MACROUNIQUE' loop_until
-				pop r0
-			`PEERLABEL' `MACROUNIQUE' loop_until:
-			`SUPERLABEL' `LABELCONTEXT':
-			%endmacro
-
-			%macro loop_reg Reg, Count, Done
+			%macro loop Count, Done, Reg
 			`PEERLABEL' . `MACROUNIQUE' begin:
 				_loop_internal Reg, Count, Done, `PEERLABEL' `MACROUNIQUE' loop_until
 			`PEERLABEL' `MACROUNIQUE' loop_until:
@@ -299,9 +287,10 @@ xpcall(function()
 		local mnemonic_to_class_code = {
 			[ "nop"] = { class = "nop", code = 0x20000000 },
 			[ "mov"] = { class =  "02", code = 0x20000000 },
-			[ "hlt"] = { class = "nop", code = 0x21000000 },
+			["call"] = { class =   "2", code = 0x211F0000 },
 			[  "jn"] = { class =   "2", code = 0x22000000 },
 			[ "jmp"] = { class =   "2", code = 0x22010000 },
+			[ "ret"] = { class = "nop", code = 0x22011700 },
 			[ "jnb"] = { class =   "2", code = 0x22020000 },
 			[ "jae"] = { class =   "2", code = 0x22020000 },
 			[ "jnc"] = { class =   "2", code = 0x22020000 },
@@ -328,7 +317,7 @@ xpcall(function()
 			[  "jg"] = { class =   "2", code = 0x220E0000 },
 			[ "jle"] = { class =   "2", code = 0x220F0000 },
 			[ "jng"] = { class =   "2", code = 0x220F0000 },
-			["call"] = { class =   "2", code = 0x23010000 },
+			[ "hlt"] = { class = "nop", code = 0x23000000 },
 			[ "bsf"] = { class =  "02", code = 0x24000000 },
 			[ "bsr"] = { class =  "02", code = 0x25000000 },
 			[ "zsf"] = { class =  "02", code = 0x26000000 },

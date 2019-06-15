@@ -13,7 +13,7 @@ start:
 
 test_loop:
 	mov r4, 9
-	loop 8, .done
+	loop 8, .done, r0
 	add r4, 7
 .done:
 	nop
