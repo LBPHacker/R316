@@ -49,7 +49,7 @@ namespace r3emu::lua
 
 	void state::execute(std::string const &chunk, std::string const &code)
 	{
-		if (luaL_loadbuffer(L, code.data(), code.size(), chunk.c_str()) || lua_pcall(L, 0, 0, 0))
+		if (luaL_loadbuffer(L, code.data(), code.size(), ("=" + chunk).c_str()) || lua_pcall(L, 0, 0, 0))
 		{
 			std::cerr << lua_tostring(L, -1) << std::endl;
 			lua_pop(L, 1);
@@ -59,7 +59,7 @@ namespace r3emu::lua
 	bool state::execute_incomplete(std::string const &chunk, std::string const &code)
 	{
 		bool complete = true;
-		if (luaL_loadbuffer(L, code.data(), code.size(), chunk.c_str()))
+		if (luaL_loadbuffer(L, code.data(), code.size(), ("=" + chunk).c_str()))
 		{
 			std::string err(lua_tostring(L, -1));
 			if (err.find("<eof>") != err.npos)
