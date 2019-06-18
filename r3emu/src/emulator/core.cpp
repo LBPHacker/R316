@@ -338,8 +338,12 @@ namespace r3emu::emulator
 
 		if (*loop_count && *program_counter == *loop_from)
 		{
-			*program_counter = *loop_to;
 			*loop_count -= 1;
+			*loop_count &= 0xFFFFU;
+			if (*loop_count)
+			{
+				*program_counter = *loop_to;
+			}
 		}
 
 		*program_counter &= 0xFFFFU;

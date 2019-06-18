@@ -251,8 +251,7 @@ xpcall(function()
 
 			%macro _loop_internal Reg, Count, Done, Loop
 				mov Reg, _loopcontrolbase
-				mov [Reg], Count
-				sub [Reg++], 1
+				mov [Reg++], Count
 				mov [Reg++], Done
 				mov [Reg++], Loop
 			%endmacro
