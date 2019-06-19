@@ -3,8 +3,8 @@
 start:
 	mov sp, 0x0800
 	mov r1, 0x1D00
-	mov [r1++], 0
-	mov [r1++], 0
+	mov [r1++], 0xC000
+	mov [r1++], 0x8000
 	; call test_loop ; LOOPCONTROL
 	mov r0, data.compressed
 	mov r1, 0x1C00

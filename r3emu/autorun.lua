@@ -93,7 +93,7 @@ local ok, err = pcall(function()
 				error("LUT overflow")
 			end
 			lut[ch] = lut_size
-			mem[lut_at + lut_size] = 0x20000F00 + ch
+			mem[lut_at + lut_size] = 0x20000000 + ch
 			lut_size = lut_size + 1
 		end
 		buffer = buffer + lut[ch] * 2 ^ shift

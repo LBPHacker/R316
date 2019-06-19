@@ -4,6 +4,7 @@
 #include "../sdl/texture.hpp"
 
 #include <string>
+#include <vector>
 #include <memory>
 
 namespace r3emu::ui
@@ -30,6 +31,7 @@ namespace r3emu::emulator
 
 		uint16_t mode;
 		uint16_t colour;
+		std::vector<uint16_t> memory;
 
 		sdl::texture buffer;
 		std::unique_ptr<ui::font_texture> ft;
@@ -39,6 +41,7 @@ namespace r3emu::emulator
 		~screen();
 
 		void pre_gather() final override;
+		void gather(bool read, uint16_t addr, uint32_t &value) final override;
 		void spread(bool write, uint16_t addr, uint32_t value) final override;
 
 		friend class screen_view;

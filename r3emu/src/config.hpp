@@ -42,6 +42,6 @@ namespace r3emu::config
 
 	const int mm_screen_base   = 0x1C00;
 	const int mm_screen_buffer = mm_screen_base + 0x000;
-	const int mm_screen_mode   = mm_screen_base + 0x100;
-	const int mm_screen_colour = mm_screen_base + 0x101;
+	const int mm_screen_colour = mm_screen_base + 0x100;
+	const int mm_screen_mode   = mm_screen_base + 0x101;
 }

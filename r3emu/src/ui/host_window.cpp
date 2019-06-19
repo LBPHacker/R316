@@ -158,7 +158,7 @@ namespace r3emu::ui
 	void host_window::rect(int x, int y, int w, int h, unsigned char c)
 	{
 		SDL_SetRenderDrawColor(*this, ::colours[c & 0xF].r, ::colours[c & 0xF].g, ::colours[c & 0xF].b, 0xFF);
-		SDL_SetTextureBlendMode(*ft, SDL_BLENDMODE_BLEND);
+		SDL_SetTextureBlendMode(*ft, SDL_BLENDMODE_NONE);
 		SDL_Rect rect;
 		rect.x = global_offs_x * 8 + x;
 		rect.y = global_offs_y * 8 + y;
