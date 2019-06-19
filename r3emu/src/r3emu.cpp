@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	emulator::core        co (L, "core", bu, mem);
 	emulator::simulation  sim(L, "sim", co);
 	emulator::core_view   cv (L, "core_view", co, sim, hw, 0, 0);
-	emulator::screen      scr(L, "screen", bu);
+	emulator::screen      scr(L, "screen", bu, hw);
 	emulator::screen_view sv (L, "screen_view", scr, hw, 17, 0);
 	emulator::disassembler_view dis(L, "dis", mem, hw, 0, 17);
 

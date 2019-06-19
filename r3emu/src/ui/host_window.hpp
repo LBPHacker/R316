@@ -31,6 +31,8 @@ namespace r3emu::ui
 		void draw();
 
 		void write(int x, int y, std::string str, unsigned char bgfg = config::colour_default);
+		void rect(int x, int y, int w, int h, unsigned char c);
+		void copy(int x, int y, int w, int h, sdl::texture &tex);
 
 		friend class view;
 	};

@@ -1,9 +1,16 @@
 #pragma once
 
 #include "peripheral.hpp"
+#include "../sdl/texture.hpp"
 
 #include <string>
-#include <vector>
+#include <memory>
+
+namespace r3emu::ui
+{
+	class host_window;
+	class font_texture;
+}
 
 namespace r3emu::lua
 {
@@ -19,14 +26,17 @@ namespace r3emu::emulator
 	{
 		lua::state &L;
 		std::string name;
-
-		std::vector<uint16_t> blocks;
+		ui::host_window &hw;
 
 		uint16_t mode;
 		uint16_t colour;
 
+		sdl::texture buffer;
+		std::unique_ptr<ui::font_texture> ft;
+
 	public:
-		screen(lua::state &L, std::string name, bus &bu);
+		screen(lua::state &L, std::string name, bus &bu, ui::host_window &hw);
+		~screen();
 
 		void pre_gather() final override;
 		void spread(bool write, uint16_t addr, uint32_t value) final override;

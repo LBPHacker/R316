@@ -27,6 +27,16 @@ namespace r3emu::ui
 		hw.write(x + position_x + 1, y + position_y + 1, str, bgfg);
 	}
 
+	void view::copy(int x, int y, int w, int h, sdl::texture &tex)
+	{
+		hw.copy(x + (position_x + 1) * 8, y + (position_y + 1) * 8, w, h, tex);
+	}
+
+	void view::rect(int x, int y, int w, int h, unsigned char c)
+	{
+		hw.rect(x + (position_x + 1) * 8, y + (position_y + 1) * 8, w, h, c);
+	}
+
 	void view::write_16(int x, int y, int v, int c, unsigned char bgfg)
 	{
 		std::string str(c, '?');

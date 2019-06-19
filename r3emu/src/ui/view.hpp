@@ -4,6 +4,11 @@
 
 #include "../config.hpp"
 
+namespace r3emu::sdl
+{
+	class texture;
+}
+
 namespace r3emu::ui
 {
 	class host_window;
@@ -23,6 +28,8 @@ namespace r3emu::ui
 		virtual void draw() = 0;
 
 		void write(int x, int y, std::string str, unsigned char bgfg = config::colour_default);
+		void rect(int x, int y, int w, int h, unsigned char c = config::colour_default);
+		void copy(int x, int y, int w, int h, sdl::texture &tex);
 		void write_16(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
 		void write_10(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
 		void write_2(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
