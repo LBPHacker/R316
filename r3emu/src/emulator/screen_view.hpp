@@ -25,7 +25,14 @@ namespace r3emu::emulator
 		screen &scr;
 
 	public:
-		screen_view(lua::state &L, std::string name, screen &scr, ui::host_window &hw);
+		screen_view(
+			lua::state &L,
+			std::string name,
+			screen &scr,
+			ui::host_window &hw,
+			int x,
+			int y
+		);
 
 		void draw() final override;
 	};

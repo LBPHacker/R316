@@ -28,7 +28,15 @@ namespace r3emu::emulator
 		simulation &sim;
 
 	public:
-		core_view(lua::state &L, std::string name, core &co, simulation &sim, ui::host_window &hw);
+		core_view(
+			lua::state &L,
+			std::string name,
+			core &co,
+			simulation &sim,
+			ui::host_window &hw,
+			int x,
+			int y
+		);
 
 		void draw() final override;
 	};

@@ -4,19 +4,10 @@
 #include "font_texture.hpp"
 #include "../../data/colours.hpp"
 
+#include <map>
+
 namespace r3emu::ui
 {
-	const unsigned char box_thick_dr = '\x8F';
-	const unsigned char box_thick_dl = '\x93';
-	const unsigned char box_thick_ur = '\x97';
-	const unsigned char box_thick_ul = '\x9B';
-	const unsigned char box_thick_rl = '\x81';
-	const unsigned char box_thick_ud = '\x83';
-	const unsigned char box_thick_url = '\xBB';
-	const unsigned char box_thick_drl = '\xB3';
-	const unsigned char box_thick_udr = '\xA3';
-	const unsigned char box_thick_udl = '\xAB';
-
 	host_window::host_window()
 	{
 		ft = std::make_unique<font_texture>(*this);
@@ -28,17 +19,27 @@ namespace r3emu::ui
 
 	void host_window::init_render_target()
 	{
-		int width = 1;
-		int height = 0;
+		int min_x = 1000000000;
+		int min_y = 1000000000;
+		int max_x = -1000000000;
+		int max_y = -1000000000;
 		for (auto v : views)
 		{
-			width += v->width + 1;
-			if (height < v->height)
-			{
-				height = v->height;
-			}
+			int left = v->position_x;
+			int top = v->position_y;
+			int right = v->position_x + v->width + 1;
+			int bottom = v->position_y + v->height + 1;
+			if (min_x >   left) min_x =   left;
+			if (min_y >    top) min_y =    top;
+			if (max_x <  right) max_x =  right;
+			if (max_y < bottom) max_y = bottom;
 		}
-		height += 2;
+
+		int width = max_x - min_x + 1;
+		int height = max_y - min_y + 1;
+
+		global_offs_x = -min_x;
+		global_offs_y = -min_y;
 		width *= 8;
 		height *= 8;
 
@@ -48,53 +49,53 @@ namespace r3emu::ui
 
 	void host_window::frame()
 	{
-		y_offs = 1;
-		x_offs = 1;
-		std::string top_row(1, box_thick_dr);
-		int last_height = -1;
+		struct position
+		{
+			int x, y;
+
+			bool operator <(position const &other) const
+			{
+				if (x < other.x) return  true;
+				if (x > other.x) return false;
+				if (y < other.y) return  true;
+				if (y > other.y) return false;
+				return false;
+			}
+		};
+
+		std::map<position, int> borders;
 		for (auto v : views)
 		{
-			top_row += std::string(v->width, box_thick_rl) + std::string(1, box_thick_drl);
-
-			for (auto y = 0; y < (v->height < last_height ? last_height : v->height); ++y)
+			for (auto y = v->position_y + 1; y < v->position_y + v->height + 1; ++y)
 			{
-				write(-1, y, std::string(1, box_thick_ud), config::colour_frame);
+				borders[position{ v->position_x               , y }] |= 0x5; // up and down
+				borders[position{ v->position_x + v->width + 1, y }] |= 0x5; // up and down
 			}
-			if (last_height == -1)
+			for (auto x = v->position_x + 1; x < v->position_x + v->width + 1; ++x)
 			{
-				write(-1, v->height, std::string(1, box_thick_ur), config::colour_frame);
+				borders[position{ x, v->position_y                 }] |= 0xA; // left and right
+				borders[position{ x, v->position_y + v->height + 1 }] |= 0xA; // left and right
 			}
-			else if (last_height == v->height)
-			{
-				write(-1, v->height, std::string(1, box_thick_url), config::colour_frame);
-			}
-			else
-			{
-				write(-1, v->height, std::string(1, v->height < last_height ? box_thick_udr : box_thick_ur), config::colour_frame);
-				write(-1, last_height, std::string(1, v->height < last_height ? box_thick_ul : box_thick_udl), config::colour_frame);
-			}
-			last_height = v->height;
-
-			write(0, v->height, std::string(v->width, box_thick_rl), config::colour_frame);
-
-			x_offs += v->width + 1;
+			borders[position{ v->position_x, v->position_y }] |= 0xC; // down and right
+			borders[position{ v->position_x + v->width + 1, v->position_y }] |= 0x6; // down and left
+			borders[position{ v->position_x, v->position_y + v->height + 1 }] |= 0x9; // up and right
+			borders[position{ v->position_x + v->width + 1, v->position_y + v->height + 1 }] |= 0x3; // up and left
 		}
-		for (auto y = 0; y < last_height; ++y)
+
+		for (auto &pair : borders)
 		{
-			write(-1, y, std::string(1, box_thick_ud), config::colour_frame);
+			static const char *border_strings[16] = {
+				"\x20", "\xF9", "\xF8", "\x9B",
+				"\xFB", "\x83", "\x93", "\xAB",
+				"\xFA", "\x97", "\x81", "\xBB",
+				"\x8F", "\xA3", "\xB3", "\xCB"
+			};
+			write(pair.first.x, pair.first.y, border_strings[pair.second], config::colour_frame);
 		}
-		write(-1, last_height, std::string(1, box_thick_ul), config::colour_frame);
-		y_offs = 0;
-		x_offs = 0;
 
-		*(top_row.end() - 1) = box_thick_dl;
-		write(0, 0, top_row, config::colour_frame);
-
-		x_offs = 1;
 		for (auto v : views)
 		{
-			write(0, 0, v->title, config::colour_title);
-			x_offs += v->width + 1;
+			write(v->position_x + 1, v->position_y, v->title, config::colour_title);
 		}
 	}
 
@@ -119,12 +120,9 @@ namespace r3emu::ui
 	{
 		SDL_SetRenderTarget(*this, *rt);
 
-		y_offs = 1;
-		x_offs = 1;
 		for (auto v : views)
 		{
 			v->draw();
-			x_offs += v->width + 1;
 		}
 
 		SDL_SetRenderTarget(*this, NULL);
@@ -141,8 +139,8 @@ namespace r3emu::ui
 		SDL_SetTextureBlendMode(*ft, SDL_BLENDMODE_BLEND);
 		SDL_SetTextureColorMod(*ft, ::colours[fg].r, ::colours[fg].g, ::colours[fg].b);
 		SDL_Rect src, dest;
-		dest.x = (x + x_offs) * 8;
-		dest.y = (y + y_offs) * 8;
+		dest.x = (global_offs_x + x) * 8;
+		dest.y = (global_offs_y + y) * 8;
 		dest.w = 8;
 		dest.h = 8;
 		src.w = 8;
@@ -156,41 +154,5 @@ namespace r3emu::ui
 			dest.x += 8;
 			x += 1;
 		}
-	}
-
-	void host_window::write_16(int x, int y, int v, int c, unsigned char bgfg)
-	{
-		std::string str(c, '?');
-		static const char base16[] = "0123456789ABCDEF";
-		for (auto it = str.rbegin(); it != str.rend(); ++it)
-		{
-			*it = base16[v % 16];
-			v /= 16;
-		}
-		write(x, y, str, bgfg);
-	}
-
-	void host_window::write_10(int x, int y, int v, int c, unsigned char bgfg)
-	{
-		std::string str(c, '?');
-		static const char base10[] = "0123456789";
-		for (auto it = str.rbegin(); it != str.rend(); ++it)
-		{
-			*it = base10[v % 10];
-			v /= 10;
-		}
-		write(x, y, str, bgfg);
-	}
-
-	void host_window::write_2(int x, int y, int v, int c, unsigned char bgfg)
-	{
-		std::string str(c, '?');
-		static const char base2[] = "01";
-		for (auto it = str.rbegin(); it != str.rend(); ++it)
-		{
-			*it = base2[v % 2];
-			v /= 2;
-		}
-		write(x, y, str, bgfg);
 	}
 }

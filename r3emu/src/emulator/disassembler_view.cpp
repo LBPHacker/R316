@@ -13,9 +13,11 @@ namespace r3emu::emulator
 		lua::state &L_param,
 		std::string name_param,
 		memory &mem_param,
-		ui::host_window &hw_param
+		ui::host_window &hw_param,
+		int x,
+		int y
 	) :
-		view(32, 16, "Disassembly", hw_param),
+		view(33, 16, x, y, "Disassembly", hw_param),
 		L(L_param),
 		name(name_param),
 		mem(mem_param)
@@ -63,7 +65,7 @@ namespace r3emu::emulator
 			"NS ", "S  ", "NL ", "L  ", "NBE", "BE ", "NLE", "LE "
 		};
 
-		for (auto y = 0U; y < 16U; ++y)
+		for (auto y = 0; y < height; ++y)
 		{
 			uint16_t addr = (top + y) & ((1 << config::memory_size) - 1);
 			uint32_t instr = mem.data[addr];
@@ -77,14 +79,14 @@ namespace r3emu::emulator
 			}
 
 			int x = 10;
-			hw.write_16(0, y, addr, 4, colour_frame);
-			hw.write(4, y, "      ", colour_default);
+			write_16(0, y, addr, 4, colour_frame);
+			write(4, y, "      ", colour_default);
 			if (instr & 0x1FFFFFFFU)
 			{
-				hw.write(5, y, mnemonics_displayed[(instr & 0x1F000000U) >> 24], colour_default);
+				write(5, y, mnemonics_displayed[(instr & 0x1F000000U) >> 24], colour_default);
 				if ((instr & 0x1F000000U) == 0x02000000U && (instr & 0x000F0000U) != 0x00010000U)
 				{
-					hw.write(6, y, conditions_displayed[(instr & 0x000F0000U) >> 16], colour_default);
+					write(6, y, conditions_displayed[(instr & 0x000F0000U) >> 16], colour_default);
 				}
 					
 				uint32_t op[3];
@@ -129,7 +131,7 @@ namespace r3emu::emulator
 
 				if (instr == 0x22011700U)
 				{
-					hw.write(5, y, "RET ", colour_default);
+					write(5, y, "RET ", colour_default);
 					operands = 0;
 				}
 
@@ -142,12 +144,12 @@ namespace r3emu::emulator
 					write_operand(x, y, op[0]);
 					if ((operands & 2) && op[0] != op[1])
 					{
-						hw.write(x, y, ", ", colour_default); x += 2;
+						write(x, y, ", ", colour_default); x += 2;
 						write_operand(x, y, op[1]);
 					}
 					if (operands & 4)
 					{
-						hw.write(x, y, ", ", colour_default); x += 2;
+						write(x, y, ", ", colour_default); x += 2;
 						write_operand(x, y, op[2]);
 					}
 					break;
@@ -160,7 +162,7 @@ namespace r3emu::emulator
 					write_operand(x, y, op[1]);
 					if (operands & 4)
 					{
-						hw.write(x, y, ", ", colour_default); x += 2;
+						write(x, y, ", ", colour_default); x += 2;
 						write_operand(x, y, op[2]);
 					}
 					break;
@@ -172,9 +174,9 @@ namespace r3emu::emulator
 			}
 			else
 			{
-				hw.write(5, y, "NOP ", colour_default);
+				write(5, y, "NOP ", colour_default);
 			}
-			hw.write(x, y, std::string(32 - x, ' '), colour_default);
+			write(x, y, std::string(width - x, ' '), colour_default);
 		}
 	}
 
@@ -187,29 +189,29 @@ namespace r3emu::emulator
 				uint32_t reg = operand % 8;
 				if (operand & 0x20U)
 				{
-					hw.write(x, y, "[S???]", colour_default); x += 6;
+					write(x, y, "[S???]", colour_default); x += 6;
 					if (operand & 0x10)
 					{
-						hw.write(x - 4, y, "-", colour_default);
-						hw.write_16(x - 3, y, 0x10 - operand % 0x10, 2, colour_default);
+						write(x - 4, y, "-", colour_default);
+						write_16(x - 3, y, 0x10 - operand % 0x10, 2, colour_default);
 					}
 					else
 					{
-						hw.write(x - 4, y, "+", colour_default);
-						hw.write_16(x - 3, y, operand % 0x10, 2, colour_default);
+						write(x - 4, y, "+", colour_default);
+						write_16(x - 3, y, operand % 0x10, 2, colour_default);
 					}
 				}
 				else if (operand & 0x10U)
 				{
 					if (operand & 0x08U)
 					{
-						hw.write(x, y, "[--R?]", colour_default);
-						hw.write_16(x + 4, y, reg, 1, colour_default); x += 6;
+						write(x, y, "[--R?]", colour_default);
+						write_16(x + 4, y, reg, 1, colour_default); x += 6;
 					}
 					else
 					{
-						hw.write(x, y, "[R?++]", colour_default);
-						hw.write_16(x + 2, y, reg, 1, colour_default); x += 6;
+						write(x, y, "[R?++]", colour_default);
+						write_16(x + 2, y, reg, 1, colour_default); x += 6;
 					}
 				}
 				else
@@ -218,31 +220,31 @@ namespace r3emu::emulator
 					{
 						if (reg == 7)
 						{
-							hw.write(x, y, "LO", colour_default); x += 2;
+							write(x, y, "LO", colour_default); x += 2;
 						}
 						else
 						{
-							hw.write(x, y, "[R?]", colour_default);
-							hw.write_16(x + 2, y, reg, 1, colour_default); x += 4;
+							write(x, y, "[R?]", colour_default);
+							write_16(x + 2, y, reg, 1, colour_default); x += 4;
 						}
 					}
 					else
 					{
-						hw.write(x, y, "R?", colour_default);
-						hw.write_16(x + 1, y, reg, 1, colour_default); x += 2;
+						write(x, y, "R?", colour_default);
+						write_16(x + 1, y, reg, 1, colour_default); x += 2;
 					}
 				}
 			}
 			break;
 
 		case 1:
-			hw.write_16(x, y, operand, 4, colour_default); x += 4;
+			write_16(x, y, operand, 4, colour_default); x += 4;
 			break;
 
 		case 2:
-			hw.write(x, y, "[", colour_default); x += 1;
-			hw.write_16(x, y, operand, 4, colour_default); x += 4;
-			hw.write(x, y, "]", colour_default); x += 1;
+			write(x, y, "[", colour_default); x += 1;
+			write_16(x, y, operand, 4, colour_default); x += 4;
+			write(x, y, "]", colour_default); x += 1;
 			break;
 		}
 	}

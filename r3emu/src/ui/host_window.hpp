@@ -20,7 +20,7 @@ namespace r3emu::ui
 		std::unique_ptr<font_texture> ft;
 		std::unique_ptr<sdl::texture> rt;
 
-		int x_offs, y_offs;
+		int global_offs_x, global_offs_y;
 		void init_render_target();
 		void frame();
 
@@ -31,9 +31,6 @@ namespace r3emu::ui
 		void draw();
 
 		void write(int x, int y, std::string str, unsigned char bgfg = config::colour_default);
-		void write_16(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
-		void write_10(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
-		void write_2(int x, int y, int v, int c, unsigned char bgfg = config::colour_default);
 
 		friend class view;
 	};

@@ -33,7 +33,14 @@ namespace r3emu::emulator
 		void write_operand(int &x, int y, uint32_t operand);
 
 	public:
-		disassembler_view(lua::state &L_param, std::string name_param, memory &mem_param, ui::host_window &hw);
+		disassembler_view(
+			lua::state &L,
+			std::string name,
+			memory &mem,
+			ui::host_window &hw,
+			int x,
+			int y
+		);
 
 		void draw() final override;
 	};

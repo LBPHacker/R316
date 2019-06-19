@@ -20,12 +20,7 @@ namespace r3emu::emulator
 		lua::state &L;
 		std::string name;
 
-		struct screen_block
-		{
-			int ch;
-			int bgfg;
-		};
-		std::vector<screen_block> blocks;
+		std::vector<uint16_t> blocks;
 
 		uint16_t mode;
 		uint16_t colour;
@@ -37,5 +32,12 @@ namespace r3emu::emulator
 		void spread(bool write, uint16_t addr, uint32_t value) final override;
 
 		friend class screen_view;
+
+		enum
+		{
+			mode_char8x8 = 0,
+			mode_4bit4x4 = 1,
+			mode_1bit2x2 = 2
+		};
 	};
 }
