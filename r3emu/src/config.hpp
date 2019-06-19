@@ -35,9 +35,9 @@ namespace r3emu::config
 	const int mm_core_flags           = mm_core_base + 0x08;
 	const int mm_core_program_counter = mm_core_base + 0x09;
 	const int mm_core_last_output     = mm_core_base + 0x0B;
-	const int mm_core_loop_count      = mm_core_base + 0x0C;
-	const int mm_core_loop_from       = mm_core_base + 0x0D;
-	const int mm_core_loop_to         = mm_core_base + 0x0E;
+	// const int mm_core_loop_count      = mm_core_base + 0x0C; // LOOPCONTROL
+	// const int mm_core_loop_from       = mm_core_base + 0x0D; // LOOPCONTROL
+	// const int mm_core_loop_to         = mm_core_base + 0x0E; // LOOPCONTROL
 	const int mm_core_write_mask      = mm_core_base + 0x0F;
 
 	const int mm_screen_base   = 0x1C00;

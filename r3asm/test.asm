@@ -5,7 +5,7 @@ start:
 	mov r1, 0x1D00
 	mov [r1++], 0
 	mov [r1++], 0
-	call test_loop
+	; call test_loop ; LOOPCONTROL
 	mov r0, data.compressed
 	mov r1, 0x1C00
 	mov r2, data.lut
@@ -14,13 +14,13 @@ start:
 	hlt
 	jmp .die
 
-test_loop:
-	mov r4, 9
-	loop 8, .done, r0
-	add r4, 7
-.done:
-	nop
-	ret
+;test_loop: ; LOOPCONTROL
+;	mov r4, 9 ; LOOPCONTROL
+;	loop 8, .done, r0 ; LOOPCONTROL
+;	add r4, 7 ; LOOPCONTROL
+;.done: ; LOOPCONTROL
+;	nop ; LOOPCONTROL
+;	ret ; LOOPCONTROL
 
 print_16_to_6:
 	mov [--sp], r2

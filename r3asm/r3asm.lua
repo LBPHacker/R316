@@ -248,7 +248,10 @@ xpcall(function()
 			%macro pop Thing
 				mov Thing, [sp++]
 			%endmacro
-
+		]==]):gsub("`([A-Z]+)'", function(cap)
+			return RESERVED[cap]
+		end)
+		--[[
 			%macro _loop_internal Reg, Count, Done, Loop
 				mov Reg, _loopcontrolbase
 				mov [Reg++], Count
@@ -262,9 +265,7 @@ xpcall(function()
 			`PEERLABEL' `MACROUNIQUE' loop_until:
 			`SUPERLABEL' `LABELCONTEXT':
 			%endmacro
-		]==]):gsub("`([A-Z]+)'", function(cap)
-			return RESERVED[cap]
-		end)
+		--]] -- LOOPCONTROL
 	}
 
 	local builtin_freebits = 29

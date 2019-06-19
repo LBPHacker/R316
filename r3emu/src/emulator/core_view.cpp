@@ -37,9 +37,9 @@ namespace r3emu::emulator
 		write(9, 2, "LO", config::colour_frame);
 		write(9, 4, "NBLSZOC", config::colour_frame);
 		write(9, 7, "#    /", config::colour_frame);
-		write(0, 9, "LC", config::colour_frame);
-		write(0, 10, "LF", config::colour_frame);
-		write(0, 11, "LT", config::colour_frame);
+		// write(0, 9, "LC", config::colour_frame); // LOOPCONTROL
+		// write(0, 10, "LF", config::colour_frame); // LOOPCONTROL
+		// write(0, 11, "LT", config::colour_frame); // LOOPCONTROL
 		write(9, 9, "SC", config::colour_frame);
 		write(9, 10, "RS", config::colour_frame);
 		write(9, 11, "RR", config::colour_frame);
@@ -57,9 +57,9 @@ namespace r3emu::emulator
 		write_2(9, 5, *co.flags >> 1, 7);
 		write_16(10, 7, co.cycle, 4);
 		write_16(15, 7, co.subcycle, 1);
-		write_16(3, 9, *co.loop_count, 4);
-		write_16(3, 10, *co.loop_from, 4);
-		write_16(3, 11, *co.loop_to, 4);
+		// write_16(3, 9, *co.loop_count, 4); // LOOPCONTROL
+		// write_16(3, 10, *co.loop_from, 4); // LOOPCONTROL
+		// write_16(3, 11, *co.loop_to, 4); // LOOPCONTROL
 		write(12, 9, co.skip_subcycle ? "SKIP" : "TAKE");
 		write(12, 10, co.start_requested ? "REQU" : "NOPE");
 		write(12, 11, co.reset_requested ? "REQU" : "NOPE");

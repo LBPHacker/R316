@@ -19,9 +19,9 @@ namespace r3emu::emulator
 		flags           = mem.data.data() + config::mm_core_flags;
 		program_counter = mem.data.data() + config::mm_core_program_counter;
 		last_output     = mem.data.data() + config::mm_core_last_output;
-		loop_count      = mem.data.data() + config::mm_core_loop_count;
-		loop_from       = mem.data.data() + config::mm_core_loop_from;
-		loop_to         = mem.data.data() + config::mm_core_loop_to;
+		// loop_count      = mem.data.data() + config::mm_core_loop_count; // LOOPCONTROL
+		// loop_from       = mem.data.data() + config::mm_core_loop_from; // LOOPCONTROL
+		// loop_to         = mem.data.data() + config::mm_core_loop_to; // LOOPCONTROL
 		write_mask      = mem.data.data() + config::mm_core_write_mask;
 
 		cycle = 0;
@@ -47,7 +47,7 @@ namespace r3emu::emulator
 	{
 		reset_requested = false;
 		*program_counter = 0;
-		*loop_count = 0;
+		// *loop_count = 0; // LOOPCONTROL
 		halted = true;
 	}
 
@@ -327,24 +327,24 @@ namespace r3emu::emulator
 
 	void core::sc_branch()
 	{
-		*loop_count &= 0xFFFFU;
-		*loop_from &= 0xFFFFU;
-		*loop_to &= 0xFFFFU;
-
 		if (jump && (((*flags | flag_true) >> (jump_cond >> 1)) & 1) == (jump_cond & 1))
 		{
 			*program_counter = jump_to;
 		}
 
-		if (*loop_count && *program_counter == *loop_from)
-		{
-			*loop_count -= 1;
-			*loop_count &= 0xFFFFU;
-			if (*loop_count)
-			{
-				*program_counter = *loop_to;
-			}
-		}
+		// *loop_count &= 0xFFFFU; // LOOPCONTROL
+		// *loop_from &= 0xFFFFU; // LOOPCONTROL
+		// *loop_to &= 0xFFFFU; // LOOPCONTROL
+
+		// if (*loop_count && *program_counter == *loop_from) // LOOPCONTROL
+		// { // LOOPCONTROL
+		// 	*loop_count -= 1; // LOOPCONTROL
+		// 	*loop_count &= 0xFFFFU; // LOOPCONTROL
+		// 	if (*loop_count) // LOOPCONTROL
+		// 	{ // LOOPCONTROL
+		// 		*program_counter = *loop_to; // LOOPCONTROL
+		// 	} // LOOPCONTROL
+		// } // LOOPCONTROL
 
 		*program_counter &= 0xFFFFU;
 		*last_output &= 0xFFFFU;
