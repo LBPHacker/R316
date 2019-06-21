@@ -66,10 +66,10 @@ end
 
 local ok, err = pcall(function()
 	local code = {}
-	loadfile("../../r3asm/r3asm.lua")({
-		source = "../../r3asm/test.asm",
+	loadfile("../../tptasm/tptasm.lua")({
+		source = "../16to6.asm",
 		target = code,
-		silent = true
+		log = io.stderr
 	})
 
 	for ix = 0, #code do

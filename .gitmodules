@@ -1,0 +1,3 @@
+[submodule "tptasm"]
+	path = tptasm
+	url = https://github.com/LBPHacker/tptasm

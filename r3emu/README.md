@@ -3,6 +3,13 @@
 An emulator for an architecture that doesn't even exist yet. In fact, it'll
 help a lot with figuring out what to put into that architecture.
 
+This repo has [tptasm](https://github.com/LBPHacker/tptasm) linked as a
+submodule, so don't forget this:
+
+```sh
+git submodule update --init --recursive
+```
+
 ## Building
 
 ### Release
