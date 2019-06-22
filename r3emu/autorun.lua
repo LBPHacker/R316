@@ -69,11 +69,12 @@ local ok, err = pcall(function()
 	loadfile("../../tptasm/tptasm.lua")({
 		source = "../16to6.asm",
 		target = code,
-		log = io.stderr
+		log = io.stderr,
+		model = "R3"
 	})
 
 	for ix = 0, #code do
-		mem[ix] = code[ix]
+		mem[ix] = code[ix].dwords[1]
 	end
 	
 	local message = "Hi. I'm a relatively long message being decompressed on the fly from triplets of 16-bit cells holding eight 6-bit LUT indices each. Magically enough, I'm displayed one character per frame. Marvelous, isn't it?"

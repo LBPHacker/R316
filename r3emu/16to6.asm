@@ -1,4 +1,4 @@
-%include "r3"
+%include "common"
 
 start:
 	mov sp, 0x0800
