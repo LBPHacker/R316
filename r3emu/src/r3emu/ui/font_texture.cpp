@@ -1,11 +1,11 @@
 #include "font_texture.hpp"
 
-#include "../../data/font.hpp"
+#include "../font.hpp"
 
 namespace r3emu::ui
 {
 	font_texture::font_texture(SDL_Renderer *renderer) :
-		sdl::texture(renderer, 128, 128)
+		sdlstuff::texture(renderer, 128, 128)
 	{
 		void *data;
 		int pitch;

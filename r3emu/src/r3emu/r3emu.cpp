@@ -2,7 +2,6 @@
 
 #include "utility/console.hpp"
 #include "ui/host_window.hpp"
-#include "sdl/context.hpp"
 #include "lua/state.hpp"
 
 #include "emulator/bus.hpp"
@@ -14,6 +13,7 @@
 #include "emulator/disassembler_view.hpp"
 #include "emulator/screen_view.hpp"
 
+#include <sdlstuff/context.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 {
 	std::vector<std::string> args(argv, argv + argc);
 
-	sdl::context cx;
+	sdlstuff::context cx;
 	lua::state L;
 	utility::console cons;
 	ui::host_window hw;
@@ -136,11 +136,11 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				if (event.type == sdl::context::sdl_event_type)
+				if (event.type == sdlstuff::context::sdl_event_type)
 				{
 					switch (event.user.code)
 					{
-					case sdl::context::event_console_input:
+					case sdlstuff::context::event_console_input:
 						if (handle_console_input(L, event))
 						{
 							running = false;

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "peripheral.hpp"
-#include "../sdl/texture.hpp"
 
+#include <sdlstuff/texture.hpp>
 #include <string>
 #include <vector>
 #include <memory>
@@ -33,7 +33,7 @@ namespace r3emu::emulator
 		uint16_t colour;
 		std::vector<uint16_t> memory;
 
-		sdl::texture buffer;
+		sdlstuff::texture buffer;
 		std::unique_ptr<ui::font_texture> ft;
 
 	public:

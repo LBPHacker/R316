@@ -1,8 +1,8 @@
 #include "console.hpp"
 
 #include "../config.hpp"
-#include "../sdl/context.hpp"
 
+#include <sdlstuff/context.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <future>
@@ -42,8 +42,8 @@ namespace r3emu::utility
 
 		SDL_Event event;
 		SDL_zero(event);
-		event.type = sdl::context::sdl_event_type;
-		event.user.code = sdl::context::event_console_input;
+		event.type = sdlstuff::context::sdl_event_type;
+		event.user.code = sdlstuff::context::event_console_input;
 		event.user.data1 = &process_input;
 		event.user.data2 = nullptr;
 

@@ -2,7 +2,7 @@
 
 #include "view.hpp"
 #include "font_texture.hpp"
-#include "../../data/colours.hpp"
+#include "../colours.hpp"
 
 #include <map>
 
@@ -43,7 +43,7 @@ namespace r3emu::ui
 		width *= 8;
 		height *= 8;
 
-		rt = std::make_unique<sdl::texture>(*this, width, height, true);
+		rt = std::make_unique<sdlstuff::texture>(*this, width, height, true);
 		SDL_SetWindowSize(*this, width * config::scale, height * config::scale);
 	}
 
@@ -167,7 +167,7 @@ namespace r3emu::ui
 		SDL_RenderFillRect(*this, &rect);
 	}
 
-	void host_window::copy(int x, int y, int w, int h, sdl::texture &tex)
+	void host_window::copy(int x, int y, int w, int h, sdlstuff::texture &tex)
 	{
 		SDL_Rect rect;
 		rect.x = global_offs_x * 8 + x;

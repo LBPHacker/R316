@@ -3,7 +3,7 @@
 #include "../config.hpp"
 #include "../ui/host_window.hpp"
 #include "../ui/font_texture.hpp"
-#include "../../data/colours.hpp"
+#include "../colours.hpp"
 
 namespace r3emu::emulator
 {
