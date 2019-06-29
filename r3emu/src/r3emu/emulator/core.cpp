@@ -127,6 +127,9 @@ namespace r3emu::emulator
 			swap_op_1_2 = true;
 		}
 
+		jump_cond = (instruction & 0x000F0000U) >> 16;
+		oper = (instruction & 0x1F000000U) >> 24;
+
 		if (instruction & 0x00400000U)
 		{
 			sc_bind_regop(0, instruction >> 16);
@@ -163,9 +166,6 @@ namespace r3emu::emulator
 			mem_addr[1] = instruction & 0x1FFFU;
 		}
 
-		jump_cond = (instruction & 0x000F0000U) >> 16;
-		oper = (instruction & 0x1F000000U) >> 24;
-
 		if (subcycle && (
 			(mem_op[0] && mem_addr[0] >= (1 << config::memory_size)) ||
 			(mem_op[1] && mem_addr[1] >= (1 << config::memory_size)) ||
@@ -178,6 +178,11 @@ namespace r3emu::emulator
 	
 	void core::sc_bind_regop(int offs, uint32_t instruction)
 	{
+		if (oper == 0x02 && offs != 1) // 0x02 is jcc
+		{
+			return;
+		}
+
 		auto reg = instruction % 8;
 		if (instruction & 0x20U)
 		{
