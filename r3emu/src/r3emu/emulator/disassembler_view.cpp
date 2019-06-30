@@ -48,21 +48,21 @@ namespace r3emu::emulator
 	{
 		static char const *mnemonics_displayed[0x20] = {
 			"MOV ", "CALL", "JMP ", "HLT ", "BSF ", "BSR ", "ZSF ", "ZSR ",
-			"XOR ", "OR  ", "AND ", "ANDN", "ADD ", "ADC ", "SUB ", "SBB ",
-			"MAK ", "EXT ", "MAK1", "EXT1", "SCL ", "SCR ", "ROL ", "ROR ",
-			"OP18", "OP19", "TEST", "TSTN", "OP1C", "OP1D", "CMP ", "CMPC"
+			"MAKS", "EXTS", "SCLS", "SCRS", "CMP ", "CMPC", "TEST", "TSTN",
+			"MAK1", "EXT1", "ROL ", "ROR ", "ADD ", "ADC ", "XOR ", "OR  ",
+			"MAK ", "EXT ", "SCL ", "SCR ", "SUB ", "SBB ", "AND ", "ANDN",
 		};
 		
 		static uint32_t has_operands[0x20] = {
 			 5,  4,  4,  0,  5,  5,  5,  5,
+			 6,  6,  6,  6,  6,  6,  6,  6,
 			 7,  7,  7,  7,  7,  7,  7,  7,
 			 7,  7,  7,  7,  7,  7,  7,  7,
-			 0,  0,  6,  6,  0,  0,  6,  6
 		};
 
 		static char const *conditions_displayed[0x10] = {
 			"N  ", "   ", "NB ", "B  ", "NO ", "O  ", "NE ", "E  ",
-			"NS ", "S  ", "NL ", "L  ", "NBE", "BE ", "NLE", "LE "
+			"NS ", "S  ", "NL ", "L  ", "NBE", "BE ", "NLE", "LE ",
 		};
 
 		for (auto y = 0; y < height; ++y)

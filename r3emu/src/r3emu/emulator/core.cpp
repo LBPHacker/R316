@@ -432,52 +432,52 @@ namespace r3emu::emulator
 			write_op_0 = true;
 			break;
 
-		case 0x08: // xor
+		case 0x16: // xor
 			op[0] = op[1] ^ op[2];
 			update_secondary_flags_zs();
 			write_op_0 = true;
 			break;
 
-		case 0x09: // or
+		case 0x17: // or
 			op[0] = op[1] | op[2];
 			update_secondary_flags_zs();
 			write_op_0 = true;
 			break;
 
-		case 0x0A: // and
+		case 0x1E: // and
 			write_op_0 = true;
 			[[fallthrough]];
-		case 0x1A: // test
+		case 0x0E: // test
 			op[0] = op[1] & op[2];
 			update_secondary_flags_zs();
 			break;
 
-		case 0x0B: // andn
+		case 0x1F: // andn
 			write_op_0 = true;
 			[[fallthrough]];
-		case 0x1B: // tstn
+		case 0x0F: // tstn
 			op[0] = op[1] & (op[2] ^ 0xFFFFU);
 			update_secondary_flags_zs();
 			break;
 
-		case 0x0C: // add
-		case 0x0D: // adc
-		case 0x0E: // sub
-		case 0x0F: // sbb
+		case 0x14: // add
+		case 0x15: // adc
+		case 0x1C: // sub
+		case 0x1D: // sbb
 			write_op_0 = true;
 			[[fallthrough]];
-		case 0x1E: // cmp
-		case 0x1F: // cmpc
+		case 0x0C: // cmp
+		case 0x0D: // cmpc
 			{
 				uint16_t carry = ((oper & 0x01) && (*flags & (1 << flag_carry))) ? 1 : 0;
-				if (oper & 0x02)
+				if (oper & 0x08)
 				{
 					op[1] ^= 0xFFFFU;
 				}
 				op[0] = carry + op[1] + op[2];
 				uint32_t carry_16 = (uint32_t(carry) + op[1] + op[2]) >> 16;
 				uint32_t carry_15 = (uint32_t(carry) + (op[1] & 0x7FFFU) + (op[2] & 0x7FFFU)) >> 15;
-				if (oper & 0x02)
+				if (oper & 0x08)
 				{
 					op[0] ^= 0xFFFFU;
 				}
@@ -487,31 +487,37 @@ namespace r3emu::emulator
 			update_secondary_flags_zs();
 			break;
 
-		case 0x10: // mak
-		case 0x11: // ext
-		case 0x12: // mak1
-		case 0x13: // ext1
-		case 0x14: // scl
-		case 0x15: // scr
-		case 0x16: // rol
-		case 0x17: // ror
+		case 0x18: // mak
+		case 0x19: // ext
+		case 0x1A: // scl
+		case 0x1B: // scr
+		case 0x10: // mak1
+		case 0x11: // ext1
+		case 0x12: // rol
+		case 0x13: // ror
+			write_op_0 = true;
+			[[fallthrough]];
+		case 0x08: // maks
+		case 0x09: // exts
+		case 0x0A: // scls
+		case 0x0B: // scrs
 			{
 				uint16_t shift_in_from;
-				switch (oper & 0x06)
+				switch (oper & 0x0A)
 				{
-				case 0x00:
+				case 0x08:
 					shift_in_from = 0x0000U;
 					break;
 
-				case 0x02:
+				case 0x00:
 					shift_in_from = 0xFFFFU;
 					break;
 					
-				case 0x04:
+				case 0x0A:
 					shift_in_from = *last_output;
 					break;
 					
-				case 0x06:
+				case 0x02:
 					shift_in_from = op[1];
 					break;
 				}
@@ -528,16 +534,6 @@ namespace r3emu::emulator
 				}
 			}
 			update_secondary_flags_zs();
-			write_op_0 = true;
-			break;
-
-		case 0x18: // ???
-		case 0x19: // ???
-		case 0x1C: // ???
-		case 0x1D: // ???
-			std::cerr << "0x";
-			std::cerr << std::hex << std::uppercase << std::setw(2) << std::setfill('0'); // aka %02X
-			std::cerr << oper << ": nyi" << std::endl;
 			break;
 		}
 	}
