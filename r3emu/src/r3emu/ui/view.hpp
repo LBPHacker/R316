@@ -1,13 +1,9 @@
 #pragma once
 
 #include <string>
+#include <sdlstuff/texture.hpp>
 
 #include "../config.hpp"
-
-namespace r3emu::sdlstuff
-{
-	class texture;
-}
 
 namespace r3emu::ui
 {
