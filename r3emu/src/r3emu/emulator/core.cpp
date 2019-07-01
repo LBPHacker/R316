@@ -129,6 +129,10 @@ namespace r3emu::emulator
 
 		jump_cond = (instruction & 0x000F0000U) >> 16;
 		oper = (instruction & 0x1F000000U) >> 24;
+		if (oper == 0x02) // 0x02 is jcc
+		{
+			instruction &= ~0x000F0000U;
+		}
 
 		if (instruction & 0x00400000U)
 		{
@@ -178,11 +182,6 @@ namespace r3emu::emulator
 	
 	void core::sc_bind_regop(int offs, uint32_t instruction)
 	{
-		if (oper == 0x02 && offs != 1) // 0x02 is jcc
-		{
-			return;
-		}
-
 		auto reg = instruction % 8;
 		if (instruction & 0x20U)
 		{
