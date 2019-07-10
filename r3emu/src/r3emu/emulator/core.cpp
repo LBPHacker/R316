@@ -358,7 +358,7 @@ namespace r3emu::emulator
 
 	void core::update_secondary_flags()
 	{
-		*flags = (*flags & ~flag_lower) | ((bool(*flags & flag_sign) != bool(*flags | flag_overflow)) ? flag_lower : 0);
+		*flags = (*flags & ~flag_lower) | ((bool(*flags & flag_sign) != bool(*flags & flag_overflow)) ? flag_lower : 0);
 		*flags = (*flags & ~flag_below_equal) | ((*flags & (flag_carry | flag_zero)) ? flag_below_equal : 0);
 		*flags = (*flags & ~flag_not_greater) | ((*flags & (flag_lower | flag_zero)) ? flag_not_greater : 0);
 	}
