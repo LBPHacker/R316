@@ -20,15 +20,25 @@ local mapped = {
 }
 
 setmetatable(_G, { __index = function(t, k)
-	local addr = mapped[k]
-	if addr then
-		return mem.read(addr)
+	do
+		local addr = mapped[k]
+		if addr then
+			return mem.read(addr)
+		end
+	end
+	if k == "kbdin" then
+		return keyboard.get_buffer()
 	end
 end, __newindex = function(t, k, v)
-	local addr = mapped[k]
-	if addr then
-		mem.write(addr, v)
-		return
+	do
+		local addr = mapped[k]
+		if addr then
+			mem.write(addr, v)
+			return
+		end
+	end
+	if k == "kbdin" then
+		return keyboard.set_buffer(v)
 	end
 	rawset(t, k, v)
 end })

@@ -10,9 +10,13 @@ start:
 	mov r1, 0x1C00
 	mov r2, data.lut
 	call print_16_to_6
-.die:
-	hlt
-	jmp .die
+	mov r0, 0x1F00
+.input:
+	cmp [r0], 0
+	je .input
+	mov [r1++], [r0]
+	mov [r0], 0
+	jmp .input
 
 ;test_loop: ; LOOPCONTROL
 ;	mov r4, 9 ; LOOPCONTROL

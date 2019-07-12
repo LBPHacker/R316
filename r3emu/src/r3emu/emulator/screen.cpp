@@ -27,10 +27,6 @@ namespace r3emu::emulator
 	{
 	}
 
-	void screen::pre_gather()
-	{
-	}
-
 	void screen::gather(bool read, uint16_t addr, uint32_t &value)
 	{
 		if (read)

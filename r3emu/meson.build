@@ -7,6 +7,7 @@ executable('r3emu', sources: [
 	'src/r3emu/emulator/core.cpp',
 	'src/r3emu/emulator/core_view.cpp',
 	'src/r3emu/emulator/disassembler_view.cpp',
+	'src/r3emu/emulator/keyboard.cpp',
 	'src/r3emu/emulator/memory.cpp',
 	'src/r3emu/emulator/peripheral.cpp',
 	'src/r3emu/emulator/screen.cpp',

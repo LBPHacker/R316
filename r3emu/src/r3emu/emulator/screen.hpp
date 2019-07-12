@@ -40,7 +40,6 @@ namespace r3emu::emulator
 		screen(lua::state &L, std::string name, bus &bu, ui::host_window &hw);
 		~screen();
 
-		void pre_gather() final override;
 		void gather(bool read, uint16_t addr, uint32_t &value) final override;
 		void spread(bool write, uint16_t addr, uint32_t value) final override;
 
