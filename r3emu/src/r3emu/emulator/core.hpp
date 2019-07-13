@@ -40,9 +40,9 @@ namespace r3emu::emulator
 		uint32_t *program_counter;
 		uint32_t *last_output;
 
-		// uint32_t *loop_count; // LOOPCONTROL
-		// uint32_t *loop_from; // LOOPCONTROL
-		// uint32_t *loop_to; // LOOPCONTROL
+		uint32_t *loop_count;
+		uint32_t *loop_from;
+		uint32_t *loop_to;
 		
 		uint32_t *write_mask;
 

@@ -1,47 +1,58 @@
 fps.set(60)
 
-local mapped = {
-	r0 = 0x0700,
-	r1 = 0x0701,
-	r2 = 0x0702,
-	r3 = 0x0703,
-	r4 = 0x0704,
-	r5 = 0x0705,
-	r6 = 0x0706,
-	r7 = 0x0707,
-	fl = 0x0708,
-	pc = 0x0709,
-	lr = 0x070A,
-	lo = 0x070B,
-	lc = 0x070C,
-	lf = 0x070D,
-	lt = 0x070E,
-	wm = 0x070F,
-}
-
-setmetatable(_G, { __index = function(t, k)
-	do
-		local addr = mapped[k]
-		if addr then
+do
+	local mapped_read = {}
+	local mapped_write = {}
+	local function map(name, read, write)
+		mapped_read[name] = read
+		mapped_write[name] = write
+	end
+	local function mapreg(name, addr)
+		map(name, function()
 			return mem.read(addr)
+		end, function(value)
+			mem.write(addr, value)
+		end)
+	end
+
+	mapreg("r0", 0x0700)
+	mapreg("r1", 0x0701)
+	mapreg("r2", 0x0702)
+	mapreg("r3", 0x0703)
+	mapreg("r4", 0x0704)
+	mapreg("r5", 0x0705)
+	mapreg("r6", 0x0706)
+	mapreg("r7", 0x0707)
+	mapreg("fl", 0x0708)
+	mapreg("pc", 0x0709)
+	mapreg("lo", 0x070B)
+	mapreg("lc", 0x070C)
+	mapreg("lf", 0x070D)
+	mapreg("lt", 0x070E)
+	mapreg("wm", 0x070F)
+	map("kbdin", keyboard.get_buffer, keyboard.set_buffer)
+
+	setmetatable(_G, { __index = function(t, k)
+		local read = mapped_read[k]
+		if read then
+			return read()
 		end
-	end
-	if k == "kbdin" then
-		return keyboard.get_buffer()
-	end
-end, __newindex = function(t, k, v)
-	do
-		local addr = mapped[k]
-		if addr then
-			mem.write(addr, v)
+	end, __newindex = function(t, k, v)
+		local write = mapped_write[k]
+		if write then
+			write(v)
 			return
 		end
+		rawset(t, k, v)
+	end })
+
+	autocomplete_additional_suggestions = {}
+	for key in pairs(mapped_read) do
+		table.insert(autocomplete_additional_suggestions, key)
 	end
-	if k == "kbdin" then
-		return keyboard.set_buffer(v)
-	end
-	rawset(t, k, v)
-end })
+	-- TODO: get readline autocompletion to work with this
+	-- https://thoughtbot.com/blog/tab-completion-in-gnu-readline
+end
 
 setmetatable(mem, { __index = function(t, k)
 	if type(k) == "number" then
