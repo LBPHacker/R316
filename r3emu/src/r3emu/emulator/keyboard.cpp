@@ -32,6 +32,8 @@ namespace r3emu::emulator
 		}, "get_buffer");
 
 		lua_setglobal(L, name.c_str());
+
+		current = 0;
 	}
 
 	keyboard::~keyboard()

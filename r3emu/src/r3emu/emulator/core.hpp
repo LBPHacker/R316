@@ -38,6 +38,9 @@ namespace r3emu::emulator
 		uint32_t *gp_registers;
 		uint32_t *flags;
 		uint32_t *program_counter;
+
+		uint16_t last_input_to_store;
+		uint32_t *last_input;
 		uint32_t *last_output;
 
 		uint32_t *loop_count;
@@ -45,6 +48,7 @@ namespace r3emu::emulator
 		uint32_t *loop_to;
 		
 		uint32_t *write_mask;
+		uint32_t *pml_carries;
 
 		uint16_t op[3];
 		bool mem_op[3];

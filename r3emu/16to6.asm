@@ -34,7 +34,7 @@ print_16_to_6:
 	add r2, [sp-1], [sp]     ; index #0
 .loop:
 	mov [r1++], [r2]         ; emit #0
-	mov lo, [r0++]           ; shuffle #2
+	mak lo, [r0++], 0        ; shuffle #2
 	scl [sp-1], [r0], 0xA4   ; extract #2
 	add r2, [sp-2], [sp]     ; index #1
 	mov [r1++], [r2]         ; emit #1
@@ -46,7 +46,7 @@ print_16_to_6:
 	jz .done
 	add r2, [sp-2], [sp]     ; index #3
 	mov [r1++], [r2]         ; emit #3
-	mov lo, [r0++]           ; shuffle #5
+	mak lo, [r0++], 0        ; shuffle #5
 	scl [sp-1], [r0], 0xA2   ; extract #5
 	add r2, [sp-3], [sp]     ; index #4
 	mov [r1++], [r2]         ; emit #4

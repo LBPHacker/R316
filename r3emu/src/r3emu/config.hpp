@@ -18,6 +18,8 @@ namespace r3emu::config
 		" - press Shift+F for a single subcycle.\n"
 	;
 
+	const int subcycles_per_frame = 4;
+
 	const unsigned char colour_default = 0xF0U;
 	const unsigned char colour_frame = 0xF7U;
 	const unsigned char colour_clear = colour_frame;
@@ -34,11 +36,13 @@ namespace r3emu::config
 	const int mm_core_gp_registers    = mm_core_base + 0x00;
 	const int mm_core_flags           = mm_core_base + 0x08;
 	const int mm_core_program_counter = mm_core_base + 0x09;
+	const int mm_core_last_input      = mm_core_base + 0x0A;
 	const int mm_core_last_output     = mm_core_base + 0x0B;
 	const int mm_core_loop_count      = mm_core_base + 0x0C;
 	const int mm_core_loop_from       = mm_core_base + 0x0D;
 	const int mm_core_loop_to         = mm_core_base + 0x0E;
 	const int mm_core_write_mask      = mm_core_base + 0x0F;
+	const int mm_core_pml_carries     = mm_core_base + 0x10;
 
 	const int mm_screen_base   = 0x1C00;
 	const int mm_screen_buffer = mm_screen_base + 0x000;

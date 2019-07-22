@@ -25,11 +25,13 @@ do
 	mapreg("r7", 0x0707)
 	mapreg("fl", 0x0708)
 	mapreg("pc", 0x0709)
+	mapreg("li", 0x070A)
 	mapreg("lo", 0x070B)
 	mapreg("lc", 0x070C)
 	mapreg("lf", 0x070D)
 	mapreg("lt", 0x070E)
 	mapreg("wm", 0x070F)
+	mapreg("mc", 0x0710)
 	map("kbdin", keyboard.get_buffer, keyboard.set_buffer)
 
 	setmetatable(_G, { __index = function(t, k)
@@ -87,7 +89,11 @@ end
 
 local ok, err = pcall(function()
 	local code = {}
-	loadfile("../../tptasm/tptasm.lua")({
+	local func, err = loadfile("../../tptasm/src/tptasm.lua")
+	if not func then
+		error(err)
+	end
+	func({
 		source = "../16to6.asm",
 		target = code,
 		log = io.stderr,

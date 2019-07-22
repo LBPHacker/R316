@@ -18,11 +18,13 @@ namespace r3emu::emulator
 		gp_registers    = mem.data.data() + config::mm_core_gp_registers;
 		flags           = mem.data.data() + config::mm_core_flags;
 		program_counter = mem.data.data() + config::mm_core_program_counter;
+		last_input      = mem.data.data() + config::mm_core_last_input;
 		last_output     = mem.data.data() + config::mm_core_last_output;
 		loop_count      = mem.data.data() + config::mm_core_loop_count;
 		loop_from       = mem.data.data() + config::mm_core_loop_from;
 		loop_to         = mem.data.data() + config::mm_core_loop_to;
 		write_mask      = mem.data.data() + config::mm_core_write_mask;
+		pml_carries     = mem.data.data() + config::mm_core_pml_carries;
 
 		cycle = 0;
 		subcycle = 0;
@@ -58,7 +60,7 @@ namespace r3emu::emulator
 
 	void core::do_cycle()
 	{
-		while (subcycle < 4)
+		while (subcycle < config::subcycles_per_frame)
 		{
 			exec_subcycle();
 		}		
@@ -83,7 +85,7 @@ namespace r3emu::emulator
 	void core::do_subcycle()
 	{
 		exec_subcycle();
-		if (subcycle == 4)
+		if (subcycle == config::subcycles_per_frame)
 		{
 			finish_cycle();
 		}
@@ -276,6 +278,8 @@ namespace r3emu::emulator
 			op[1] = op[2];
 			op[2] = temp;
 		}
+
+		last_input_to_store = op[1];
 	}
 
 	void core::sc_spread()
@@ -295,6 +299,7 @@ namespace r3emu::emulator
 		}
 		bu.spread(mem_op[0] && write_op_0, bus_addr, to_write);
 
+		*last_input = last_input_to_store;
 		if (write_op_0)
 		{
 			if (mem_op[0] && mem_addr[0] < (1 << config::memory_size))
@@ -451,11 +456,19 @@ namespace r3emu::emulator
 			update_secondary_flags_zs();
 			break;
 
-		case 0x1F: // andn
+		case 0x0F: // op0f
+		case 0x1F: // pml
 			write_op_0 = true;
-			[[fallthrough]];
-		case 0x0F: // tstn
-			op[0] = op[1] & (op[2] ^ 0xFFFFU);
+			op[0] = 0;
+			*pml_carries = 0;
+			for (int bit = 0; bit < 16; ++bit, op[1] <<= 1, op[2] >>= 1)
+			{
+				uint16_t addend = (op[2] & 1) ? op[1] : 0;
+				uint16_t xor_of_2 = addend ^ op[0];
+				uint16_t carries = (*pml_carries & xor_of_2) | (addend & op[0]);
+				op[0] = xor_of_2 ^ *pml_carries;
+				*pml_carries = carries << 1;
+			}
 			update_secondary_flags_zs();
 			break;
 
@@ -513,7 +526,7 @@ namespace r3emu::emulator
 					break;
 					
 				case 0x0A:
-					shift_in_from = *last_output;
+					shift_in_from = *last_input;
 					break;
 					
 				case 0x02:

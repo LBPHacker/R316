@@ -48,9 +48,9 @@ namespace r3emu::emulator
 	{
 		static char const *mnemonics_displayed[0x20] = {
 			"MOV ", "CALL", "JMP ", "HLT ", "BSF ", "BSR ", "ZSF ", "ZSR ",
-			"MAKS", "EXTS", "SCLS", "SCRS", "CMP ", "CMPC", "TEST", "TSTN",
+			"MAKS", "EXTS", "SCLS", "SCRS", "CMP ", "CMPC", "TEST", "OP0F",
 			"MAK1", "EXT1", "ROL ", "ROR ", "ADD ", "ADC ", "XOR ", "OR  ",
-			"MAK ", "EXT ", "SCL ", "SCR ", "SUB ", "SBB ", "AND ", "ANDN",
+			"MAK ", "EXT ", "SCL ", "SCR ", "SUB ", "SBB ", "AND ", "PML ",
 		};
 		
 		static uint32_t has_operands[0x20] = {
