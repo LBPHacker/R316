@@ -49,7 +49,7 @@ namespace r3emu::emulator
 	{
 		reset_requested = false;
 		*program_counter = 0;
-		*loop_count = 0;
+		*loop_from = 0xFFFFU;
 		halted = true;
 	}
 
@@ -345,13 +345,24 @@ namespace r3emu::emulator
 		*loop_from &= 0xFFFFU;
 		*loop_to &= 0xFFFFU;
 
-		if (*loop_count && *program_counter == *loop_from)
+		if (*loop_from != 0xFFFFU)
 		{
-			*loop_count -= 1;
-			*loop_count &= 0xFFFFU;
-			if (*loop_count)
+			if (*program_counter == *loop_from)
 			{
 				*program_counter = *loop_to;
+			}
+			if (*program_counter == *loop_to)
+			{
+				if (*loop_count)
+				{
+					*loop_count -= 1;
+					*loop_count &= 0xFFFFU;
+				}
+				else
+				{
+					*program_counter = *loop_from;
+					*loop_from = 0xFFFFU;
+				}
 			}
 		}
 
