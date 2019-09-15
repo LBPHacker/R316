@@ -1,6 +1,7 @@
 #include "console.hpp"
 
 #include "../config.hpp"
+#include "local_event.hpp"
 
 #include <sdlstuff/context.hpp>
 #include <cstdlib>
@@ -18,9 +19,10 @@ extern "C" {
 
 namespace r3emu::utility
 {
-	console::console()
+	console::console(local_event const &local_ev_param) : local_ev(local_ev_param)
 	{
 		running = true;
+		event_type = local_ev.sdl_event_type();
 		console_thread = std::thread(run);
 	}
 
@@ -42,8 +44,8 @@ namespace r3emu::utility
 
 		SDL_Event event;
 		SDL_zero(event);
-		event.type = sdlstuff::context::sdl_event_type;
-		event.user.code = sdlstuff::context::event_console_input;
+		event.type = event_type;
+		event.user.code = event_console_input;
 		event.user.data1 = &process_input;
 		event.user.data2 = nullptr;
 
@@ -90,4 +92,5 @@ namespace r3emu::utility
 	}
 
 	std::atomic<bool> console::running;
+	int console::event_type;
 }

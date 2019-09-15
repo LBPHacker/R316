@@ -1,6 +1,7 @@
 #pragma once
 
 #include "singleton.hpp"
+#include "local_event.hpp"
 
 #include <thread>
 #include <string>
@@ -12,12 +13,15 @@ namespace r3emu::utility
 	{
 		std::thread console_thread;
 		static std::atomic<bool> running;
+		static int event_type;
 
 		static void run();
 		static void callback(char *line);
+
+		local_event const &local_ev;
 		
 	public:
-		console();
+		console(local_event const &local_ev);
 		~console();
 	};
 }

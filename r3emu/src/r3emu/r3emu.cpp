@@ -1,6 +1,7 @@
 #include "config.hpp"
 
 #include "utility/console.hpp"
+#include "utility/local_event.hpp"
 #include "ui/host_window.hpp"
 #include "lua/state.hpp"
 
@@ -27,12 +28,12 @@
 
 using namespace r3emu;
 
-bool handle_console_input(lua::state &L, SDL_Event &event)
+bool handle_console_input(lua::state &L, SDL_Event const &ev)
 {
 	static std::string console_input_buffer;
 	bool eof = false;
-	auto *process_input = static_cast<std::promise<bool> *>(event.user.data1);
-	auto *input = static_cast<std::string *>(event.user.data2);
+	auto *process_input = static_cast<std::promise<bool> *>(ev.user.data1);
+	auto *input = static_cast<std::string *>(ev.user.data2);
 	if (input)
 	{
 		console_input_buffer += *input + "\n";
@@ -58,7 +59,8 @@ int main(int argc, char *argv[])
 
 	sdlstuff::context cx;
 	lua::state L;
-	utility::console cons;
+	utility::local_event local_ev;
+	utility::console cons(local_ev);
 	ui::host_window hw;
 	SDL_SetWindowTitle(hw, config::window_title.c_str());
 
@@ -101,27 +103,27 @@ int main(int argc, char *argv[])
 	auto next_frame = clock::now();
 	auto last_fps_at = clock::now();
 	auto frame_count = 0U;
-	SDL_Event event;
+	SDL_Event ev;
 	bool running = true;
 	while (running)
 	{
-		while (SDL_PollEvent(&event))
+		while (SDL_PollEvent(&ev))
 		{
-			switch (event.type)
+			switch (ev.type)
 			{
 			case SDL_QUIT:
 				running = false;
 				break;
 
 			case SDL_KEYDOWN:
-				switch (event.key.keysym.sym)
+				switch (ev.key.keysym.sym)
 				{
 				case SDLK_SPACE:
 					sim.toggle_pause();
 					break;
 
 				case SDLK_f:
-					sim.step(event.key.keysym.mod & KMOD_SHIFT);
+					sim.step(ev.key.keysym.mod & KMOD_SHIFT);
 					break;
 
 				case SDLK_s:
@@ -138,12 +140,12 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				if (event.type == sdlstuff::context::sdl_event_type)
+				if (ev.type == local_ev.sdl_event_type())
 				{
-					switch (event.user.code)
+					switch (ev.user.code)
 					{
-					case sdlstuff::context::event_console_input:
-						if (handle_console_input(L, event))
+					case utility::event_console_input:
+						if (handle_console_input(L, ev))
 						{
 							running = false;
 						}
