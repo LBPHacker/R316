@@ -47,7 +47,7 @@ namespace r3emu::emulator
 	void disassembler_view::draw()
 	{
 		static char const *mnemonics_displayed[0x20] = {
-			"MOV ", "CALL", "JMP ", "HLT ", "BSF ", "BSR ", "ZSF ", "ZSR ",
+			"JMP ", "HLT ", "MOV ", "CALL", "BSF ", "BSR ", "ZSF ", "ZSR ",
 			"MAKS", "EXTS", "SCLS", "SCRS", "CMP ", "CMPC", "TEST", "OP0F",
 			"MAK1", "EXT1", "ROL ", "ROR ", "ADD ", "ADC ", "XOR ", "OR  ",
 			"MAK ", "EXT ", "SCL ", "SCR ", "SUB ", "SBB ", "AND ", "PML ",
@@ -84,7 +84,7 @@ namespace r3emu::emulator
 			if (instr & 0x1FFFFFFFU)
 			{
 				write(5, y, mnemonics_displayed[(instr & 0x1F000000U) >> 24], colour_default);
-				if ((instr & 0x1F000000U) == 0x02000000U && (instr & 0x000F0000U) != 0x00010000U)
+				if ((instr & 0x1F000000U) == 0x00000000U && (instr & 0x000F0000U) != 0x00010000U)
 				{
 					write(6, y, conditions_displayed[(instr & 0x000F0000U) >> 16], colour_default);
 				}
@@ -129,7 +129,7 @@ namespace r3emu::emulator
 
 				uint32_t operands = has_operands[(instr & 0x1F000000U) >> 24];
 
-				if (instr == 0x22011700U)
+				if (instr == 0x20011700U)
 				{
 					write(5, y, "RET ", colour_default);
 					operands = 0;

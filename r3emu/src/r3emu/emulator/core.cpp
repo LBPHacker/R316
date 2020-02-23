@@ -131,7 +131,7 @@ namespace r3emu::emulator
 
 		jump_cond = (instruction & 0x000F0000U) >> 16;
 		oper = (instruction & 0x1F000000U) >> 24;
-		if (oper == 0x02) // 0x02 is jcc
+		if (oper == 0x00) // 0x00 is jcc
 		{
 			instruction &= ~0x000F0000U;
 		}
@@ -392,23 +392,23 @@ namespace r3emu::emulator
 
 		switch (oper % 0x20)
 		{
-		case 0x01: // call
+		case 0x03: // call
 			jump = true;
 			jump_cond = 1;
 			jump_to = op[2];
 			op[2] = *program_counter;
 			[[fallthrough]];
-		case 0x00: // mov
+		case 0x02: // mov
 			write_op_0 = true;
 			op[0] = op[2];
 			break;
 
-		case 0x02: // jcc
+		case 0x00: // jcc
 			jump = true;
 			jump_to = op[2];
 			break;
 
-		case 0x03: // hlt
+		case 0x01: // hlt
 			halted = true;
 			break;
 
