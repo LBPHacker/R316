@@ -89,7 +89,7 @@ end
 
 local ok, err = pcall(function()
 	local code = {}
-	local func, err = loadfile("../../tptasm/src/tptasm.lua")
+	local func, err = loadfile("../../tptasm/src/main.lua")
 	if not func then
 		error(err)
 	end
