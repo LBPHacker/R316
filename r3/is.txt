@@ -1,0 +1,58 @@
+0FRRRRRSSSSSOOOO...........TTTTT
+1FRRRRRSSSSSOOOOIIIIIIIIIIIIIIII
+
+F: update flags
+O: operation
+R: destination register
+	though it's actually the source register in the case of ld
+S: primary source register
+I: secondary source immediate
+T: secondary source register
+
+0000: mov destination, secondary
+	primary encodes conditions instead of a register
+0001: jmp destination, secondary
+	primary encodes conditions instead of a register
+	destination receives a pointer to just after the jmp
+	instruction pointer receives secondary
+0010: ld destination, primary + secondary
+0011: exh destination, primary
+0100: sub destination, primary, secondary
+	primary is subtracted from secondary
+0101: sbb destination, primary, secondary
+	primary is subtracted from secondary
+0110: add destination, primary, secondary
+0111: adc destination, primary, secondary
+1000: shl destination, primary, secondary
+1001: shr destination, primary, secondary
+1010: st destination, primary + secondary
+1011: hlt
+1100: and destination, primary, secondary
+1101: or destination, primary, secondary
+1110: xor destination, primary, secondary
+1111: clr destination, primary, secondary
+
+flag layout: Cf Of Zf Sf Lf BEf NGf Tf
+	..Z..BNT
+	.......T
+	...SL.NT
+	C.Z..BNT
+	C....B.T
+	C..SLBNT
+	.OZ.LBNT
+	.O..L.NT
+	.O.S...T
+	COZ.LBNT
+	CO..LBNT
+	CO.S.B.T
+
+BEf = Cf || Zf
+NGf = Zf || Sf != Of
+Lf = Sf != Of
+
+non-memory cycle
+	fetch, execute, fetchnext
+read cycle
+	fetch, execute, read, execute, fetchnext
+write cycle
+	fetch, execute, fetchnext, finishwrite, write
