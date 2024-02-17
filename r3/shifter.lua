@@ -21,8 +21,8 @@ return testbed.module({
 		{ name = "sec_in", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BEEF },
 	},
 	outputs = {
-		{ name = "shifted_left" , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
-		{ name = "shifted_right", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "l_shl", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "l_shr", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
 	},
 	func = function(inputs)
 		local left  = inputs.pri_in
@@ -35,8 +35,8 @@ return testbed.module({
 			left  =  left_flip:band(flip_mask):bxor(left)
 		end
 		return {
-			shifted_left  = left,
-			shifted_right = right,
+			l_shl = left,
+			l_shr = right,
 		}
 	end,
 	fuzz = function()
@@ -49,8 +49,8 @@ return testbed.module({
 				sec_in = bitx.bor(0x10000000, sec),
 			},
 			outputs = {
-				shifted_left  = bitx.bor(0x10000000, bitx.band(bitx.lshift(pri, amount), 0x0000FFFF)),
-				shifted_right = bitx.bor(0x10000000, bitx.band(bitx.rshift(pri, amount), 0x0000FFFF)),
+				l_shl = bitx.bor(0x10000000, bitx.band(bitx.lshift(pri, amount), 0x0000FFFF)),
+				l_shr = bitx.bor(0x10000000, bitx.band(bitx.rshift(pri, amount), 0x0000FFFF)),
 			},
 		}
 	end,

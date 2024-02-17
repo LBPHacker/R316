@@ -23,7 +23,7 @@ return testbed.module({
 		{ name = "subtract_in", index = 7, keepalive = 0x00010000, payload = 0x00000001, initial = 0x00010000 },
 	},
 	outputs = {
-		{ name = "sum"            , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "l_add"          , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
 		{ name = "overflow_carry" , index = 3, keepalive = 0x10000000, payload = 0x00030000 },
 	},
 	func = function(inputs)
@@ -53,7 +53,7 @@ return testbed.module({
 		local overflow_carry = overflow_out:bor(carries:band(0x10010000))
 		local sum = spaghetti.bxor(onebit_sums, carries):band(0x1000FFFF)
 		return {
-			sum            = sum,
+			l_add          = sum,
 			overflow_carry = overflow_carry,
 		}
 	end,
@@ -88,7 +88,7 @@ return testbed.module({
 				subtract_in = bitx.bor(0x00010000, subtract_in),
 			},
 			outputs = {
-				sum            = bitx.bor(0x10000000, sum % 0x10000),
+				l_add          = bitx.bor(0x10000000, sum % 0x10000),
 				overflow_carry = bitx.bor(bitx.bor(0x10000000, carry_out), overflow_out),
 			},
 		}
