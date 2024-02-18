@@ -2,7 +2,7 @@
 1FRRRRRSSSSSOOOOIIIIIIIIIIIIIIII
 
 todo
-	flags
+	flags out
 	exh
 	ram control
 	halt gating
@@ -16,7 +16,6 @@ I: secondary source immediate
 T: secondary source register
 
 0000: mov destination, secondary
-	primary encodes conditions instead of a register
 0001: jmp destination, secondary
 	primary encodes conditions instead of a register
 	destination receives a pointer to just after the jmp

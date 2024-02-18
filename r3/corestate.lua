@@ -17,7 +17,7 @@ return testbed.module({
 	storage_slots = 30,
 	work_slots    = 12,
 	inputs = {
-		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x0070FFFF, initial = 0x10000000 },
+		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
 		{ name = "sec_in"   , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
 		{ name = "op_bits"  , index = 5, keepalive = 0x10000000, payload = 0x000F0000, initial = 0x10000000 },
 		{ name = "condition", index = 7, keepalive = 0x00010000, payload = 0x00000001, initial = 0x00010000 },
@@ -61,10 +61,8 @@ return testbed.module({
 		}
 	end,
 	fuzz = function()
-		local old_state_ld  = math.random(0x0, 0x1)
-		local old_state_st  = math.random(0x0, 0x1)
-		local old_state_hlt = math.random(0x0, 0x1)
-		local ip = math.random(0x0000, 0xFFFF)
+		local old_corestate = math.random(0x00000000, 0x007FFFFF)
+		local ip = bitx.band(old_corestate, 0x0000FFFF)
 		local sec = math.random(0x0000, 0xFFFF)
 		local op_bits = math.random(0x0, 0xF)
 		local condition = math.random(0x0, 0x1)
@@ -73,33 +71,16 @@ return testbed.module({
 		local new_state_ld  = op_bits ==  2 and 0x100000 or 0x000000
 		local new_state_st  = op_bits == 10 and 0x200000 or 0x000000
 		local new_state_hlt = op_bits == 11 and 0x400000 or 0x000000
+		local new_corestate = bitx.bor(new_state_st, new_state_ld, new_state_hlt, next_ip)
 		return {
 			inputs = {
-				corestate = bitx.bor(0x10000000, bitx.bor(
-					bitx.bor(
-						bitx.bor(
-							ip,
-							bitx.lshift(old_state_ld, 20)
-						),
-						bitx.lshift(old_state_st, 21)
-					),
-					bitx.lshift(old_state_hlt, 22)
-				)),
+				corestate = bitx.bor(0x10000000, old_corestate),
 				sec_in    = bitx.bor(0x10000000, sec),
 				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 16)),
 				condition = bitx.bor(0x00010000, condition),
 			},
 			outputs = {
-				corestate = bitx.bor(0x10000000, bitx.bor(
-					new_state_st,
-					bitx.bor(
-						new_state_ld,
-						bitx.bor(
-							new_state_hlt,
-							next_ip
-						)
-					)
-				)),
+				corestate = bitx.bor(0x10000000, new_corestate),
 				l_jmp     = bitx.bor(0x10000000, ip_inc),
 			},
 		}
