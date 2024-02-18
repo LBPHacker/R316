@@ -39,19 +39,20 @@ T: secondary source register
 1110: xor destination, primary, secondary
 1111: clr destination, primary, secondary
 
-flag layout: Cf Of Zf Sf Lf BEf NGf Tf
-	..Z..BNT
-	.......T
-	...SL.NT
-	C.Z..BNT
-	C....B.T
-	C..SLBNT
-	.OZ.LBNT
-	.O..L.NT
-	.O.S...T
-	COZ.LBNT
-	CO..LBNT
-	CO.S.B.T
+flag layout in corestate: Cf Of Zf Sf
+flag layout when checking condition:
+	.BNT..Z.
+	...T....
+	L.NT...S
+	.BNTC.Z.
+	.B.TC...
+	LBNTC..S
+	LBNT.OZ.
+	L.NT.O..
+	...T.O.S
+	LBNTCOZ.
+	LBNTCO..
+	.B.TCO.S
 
 BEf = Cf || Zf
 NGf = Zf || Sf != Of
@@ -63,3 +64,6 @@ read cycle
 	fetch, execute, read, execute, fetchnext
 write cycle
 	fetch, execute, fetchnext, finishwrite, write
+
+inputs:  pri  sec       ram          corestate fwinstr cinstr
+outputs: dest dest_addr ram ram_addr corestate fwinstr cinstr

@@ -55,13 +55,10 @@ return testbed.module({
 	end,
 	fuzz = function(params)
 		local sync_value = params.sync_value
-		local old_corestate
-		while true do
-			old_corestate = math.random(0x00000000, 0x007FFFFF)
-			if bitx.band(old_corestate, 0x000C0000) ~= 0x000C0000 then
-				break
-			end
-		end
+		local old_corestate =
+			math.random(0x00000000, 0x0000FFFF) +
+			math.random(0x00000000, 0x0000000B) * 0x10000 +
+			math.random(0x00000000, 0x00000007) * 0x100000
 		local op_bits = math.random(0x0, 0x1F)
 		local flag_c = bitx.band(old_corestate, 0x10000) ~= 0
 		local flag_o = bitx.band(old_corestate, 0x20000) ~= 0
@@ -71,18 +68,6 @@ return testbed.module({
 		local flag_l  = flag_s ~= flag_o
 		local flag_ng = flag_l or flag_z
 		local flat_t  = true
-		-- .BNT..Z.
-		-- ...T....
-		-- L.NT...S
-		-- .BNTC.Z.
-		-- .B.TC...
-		-- LBNTC..S
-		-- LBNT.OZ.
-		-- L.NT.O..
-		-- ...T.O.S
-		-- LBNTCOZ.
-		-- LBNTCO..
-		-- .B.TCO.S
 		local extended = bitx.bor(
 			flag_c  and 0x10 or 0x00,
 			flag_o  and 0x20 or 0x00,
