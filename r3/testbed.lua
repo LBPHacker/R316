@@ -8,17 +8,17 @@ local function modulef(info)
 	local fuzz
 	if info.fuzz then
 		math.randomseed(os.time())
-		function fuzz(fuzz_expect, ctype_at)
+		function fuzz(fuzz_expect, ctype_at, params)
 			-- TODO: test inputs/outputs against keepalive/payload specification
 			if fuzz_expect then
 				for _, output_info in ipairs(info.outputs or {}) do
 					local expect_value = fuzz_expect[output_info.name]
-					if ctype_at(2 + output_info.index, 3) ~= expect_value then
+					if expect_value ~= false and ctype_at(2 + output_info.index, 3) ~= expect_value then
 						return nil, ("output %s expected to have value %08X"):format(output_info.name, expect_value)
 					end
 				end
 			end
-			local values = info.fuzz()
+			local values = info.fuzz(params)
 			for _, input_info in ipairs(info.inputs or {}) do
 				local set_value = values.inputs[input_info.name]
 				ctype_at(2 + input_info.index, -3, set_value)
@@ -26,19 +26,21 @@ local function modulef(info)
 			return values.outputs
 		end
 	end
-	local function instantiate(named_inputs)
+	local function instantiate(named_inputs, params)
 		for _, input_info in ipairs(info.inputs or {}) do
 			local input = named_inputs[input_info.name]
 			input:assert(input_info.keepalive, input_info.payload)
 		end
-		local named_outputs = info.func(named_inputs)
+		local named_outputs = info.func(named_inputs, params)
 		for _, output_info in ipairs(info.outputs or {}) do
 			local output = named_outputs[output_info.name]
-			output:assert(output_info.keepalive, output_info.payload)
+			if not (output_info.keepalive == false and output_info.payload == false) then
+				output:assert(output_info.keepalive, output_info.payload)
+			end
 		end
 		return named_outputs
 	end
-	local function design()
+	local function design(params)
 		local inputs = {}
 		local outputs = {}
 		local clobbers = {}
@@ -63,7 +65,7 @@ local function modulef(info)
 			auto_clobber(input_info.index + 1)
 			auto_clobber(input_info.index - 1)
 		end
-		local named_outputs = instantiate(named_inputs)
+		local named_outputs = instantiate(named_inputs, params)
 		for _, output_info in ipairs(info.outputs or {}) do
 			outputs[output_info.index] = named_outputs[output_info.name]
 			table.insert(extra_parts, { type = elem.DEFAULT_PT_LDTC, x = 2 + output_info.index, y = 2 })

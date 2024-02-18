@@ -18,12 +18,13 @@ return testbed.module({
 	work_slots    = 20,
 	inputs = {
 		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
-		{ name = "op_bits"  , index = 3, keepalive = 0x10000000, payload = 0x00F00000, initial = 0x10000000 },
+		{ name = "op_bits"  , index = 3, keepalive = 0x10000000, payload = 0x01F00000, initial = 0x10000000 },
 	},
 	outputs = {
 		{ name = "condition", index = 1, keepalive = 0x00010000, payload = 0x00000001 },
 	},
-	func = function(inputs)
+	func = function(inputs, params)
+		local sync_value = params.sync_value
 		local flags = spaghetti.rshiftk(inputs.corestate, 16):assert(0x00001000, 0x0000007F):bsub(0x00F0)
 		local flag_be = spaghetti.rshiftk(flags, 2):bor(flags)                       :bsub(0x000E)
 		local flag_l  = spaghetti.rshiftk(flags, 3):bxor(spaghetti.rshiftk(flags, 1)):bsub(0x000E)
@@ -41,13 +42,26 @@ return testbed.module({
 			shift:assert(bitx.bor(0x10000, i22), 1) -- lsb is one of: 1 << (1 << i), 0
 			extended = extended:rshift(shift):never_zero()
 		end
-		local condition = extended:bor(0x00010000):band(0x00010001)
+		local inv = spaghetti.rshiftk(op_bits, 3):bor(0x00010000):band(0x00010001)
+		local sync = spaghetti.rshiftk(op_bits, 4):bor(0x00010000):band(0x00010001)
+		if sync_value then
+			sync = 0x00010001
+		end
+		local extended_pinv = extended:bxor(inv):never_zero()
+		local condition = extended_pinv:bor(0x00010000):band(sync)
 		return {
 			condition = condition,
 		}
 	end,
-	fuzz = function()
-		local old_corestate = math.random(0x00000000, 0x007FFFFF)
+	fuzz = function(params)
+		local sync_value = params.sync_value
+		local old_corestate
+		while true do
+			old_corestate = math.random(0x00000000, 0x007FFFFF)
+			if bitx.band(old_corestate, 0x000C0000) ~= 0x000C0000 then
+				break
+			end
+		end
 		local op_bits = math.random(0x0, 0x1F)
 		local flag_c = bitx.band(old_corestate, 0x10000) ~= 0
 		local flag_o = bitx.band(old_corestate, 0x20000) ~= 0
@@ -57,6 +71,18 @@ return testbed.module({
 		local flag_l  = flag_s ~= flag_o
 		local flag_ng = flag_l or flag_z
 		local flat_t  = true
+		-- .BNT..Z.
+		-- ...T....
+		-- L.NT...S
+		-- .BNTC.Z.
+		-- .B.TC...
+		-- LBNTC..S
+		-- LBNT.OZ.
+		-- L.NT.O..
+		-- ...T.O.S
+		-- LBNTCOZ.
+		-- LBNTCO..
+		-- .B.TCO.S
 		local extended = bitx.bor(
 			flag_c  and 0x10 or 0x00,
 			flag_o  and 0x20 or 0x00,
@@ -67,7 +93,12 @@ return testbed.module({
 			flag_ng and 0x04 or 0x00,
 			flat_t  and 0x08 or 0x00
 		)
-		local condition = bitx.band(bitx.rshift(extended, bitx.bxor(bitx.band(op_bits, 7), 7)), 1)
+		local inv = bitx.band(bitx.rshift(op_bits, 3), 1)
+		local condition = bitx.bxor(bitx.band(bitx.rshift(extended, bitx.bxor(bitx.band(op_bits, 7), 7)), 1), inv)
+		if not sync_value then
+			local sync = bitx.band(bitx.rshift(op_bits, 4), 1)
+			condition = bitx.band(condition, sync)
+		end
 		return {
 			inputs = {
 				corestate = bitx.bor(0x10000000, old_corestate),
