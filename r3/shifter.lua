@@ -27,13 +27,23 @@ return testbed.module({
 	func = function(inputs)
 		local left  = inputs.pri_in
 		local right = inputs.pri_in
-		for i = 0, 3 do
-			local right_flip = spaghetti.rshiftk(right, bitx.lshift(1, i)):bxor(right):bor(0x30000000):band(0x3000FFFF)
-			local left_flip  = spaghetti.lshiftk(left:bor(0x3FFF0000), bitx.lshift(1, i)):bxor(left):bor(0x30000000):band(0x3000FFFF)
-			local flip_mask = spaghetti.lshift(0x3FFFFFFF, spaghetti.rshiftk(inputs.sec_in, i):bor(0x00010000):band(0x00010001))
-			right = right_flip:band(flip_mask):bxor(right)
-			left  =  left_flip:band(flip_mask):bxor(left)
+		local amount = inputs.sec_in
+		local function apply_shifts(i)
+			local i22 = bitx.lshift(1, bitx.lshift(1, i))
+			local shift = spaghetti.rshiftk(amount, i):bxor(0x00010001):band(0x00010001):bor(i22)
+			shift:assert(bitx.bor(0x10000, i22), 1) -- lsb is one of: 1 << (1 << i), 0
+			right = right:rshift(shift):never_zero()
+			left  = left :lshift(shift):never_zero()
 		end
+		left = left:bor(0x00010000)
+		apply_shifts(3)
+		left = left:bor(0x00010000)
+		right = right:bor(0x10000000):band(0x1000FFFF)
+		apply_shifts(0)
+		apply_shifts(1)
+		apply_shifts(2)
+		right = right:bor(0x10000000):band(0x1000FFFF)
+		left  = left :bor(0x10000000):band(0x1000FFFF)
 		return {
 			l_shl = left,
 			l_shr = right,

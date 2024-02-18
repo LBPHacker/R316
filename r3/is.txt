@@ -1,6 +1,12 @@
 0FRRRRRSSSSSOOOO...........TTTTT
 1FRRRRRSSSSSOOOOIIIIIIIIIIIIIIII
 
+todo
+	flags
+	exh
+	ram control
+	halt gating
+
 F: update flags
 O: operation
 R: destination register
@@ -17,6 +23,8 @@ T: secondary source register
 	instruction pointer receives secondary
 0010: ld destination, primary + secondary
 0011: exh destination, primary
+	dest[31:16] = sec[15: 0]
+	dest[15: 0] = pri[31:16]
 0100: sub destination, primary, secondary
 	primary is subtracted from secondary
 0101: sbb destination, primary, secondary
