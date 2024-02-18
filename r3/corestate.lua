@@ -41,7 +41,10 @@ return testbed.module({
 		local ip_inv = ip:bxor(0x0000FFFF):assert(0x10000000, 0x0000FFFF)
 		local ip_inv_findsub = ip_inv:bor(0x00010000):assert(0x10010000, 0x0000FFFF)
 		local ip_inv_sub = spaghetti.lshift(0x3FFFFFFE, ip_inv_findsub):assert(0x3FFE0000, 0x0001FFFE)
-		local ip_inc_wild = ip_inv:bxor(ip_inv_sub):assert(0x2FFE0000, 0x0001FFFF)
+		local corestate_20 = spaghetti.rshiftk(inputs.corestate, 20)
+		local corestate_wmem = spaghetti.rshiftk(corestate_20, 1):bor(corestate_20):bor(0x00020000):band(0x00020001)
+		local ip_inv_sub_wmem = spaghetti.lshift(0x3FFFFFFF, corestate_wmem):bor(ip_inv_sub)
+		local ip_inc_wild = ip_inv:bxor(ip_inv_sub_wmem):assert(0x2FFE0000, 0x0001FFFF)
 		local ip_inc = ip_inc_wild:bor(0x10000000):band(0x1000FFFF)
 		local condition_mask = spaghetti.lshift(0x3FFFFFFF, inputs.condition)
 		local jmp_mask = op_is_k_mask(1) -- either 0x3FFF0000 or 0x3FFFFFFF
@@ -61,12 +64,17 @@ return testbed.module({
 		}
 	end,
 	fuzz = function()
-		local old_corestate = math.random(0x00000000, 0x007FFFFF)
+		local op_bits = math.random(0x0, 0xF)
+		local mem_op = op_bits == 2 or op_bits == 10
+		local old_corestate =
+			math.random(0x00000000, 0x000FFFFF) +
+			(mem_op and bitx.lshift(math.random(0x00000000, 0x00000003), 20) or 0) +
+			bitx.lshift(math.random(0x00000000, 0x00000001), 22)
+		local mem_cycle = bitx.band(old_corestate, 0x00300000) ~= 0
 		local ip = bitx.band(old_corestate, 0x0000FFFF)
 		local sec = math.random(0x0000, 0xFFFF)
-		local op_bits = math.random(0x0, 0xF)
 		local condition = math.random(0x0, 0x1)
-		local ip_inc = (ip + 1) % 0x10000
+		local ip_inc = (mem_cycle and ip or (ip + 1)) % 0x10000
 		local next_ip = (op_bits == 1 and condition == 1) and sec or ip_inc
 		local new_state_ld  = op_bits ==  2 and 0x100000 or 0x000000
 		local new_state_st  = op_bits == 10 and 0x200000 or 0x000000
