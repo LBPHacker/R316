@@ -33,7 +33,8 @@ return testbed.module({
 		{ name = "op_bits", index = 27, keepalive = 0x10000000, payload = 0x000F0000, initial = 0x10000000 },
 	},
 	outputs = {
-		{ name = "muxed", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "muxed"    , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "sign_zero", index = 3, keepalive = 0x10000000, payload = 0x000C0000 },
 	},
 	func = function(inputs)
 		local function select_op_bit(v0, v1, i)
@@ -52,9 +53,14 @@ return testbed.module({
 		local sel_CF = select_op_bit(sel_CD, sel_EF, 17):assert(0x10000000, 0x0000FFFF)
 		local sel_07 = select_op_bit(sel_03, sel_47, 18):assert(0x30000000, 0x0000FFFF)
 		local sel_8F = select_op_bit(sel_8B, sel_CF, 18):assert(0x30000000, 0x0000FFFF)
-		local sel_0F = select_op_bit(sel_07, sel_8F, 19):assert(0x10000000, 0x0000FFFF)
+		local muxed = select_op_bit(sel_07, sel_8F, 19):assert(0x10000000, 0x0000FFFF)
+		local zero_inv = spaghetti.lshift(0x3FFFFFFF, muxed) -- zero_inv bit 15 is clear iff muxed is zero
+		local zero = spaghetti.rshiftk(zero_inv, 15):bxor(1):band(0x00002001):assert(0x00002000, 0x00000001)
+		local sign = spaghetti.rshiftk(muxed, 14):bsub(1):assert(0x00004000, 0x00000002)
+		local sign_zero = spaghetti.lshiftk(zero:bor(sign):bor(0x0400):band(0x0403), 18)
 		return {
-			muxed = sel_0F,
+			muxed     = muxed,
+			sign_zero = sign_zero,
 		}
 	end,
 	fuzz = function()
@@ -79,6 +85,10 @@ return testbed.module({
 			[ 12 ] = l_and, [ 13 ] = l_or , [ 14 ] = l_xor, [ 15 ] = l_clr,
 		}
 		local muxed = inputs[op_bits]
+		local sign_zero = bitx.bor(
+			muxed == 0                    and 0x00040000 or 0x00000000,
+			bitx.band(muxed, 0x8000) ~= 0 and 0x00080000 or 0x00000000
+		)
 		return {
 			inputs = {
 				l_xor   = bitx.bor(0x10000000, l_xor),
@@ -97,7 +107,8 @@ return testbed.module({
 				op_bits = bitx.bor(0x10000000, bitx.lshift(op_bits, 16)),
 			},
 			outputs = {
-				muxed = bitx.bor(0x10000000, muxed),
+				muxed     = bitx.bor(0x10000000, muxed),
+				sign_zero = bitx.bor(0x10000000, sign_zero),
 			},
 		}
 	end,
