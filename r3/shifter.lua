@@ -17,17 +17,17 @@ return testbed.module({
 	storage_slots = 30,
 	work_slots    = 20,
 	inputs = {
-		{ name = "pri_in", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
-		{ name = "sec_in", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BEEF },
+		{ name = "pri", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
+		{ name = "sec", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BEEF },
 	},
 	outputs = {
 		{ name = "l_shl", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
 		{ name = "l_shr", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
 	},
 	func = function(inputs)
-		local left  = inputs.pri_in
-		local right = inputs.pri_in
-		local amount = inputs.sec_in
+		local left  = inputs.pri
+		local right = inputs.pri
+		local amount = inputs.sec
 		local function apply_shifts(i)
 			local i22 = bitx.lshift(1, bitx.lshift(1, i))
 			local shift = spaghetti.rshiftk(amount, i):bxor(0x00010001):band(0x00010001):bor(i22)
@@ -55,8 +55,8 @@ return testbed.module({
 		local amount = bitx.band(sec, 0x000F)
 		return {
 			inputs = {
-				pri_in = bitx.bor(0x10000000, pri),
-				sec_in = bitx.bor(0x10000000, sec),
+				pri = bitx.bor(0x10000000, pri),
+				sec = bitx.bor(0x10000000, sec),
 			},
 			outputs = {
 				l_shl = bitx.bor(0x10000000, bitx.band(bitx.lshift(pri, amount), 0x0000FFFF)),

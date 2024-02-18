@@ -85,8 +85,6 @@ local function modulef(info)
 			}),
 			extra_parts = extra_parts,
 			opt_params  = info.opt_params,
-			pause       = false,
-			debug       = false,
 		}
 	end
 	return {

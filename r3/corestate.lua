@@ -18,7 +18,7 @@ return testbed.module({
 	work_slots    = 12,
 	inputs = {
 		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
-		{ name = "sec_in"   , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
+		{ name = "sec"      , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
 		{ name = "op_bits"  , index = 5, keepalive = 0x10000000, payload = 0x000F0000, initial = 0x10000000 },
 		{ name = "condition", index = 7, keepalive = 0x00010000, payload = 0x00000001, initial = 0x00010000 },
 	},
@@ -45,7 +45,7 @@ return testbed.module({
 		local ip_inc = ip_inc_wild:bor(0x10000000):band(0x1000FFFF)
 		local condition_mask = spaghetti.lshift(0x3FFFFFFF, inputs.condition)
 		local jmp_mask = op_is_k_mask(1) -- either 0x3FFF0000 or 0x3FFFFFFF
-		local next_ip = spaghetti.bxor(0x20000000, ip_inc):bxor(inputs.sec_in):band(condition_mask):band(jmp_mask):bxor(ip_inc)
+		local next_ip = spaghetti.bxor(0x20000000, ip_inc):bxor(inputs.sec):band(condition_mask):band(jmp_mask):bxor(ip_inc)
 		local ld_mask_inv = op_is_k_mask_inv(2) -- either 0x3FFF0000 or 0x3FFFFFFF
 		local st_mask_inv = op_is_k_mask_inv(10) -- either 0x3FFF0000 or 0x3FFFFFFF
 		local hlt_mask_inv = op_is_k_mask_inv(11) -- either 0x3FFF0000 or 0x3FFFFFFF
@@ -75,7 +75,7 @@ return testbed.module({
 		return {
 			inputs = {
 				corestate = bitx.bor(0x10000000, old_corestate),
-				sec_in    = bitx.bor(0x10000000, sec),
+				sec       = bitx.bor(0x10000000, sec),
 				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 16)),
 				condition = bitx.bor(0x00010000, condition),
 			},

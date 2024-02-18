@@ -3,7 +3,6 @@
 
 todo
 	flags out
-	exh
 	ram control
 	halt gating
 
@@ -65,5 +64,5 @@ read cycle
 write cycle
 	fetch, execute, fetchnext, finishwrite, write
 
-inputs:  pri  sec       ram          corestate fwinstr cinstr
-outputs: dest dest_addr ram ram_addr corestate fwinstr cinstr
+inputs:  pri  sec       ram      corestate fwinstr cinstr
+outputs: dest dest_addr ram_addr corestate fwinstr cinstr

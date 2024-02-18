@@ -17,8 +17,8 @@ return testbed.module({
 	storage_slots = 30,
 	work_slots    = 12,
 	inputs = {
-		{ name = "pri_in", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
-		{ name = "sec_in", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BEEF },
+		{ name = "pri", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
+		{ name = "sec", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BEEF },
 	},
 	outputs = {
 		{ name = "l_and", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
@@ -28,10 +28,10 @@ return testbed.module({
 	},
 	func = function(inputs)
 		return {
-			l_and = inputs.sec_in:band(inputs.pri_in),
-			l_or  = inputs.sec_in:bor (inputs.pri_in),
-			l_xor = inputs.sec_in:bxor(0x30000000):bxor(inputs.pri_in):bxor(0x20000000),
-			l_clr = inputs.sec_in:bxor(0x30000000):bsub(inputs.pri_in):bxor(0x30000000),
+			l_and = inputs.sec:band(inputs.pri),
+			l_or  = inputs.sec:bor (inputs.pri),
+			l_xor = inputs.sec:bxor(0x30000000):bxor(inputs.pri):bxor(0x20000000),
+			l_clr = inputs.sec:bxor(0x30000000):bsub(inputs.pri):bxor(0x30000000),
 		}
 	end,
 	fuzz = function()
@@ -39,8 +39,8 @@ return testbed.module({
 		local sec = math.random(0x0000, 0xFFFF)
 		return {
 			inputs = {
-				pri_in = bitx.bor(0x10000000, pri),
-				sec_in = bitx.bor(0x10000000, sec),
+				pri = bitx.bor(0x10000000, pri),
+				sec = bitx.bor(0x10000000, sec),
 			},
 			outputs = {
 				l_and = bitx.bor(0x10000000, bitx.band(sec, pri)),
