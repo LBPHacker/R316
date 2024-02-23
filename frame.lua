@@ -298,13 +298,12 @@ local function build(width_order, height_order)
 	end
 
 	-- get ctype from active head
-	part         ({ type = pt.FILT, x = -6, y = y_ldtc_dray_bank + 4 })
-	part_injected({ type = pt.LDTC, x = -5, y = y_ldtc_dray_bank + 4 }, 10, 1)
+	part         ({ type = pt.FILT, x = -4, y = y_ldtc_dray_bank + 4 })
+	part_injected({ type = pt.LDTC, x = -3, y = y_ldtc_dray_bank + 4 }, 10, 1, true)
 	for i = 1, core_count do
 		local y = y_call_sites + (i - 1) * core_pitch
-		local x = -6
-		part({ type = pt.FILT, x = x, y = y + 2 })
-		part({ type = pt.LDTC, x = x, y = y + 1, life = (i - 1) * core_pitch + y_call_sites - y_ldtc_dray_bank - 4 })
+		part({ type = pt.FILT, x = -4, y = y + 2 })
+		part({ type = pt.LDTC, x = -4, y = y + 1, life = (i - 1) * core_pitch + y_call_sites - y_ldtc_dray_bank - 4 })
 	end
 
 	part_injected_patch()
@@ -317,11 +316,6 @@ local function build(width_order, height_order)
 	for i = 1, #apom_order_pre do
 		table.insert(apom_order, apom_order_pre[i].order)
 	end
-	table.sort(apom_order_pre, function(lhs, rhs)
-		if lhs.x        ~= rhs.x        then return lhs.x        < rhs.x        end
-		if lhs.inject_z ~= rhs.inject_z then return lhs.inject_z < rhs.inject_z end
-		return false
-	end)
 
 	local apom_parts_x = 3
 	for j = 1, #apom_order do
