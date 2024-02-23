@@ -11,10 +11,12 @@ end
 
 local function build(width_order, height_order)
 	assert(width_order >= 6, "width order too small")
-	assert(width_order >= height_order + 1, "bad aspect ratio")
+	local height_order_2 = height_order + 1
+	assert(width_order >= height_order_2, "bad aspect ratio")
+	assert(width_order + height_order <= 16, "too many address bits")
 	local width = bitx.lshift(1, width_order)
 	local height = bitx.lshift(1, height_order)
-	local height_order_up = height_order
+	local height_order_up = height_order_2
 	if height_order_up % 2 == 1 then
 		height_order_up = height_order_up + 1
 	end
@@ -52,13 +54,17 @@ local function build(width_order, height_order)
 		end
 		return q
 	end
+	local function piston_extend(k)
+		if k == math.huge then
+			return 10000
+		end
+		return 273.15 + (k or 0) * 10
+	end
 	local function part(p)
 		local m = {}
 		if p.type == pt.PSTN then
-			if p.extend == math.huge then
-				m.temp = 10000
-			else
-				m.temp = 273.15 + (p.extend or 0) * 10
+			if not p.temp then
+				m.temp = piston_extend(p.extend)
 			end
 			if not p.ctype then
 				m.ctype = pt.INSL
@@ -265,7 +271,7 @@ local function build(width_order, height_order)
 	lsns_spark   ({ type = pt.NSCN, x = bank_piston_x - 2, y = y_ldtc_dray_bank    , life = 3 }, 1, 1, 2, 1) -- spark for the above
 	part         ({ type = pt.INSL, x = bank_piston_x - 3, y = y_ldtc_dray_bank - 1 }) -- left cap
 	part         ({ type = pt.INSL, x = height * 2       , y = y_ldtc_dray_bank - 1 }) -- right cap
-	for i = height_order + 1, height_order_up do
+	for i = height_order_2 + 1, height_order_up do
 		part({ type = pt.PSTN, x = -2 - i, y = y_ldtc_dray_bank - 1 }) -- filler
 	end
 
@@ -294,10 +300,10 @@ local function build(width_order, height_order)
 	lsns_spark   ({ type = pt.NSCN, x = ah_piston_x - 4, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 2, 1) -- spark for the above
 	part         ({ type = pt.INSL, x = ah_piston_x - 5, y = y_ldtc_dray_bank + 3 }) -- left cap
 	part         ({ type = pt.INSL, x = width          , y = y_ldtc_dray_bank + 3 }) -- right cap
-	for i = 1, height_order do
+	for i = 1, height_order_2 do
 		part({ type = pt.PSTN, x = -2 - i, y = y_ldtc_dray_bank + 3 }) -- filler
 	end
-	for i = height_order + 1, height_order_up do
+	for i = height_order_2 + 1, height_order_up do
 		part({ type = pt.PSTN, x = -2 - i - width_order, y = y_ldtc_dray_bank + 3 }) -- filler
 	end
 	for i = width_order + 1, width_order_up do
@@ -375,36 +381,84 @@ local function build(width_order, height_order)
 			cray(x, restore_y + x % 2 * 3, x, y             , pt.CRMC, 1, pt.PSCN)
 		end
 	end)
-	for i = 1, height_order do
+	for i = 1, height_order_2 do
 		part({ type = pt.CRMC, x = -2 - i, y = y_ldtc_dray_bank - 1 })
 	end
 	for i = 1, width_order do
-		part({ type = pt.CRMC, x = -2 - i - height_order, y = y_ldtc_dray_bank + 3 })
+		part({ type = pt.CRMC, x = -2 - i - height_order_2, y = y_ldtc_dray_bank + 3 })
 	end
 	per_core(function(i, y)
-		local address = addresses[i]
-		local write = writes[i]
-		for j = 0, height_order - 1 do
-			local b
-			if j == 0 then
-				b = write
-			else
-				b = bitx.band(address, bitx.lshift(1, (j - 1) + width_order)) ~= 0
-			end
+		for j = 0, height_order_2 - 1 do
 			local x = -3 - j
 			local stagger = x % 2
-			part({ type = pt.PSTN, extend = b and bitx.lshift(1, j) or 0, x = x, y = y - 2 })
+			part({ type = pt.INSL, x = x, y = y - 2 })
 			dray(x, y - 1 + stagger, x, y_ldtc_dray_bank - 1 + stagger, 1 + stagger, pt.PSCN)
 		end
 		for j = 0, width_order - 1 do
-			local b = bitx.band(address, bitx.lshift(1, j)) ~= 0
-			local x = -3 - j - height_order
+			local x = -3 - j - height_order_2
 			local stagger = x % 2
-			part({ type = pt.PSTN, extend = b and bitx.lshift(1, j) or 0, x = x, y = y - 2 })
+			part({ type = pt.INSL, x = x, y = y - 2 })
 			dray(x, y - 1 + stagger, x, y_ldtc_dray_bank + 3 + stagger, 1 + stagger, pt.PSCN)
 		end
-		part({ type = pt.INSL, x = -2, y = y - 2 })
-		part({ type = pt.INSL, x = -3 - width_order - height_order, y = y - 2 })
+
+		local stack_x = 1
+		local filt_bank_x = 3
+		local function change_conductor(conductor)
+			part({ type = pt.CONV, x = stack_x, y = y - 2, ctype = conductor, tmp = pt.SPRK })
+			part({ type = pt.CONV, x = stack_x, y = y - 2, ctype = pt.SPRK, tmp = conductor })
+			part({ type = pt.LSNS, x = stack_x, y = y - 2, tmp = 3, tmp2 = 1 })
+		end
+
+		spark({ type = pt.METL, x = stack_x + 1, y = y - 2 })
+		part ({ type = pt.FILT, x = stack_x - 1, y = y - 2, ctype = 0x10000003 })
+		part ({ type = pt.STOR, x = stack_x - 2, y = y - 2 })
+		part ({ type = pt.FILT, x = stack_x - 3, y = y - 2, tmp = 1, ctype = addresses[i] + (writes[i] and 0x10000 or 0) })
+
+		part({ type = pt.FILT, x = filt_bank_x, y = y - 2, ctype = 0x10000003 })
+		local filt_offsets = {}
+		local add_bit
+		do
+			local seen = 0
+			function add_bit(k)
+				part({ type = pt.FILT, x = filt_bank_x + seen + 1, y = y - 2, ctype = bitx.lshift(1, k) })
+				filt_offsets[k] = seen
+				seen = seen + 1
+			end
+		end
+		for i = 0, width_order + height_order - 1 do
+			add_bit(i)
+		end
+		add_bit(16)
+
+		-- important: the ids of the pistons here never change, they get allocated from the same set every time
+		change_conductor(pt.PSCN)
+		part({ type = pt.CRAY, x = stack_x, y = y - 2, tmp = width_order + height_order_2    , tmp2 = 3, ctype = pt.SPRK })
+		part({ type = pt.CRAY, x = stack_x, y = y - 2, tmp = width_order + height_order_2 - 1, tmp2 = 3, ctype = pt.STOR })
+		change_conductor(pt.METL)
+		local function handle_bit(address_index, piston_bit, piston_index, last)
+			part({ type = pt.LDTC, x = stack_x, y = y - 2, life = filt_bank_x - stack_x + filt_offsets[address_index] })
+			part({ type = pt.ARAY, x = stack_x, y = y - 2 })
+			part({ type = pt.LDTC, x = stack_x, y = y - 2, life = filt_bank_x - stack_x - 1 })
+			change_conductor(pt.PSCN)
+			if last then
+				part({ type = pt.CRAY, x = stack_x, y = y - 2, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
+			else
+				part({ type = pt.CRAY, x = stack_x, y = y - 2, tmp = 2, tmp2 = 2 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
+			end
+			change_conductor(pt.METL)
+			part({ type = pt.CRAY, x = stack_x, y = y - 2, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(bitx.lshift(1, piston_bit)) })
+		end
+		for i = 0, width_order - 1 do
+			handle_bit(i, i, width_order + height_order_2 - 1 - i, false)
+		end
+		for i = 0, height_order - 1 do
+			handle_bit(i + width_order, i + 1, height_order_2 - 1 - i, false)
+		end
+		handle_bit(16, 0, 0, true)
+
+		local pistons = width_order + height_order_2
+		cray(stack_x - 4 - pistons, y - 2, stack_x - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
+		cray(stack_x - 4 - pistons, y - 2, stack_x - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
 	end)
 
 	return parts
