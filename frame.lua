@@ -14,12 +14,31 @@ local function build(width_order, height_order)
 	assert(width_order >= height_order + 1, "bad aspect ratio")
 	local width = bitx.lshift(1, width_order)
 	local height = bitx.lshift(1, height_order)
+	local height_order_up = height_order
+	if height_order_up % 2 == 1 then
+		height_order_up = height_order_up + 1
+	end
+	local width_order_up = width_order
+	if width_order_up % 2 == 1 then
+		width_order_up = width_order_up + 1
+	end
 
 	local y_filt_block = 0
 	local y_ldtc_dray_bank = 10
 	local y_call_sites = 30
 	local core_count = 3
 	local core_pitch = 8
+	local addresses = { 0x2000DEAD, 0x2000DEAD, 0x2000CAFE }
+	local writes    = { 0x2000BABE,      false,      false }
+	assert(#addresses == core_count)
+	assert(#writes == core_count)
+
+	local function per_core(func)
+		for i = 1, core_count do
+			local y = y_call_sites + (i - 1) * core_pitch
+			func(i, y)
+		end
+	end
 
 	local pt = plot.pt
 	local parts = {}
@@ -43,6 +62,9 @@ local function build(width_order, height_order)
 			end
 			if not p.ctype then
 				m.ctype = pt.INSL
+			end
+			if not p.tmp2 then
+				m.tmp2 = 1000
 			end
 		end
 		local q = mutate(p, m)
@@ -135,41 +157,38 @@ local function build(width_order, height_order)
 	do
 		local apom_juggle_y = -10
 		local inject_z = 0
-		local per_core = {}
+		local per_core_info = {}
 		local cray_groups = 4
-		for i = 1, core_count do
-			per_core[i] = {
+		per_core(function(i)
+			per_core_info[i] = {
 				cray_groups = {},
 			}
 			for j = 1, cray_groups do
-				per_core[i].cray_groups[j] = {}
+				per_core_info[i].cray_groups[j] = {}
 			end
-		end
+		end)
 		local apom_depth_at = {}
 		function part_injected(p, order, apom_depth, skip_payload, cleanup_y)
 			local target_y = p.y
-			for i = 1, core_count do
-				local y = y_call_sites + (i - 1) * core_pitch
+			per_core(function(i, y)
 				if not skip_payload then
-					table.insert(per_core[i].cray_groups[1], cray(p.x, y, p.x, apom_juggle_y, pt.HEAC, 1, pt.PSCN, 1900)) -- the 1 gets patched in part_injected_patch
-					table.insert(per_core[i].cray_groups[2], cray(p.x, y, p.x, apom_juggle_y, pt.HEAC, 1, pt.PSCN, 1901)) -- the 1 gets patched in part_injected_patch
-					table.insert(per_core[i].cray_groups[3], cray(p.x, y, p.x, apom_juggle_y, pt.HEAC, 1, pt.PSCN, 1902)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[1], cray(p.x, y, p.x, apom_juggle_y, pt.CRMC, 1, pt.PSCN, 1900)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[2], cray(p.x, y, p.x, apom_juggle_y, pt.CRMC, 1, pt.PSCN, 1901)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[3], cray(p.x, y, p.x, apom_juggle_y, pt.CRMC, 1, pt.PSCN, 1902)) -- the 1 gets patched in part_injected_patch
 				end
-			end
-			for i = 1, core_count do
-				local y = y_call_sites + (i - 1) * core_pitch
+			end)
+			per_core(function(i, y)
 				cray(p.x, y + core_pitch, p.x, cleanup_y or p.y, pt.SPRK, 1, pt.PSCN, 2000 + inject_z)
-			end
-			for i = 1, core_count do
-				local y = y_call_sites + (i - 1) * core_pitch
+			end)
+			per_core(function(i, y)
 				if not skip_payload then
 					part(mutate(p, { y = y - 1 }))
 				end
 				if not skip_payload then
-					table.insert(per_core[i].cray_groups[4], cray(p.x, y, p.x, apom_juggle_y, pt.HEAC, 1, pt.PSCN, 2100)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[4], cray(p.x, y, p.x, apom_juggle_y, pt.CRMC, 1, pt.PSCN, 2100)) -- the 1 gets patched in part_injected_patch
 				end
 				dray(p.x, y, p.x, p.y, 1, pt.PSCN, 3000 + inject_z)
-			end
+			end)
 			inject_z = inject_z + 1
 			apom_depth_at[p.x] = (apom_depth_at[p.x] or 0) + 1
 			table.insert(apom_order_pre, {
@@ -194,18 +213,19 @@ local function build(width_order, height_order)
 					clone[i].tmp = apom_depth
 				end
 			end
-			for i = 1, core_count do
+			per_core(function(i)
 				for j = 1, cray_groups do
-					patch_crays(per_core[i].cray_groups[j])
+					patch_crays(per_core_info[i].cray_groups[j])
 				end
-			end
+			end)
 		end
 	end
 
 	-- block of filt
 	for y = 0, height - 1 do
 		for x = 0, width - 1 do
-			table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - y, ctype = 0xC0DE0000 + y * width + x })
+			-- table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - y, ctype = 0xC0DE0000 + y * width + x })
+			table.insert(parts, { type = pt.FILT, x = width - 1 - x, y = y_filt_block - y, ctype = 0xC0DE0000 + y * width + x })
 		end
 	end
 
@@ -218,8 +238,8 @@ local function build(width_order, height_order)
 		part ({ type = pt.DRAY, x = y * 2 + 1, y = y_ldtc_dray_bank    , tmp = 1, tmp2 = dist + 1 })
 		spark({ type = pt.PSCN, x = y * 2 + 1, y = y_ldtc_dray_bank + 1, life = 3 }) -- spark for the above
 	end
-	-- active head second row template
-	local ah_sr_template_x = -10 - height_order - width_order
+	-- active head second row template; TODO: fix life so it doesn't have to be put this far to the left to not extend pistons
+	local ah_sr_template_x = -10 - height_order_up - width_order_up
 	lsns_spark({ type = pt.PSCN, x = ah_sr_template_x, y = y_ldtc_dray_bank + 1, life = 3 }, -1, -1, -1, 0)
 	dray(ah_sr_template_x - 2, y_ldtc_dray_bank + 1, 0, y_ldtc_dray_bank + 1, 2, pt.PSCN)
 	-- logarithmically clone active head second row template
@@ -237,7 +257,7 @@ local function build(width_order, height_order)
 	part         ({ type = pt.FRME, x = -2, y = y_ldtc_dray_bank - 2 })
 	part         ({ type = pt.FRME, x = -2, y = y_ldtc_dray_bank - 1 })
 	-- bank piston
-	local bank_piston_x = -3 - height_order
+	local bank_piston_x = -3 - height_order_up
 	part_injected({ type = pt.PSTN, x = bank_piston_x    , y = y_ldtc_dray_bank - 1, extend = 2 }, 0, 11) -- extend to the programmed distance
 	lsns_spark   ({ type = pt.PSCN, x = bank_piston_x    , y = y_ldtc_dray_bank    , life = 3 }, -1, 1, 0, 1) -- spark for the above
 	part         ({ type = pt.PSTN, x = bank_piston_x - 1, y = y_ldtc_dray_bank - 1 }) -- filler
@@ -245,12 +265,25 @@ local function build(width_order, height_order)
 	lsns_spark   ({ type = pt.NSCN, x = bank_piston_x - 2, y = y_ldtc_dray_bank    , life = 3 }, 1, 1, 2, 1) -- spark for the above
 	part         ({ type = pt.INSL, x = bank_piston_x - 3, y = y_ldtc_dray_bank - 1 }) -- left cap
 	part         ({ type = pt.INSL, x = height * 2       , y = y_ldtc_dray_bank - 1 }) -- right cap
+	for i = height_order + 1, height_order_up do
+		part({ type = pt.PSTN, x = -2 - i, y = y_ldtc_dray_bank - 1 }) -- filler
+	end
+
+	-- particles to be overwritten by address piston drays
+	part({ type = pt.INSL, x = -3, y = y_ldtc_dray_bank })
+	part({ type = pt.INSL, x = bank_piston_x    , y = y_ldtc_dray_bank + 4 })
+	part({ type = pt.INSL, x = bank_piston_x - 2, y = y_ldtc_dray_bank + 4 })
+	part({ type = pt.INSL, x = bank_piston_x - 4, y = y_ldtc_dray_bank + 4 })
+	per_core(function(i, y)
+		part({ type = pt.INSL, x = bank_piston_x    , y = y - 3 })
+		part({ type = pt.INSL, x = bank_piston_x - 2, y = y - 3 })
+	end)
 
 	-- active head piston frame
 	part         ({ type = pt.FRME, x = -2, y = y_ldtc_dray_bank + 3 })
 	part         ({ type = pt.FRME, x = -2, y = y_ldtc_dray_bank + 4 })
 	-- active head piston
-	local ah_piston_x = -4 - height_order - width_order
+	local ah_piston_x = -3 - height_order_up - width_order_up
 	part_injected({ type = pt.PSTN, x = ah_piston_x    , y = y_ldtc_dray_bank + 3, extend = 1 }, 5, 9) -- retract to the programmed distance
 	lsns_spark   ({ type = pt.NSCN, x = ah_piston_x    , y = y_ldtc_dray_bank + 4, life = 3 }, -1, 1, -2, 1) -- spark for the above
 	part         ({ type = pt.PSTN, x = ah_piston_x - 1, y = y_ldtc_dray_bank + 3 }) -- filler
@@ -261,19 +294,24 @@ local function build(width_order, height_order)
 	lsns_spark   ({ type = pt.NSCN, x = ah_piston_x - 4, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 2, 1) -- spark for the above
 	part         ({ type = pt.INSL, x = ah_piston_x - 5, y = y_ldtc_dray_bank + 3 }) -- left cap
 	part         ({ type = pt.INSL, x = width          , y = y_ldtc_dray_bank + 3 }) -- right cap
-	for i = 1, height_order + 1 do
+	for i = 1, height_order do
 		part({ type = pt.PSTN, x = -2 - i, y = y_ldtc_dray_bank + 3 }) -- filler
+	end
+	for i = height_order + 1, height_order_up do
+		part({ type = pt.PSTN, x = -2 - i - width_order, y = y_ldtc_dray_bank + 3 }) -- filler
+	end
+	for i = width_order + 1, width_order_up do
+		part({ type = pt.PSTN, x = -2 - i - height_order_up, y = y_ldtc_dray_bank + 3 }) -- filler
 	end
 
 	-- reset active head to cray(sprk)'able particles
-	for i = 1, core_count do
-		local y = y_call_sites + i * core_pitch
-		dray(-1, y, -1, y_ldtc_dray_bank + 3, 1, pt.PSCN, 900)
-		dray(-1, y, -1, y_ldtc_dray_bank + 4, 1, pt.PSCN, 901)
+	per_core(function(i, y)
+		dray(-1, y + core_pitch, -1, y_ldtc_dray_bank + 3, 1, pt.PSCN, 900)
+		dray(-1, y + core_pitch, -1, y_ldtc_dray_bank + 4, 1, pt.PSCN, 901)
 		if i == core_count then
-			part({ type = pt.INSL, x = -1, y = y - 1 })
+			part({ type = pt.INSL, x = -1, y = y - 1 + core_pitch })
 		end
-	end
+	end)
 	-- copy active head
 	local active_head_copier = { type = pt.DRAY, x = -1, y = y_ldtc_dray_bank - 1, tmp = 2, tmp2 = 1 }
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 10 }), 1, 6, true)
@@ -288,23 +326,22 @@ local function build(width_order, height_order)
 	-- get ctype into the line of filt above the active head
 	part_injected({ type = pt.LDTC, x = -3, y = y_ldtc_dray_bank + 2 }, 6, 2)
 	do
-		local x = -7 - height_order
+		local x = -7 - height_order_up
 		part({ type = pt.FILT, x = x, y = y_ldtc_dray_bank + 2, ctype = 0x10000000 })
-		for i = 1, core_count do
-			local y = y_call_sites + (i - 1) * core_pitch
-			part({ type = pt.FILT, x = x, y = y - 1, ctype = 0x10000000 })
+		per_core(function(i, y)
+			part({ type = pt.FILT, x = x, y = y - 1, ctype = writes[i] or 0x3FFFFFFF })
 			dray(x, y, x, y_ldtc_dray_bank + 2, 1, pt.PSCN)
-		end
+		end)
 	end
 
 	-- get ctype from active head
-	part         ({ type = pt.FILT, x = -4, y = y_ldtc_dray_bank + 4 })
-	part_injected({ type = pt.LDTC, x = -3, y = y_ldtc_dray_bank + 4 }, 10, 1, true)
-	for i = 1, core_count do
-		local y = y_call_sites + (i - 1) * core_pitch
-		part({ type = pt.FILT, x = -4, y = y + 2 })
-		part({ type = pt.LDTC, x = -4, y = y + 1, life = (i - 1) * core_pitch + y_call_sites - y_ldtc_dray_bank - 4 })
-	end
+	local get_ctype_x = -10 - width_order_up - height_order_up
+	part         ({ type = pt.FILT, x = get_ctype_x    , y = y_ldtc_dray_bank + 4 })
+	part_injected({ type = pt.LDTC, x = get_ctype_x + 1, y = y_ldtc_dray_bank + 4, life = -3 - get_ctype_x }, 10, 1)
+	per_core(function(i, y)
+		part({ type = pt.FILT, x = get_ctype_x, y = y + 2 })
+		part({ type = pt.LDTC, x = get_ctype_x, y = y + 1, life = (i - 1) * core_pitch + y_call_sites - y_ldtc_dray_bank - 4 })
+	end)
 
 	part_injected_patch()
 	table.sort(apom_order_pre, function(lhs, rhs)
@@ -322,33 +359,53 @@ local function build(width_order, height_order)
 		apom_order[j] = apom_order[j] + apom_parts_x
 	end
 	-- float apom'd particles
-	for i = 1, core_count do
-		local y = y_call_sites + (i - 1) * core_pitch
+	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
-			part({ type = pt.HEAC, x = apom_order[j], y = y })
-			cray(-10 - height_order - width_order, y, apom_order[j], y, pt.HEAC, 1, pt.PSCN)
+			part({ type = pt.CRMC, x = apom_order[j], y = y })
+			cray(-12 - height_order_up - width_order_up, y, apom_order[j], y, pt.CRMC, 1, pt.PSCN)
 		end
-	end
+	end)
 	-- restore apom'd particles
 	local restore_y = core_count * core_pitch + 33
-	for i = 1, core_count do
-		local y = y_call_sites + i * core_pitch
+	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
 			local x = apom_order[j]
-			cray(2, y, x, y, pt.HEAC, 1, pt.PSCN)
-			cray(x, restore_y + x % 2 * 3, x, y             , pt.HEAC, 1, pt.PSCN)
-			cray(x, restore_y + x % 2 * 3, x, y - core_pitch, pt.HEAC, 1, pt.PSCN)
+			cray(2, y + core_pitch, x, y + core_pitch, pt.CRMC, 1, pt.PSCN)
+			cray(x, restore_y + x % 2 * 3, x, y + core_pitch, pt.CRMC, 1, pt.PSCN)
+			cray(x, restore_y + x % 2 * 3, x, y             , pt.CRMC, 1, pt.PSCN)
 		end
+	end)
+	for i = 1, height_order do
+		part({ type = pt.CRMC, x = -2 - i, y = y_ldtc_dray_bank - 1 })
 	end
-
-	local function mock_piston_value(order, value, x, y)
-		assert(value < bitx.lshift(1, order))
-		for i = 0, order - 1 do
-			part({ type = pt.PSTN, extend = bitx.band(value, bitx.lshift(1, i)), x = x + i, y = y })
+	for i = 1, width_order do
+		part({ type = pt.CRMC, x = -2 - i - height_order, y = y_ldtc_dray_bank + 3 })
+	end
+	per_core(function(i, y)
+		local address = addresses[i]
+		local write = writes[i]
+		for j = 0, height_order - 1 do
+			local b
+			if j == 0 then
+				b = write
+			else
+				b = bitx.band(address, bitx.lshift(1, (j - 1) + width_order)) ~= 0
+			end
+			local x = -3 - j
+			local stagger = x % 2
+			part({ type = pt.PSTN, extend = b and bitx.lshift(1, j) or 0, x = x, y = y - 2 })
+			dray(x, y - 1 + stagger, x, y_ldtc_dray_bank - 1 + stagger, 1 + stagger, pt.PSCN)
 		end
-	end
-	mock_piston_value(height_order, 0x1E, bank_piston_x + 1, y_ldtc_dray_bank - 1) -- bank piston
-	mock_piston_value(width_order, 0x7F, ah_piston_x + 1, y_ldtc_dray_bank + 3) -- active head piston
+		for j = 0, width_order - 1 do
+			local b = bitx.band(address, bitx.lshift(1, j)) ~= 0
+			local x = -3 - j - height_order
+			local stagger = x % 2
+			part({ type = pt.PSTN, extend = b and bitx.lshift(1, j) or 0, x = x, y = y - 2 })
+			dray(x, y - 1 + stagger, x, y_ldtc_dray_bank + 3 + stagger, 1 + stagger, pt.PSCN)
+		end
+		part({ type = pt.INSL, x = -2, y = y - 2 })
+		part({ type = pt.INSL, x = -3 - width_order - height_order, y = y - 2 })
+	end)
 
 	return parts
 end
