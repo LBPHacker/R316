@@ -29,13 +29,23 @@ local function modulef(info)
 	local function instantiate(named_inputs, params)
 		for _, input_info in ipairs(info.inputs or {}) do
 			local input = named_inputs[input_info.name]
-			input:assert(input_info.keepalive, input_info.payload)
+			local ok, err = pcall(function()
+				input:assert(input_info.keepalive, input_info.payload)
+			end)
+			if not ok then
+				error(("input %s: %s"):format(input_info.name, err), 2)
+			end
 		end
 		local named_outputs = info.func(named_inputs, params)
 		for _, output_info in ipairs(info.outputs or {}) do
 			local output = named_outputs[output_info.name]
 			if not (output_info.keepalive == false and output_info.payload == false) then
-				output:assert(output_info.keepalive, output_info.payload)
+				local ok, err = pcall(function()
+					output:assert(output_info.keepalive, output_info.payload)
+				end)
+				if not ok then
+					error(("output %s: %s"):format(output_info.name, err), 2)
+				end
 			end
 		end
 		return named_outputs

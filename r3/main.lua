@@ -3,25 +3,25 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
-local adder     = require("r3.adder")
-local bitwise   = require("r3.bitwise")
-local condition = require("r3.condition")
-local corestate = require("r3.corestate")
-local mux       = require("r3.mux")
-local shifter   = require("r3.shifter")
+local testbed   = require("testbed")
+local adder     = require("adder")
+local bitwise   = require("bitwise")
+local condition = require("condition")
+local corestate = require("corestate")
+local mux       = require("mux")
+local shifter   = require("shifter")
 
 return testbed.module({
 	opt_params = {
 		thread_count  = 1,
 		temp_initial  = 1,
-		temp_final    = 0.5,
-		temp_loss     = 1e-6,
+		temp_final    = 0.95,
+		temp_loss     = 1e-7,
 		round_length  = 10000,
 	},
 	stacks        = 1,
-	storage_slots = 60,
-	work_slots    = 20,
+	storage_slots = 80,
+	work_slots    = 30,
 	inputs = {
 		{ name = "pri_wild"    , index =  1, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec_wild"    , index =  3, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
@@ -45,26 +45,31 @@ return testbed.module({
 
 		-- TODO: get from cinstr if corestate says read or write
 		local instr_wild = inputs.ram_wild
-		local imm = instr_wild:bor(0x10000000):band(0x1000FFFF):assert(0x10000000, 0x0000FFFF)
+		local instr_8 = spaghetti.rshiftk(instr_wild:bor(0x00001000):bsub(0x000000FF), 8):assert(0x00000010, 0x3FFFFFEF)
+		local instr_16 = spaghetti.rshiftk(instr_8:bor(0x10000000):bsub(0x000000FF), 8):assert(0x00100000, 0x002FFFFF)
 
-		local instr_2msb = spaghetti.rshiftk(instr_wild:bor(0x10000000):bsub(0x0000FFFF), 16):assert(0x00001000, 0x3FFFEFFF)
-		local mode_bit = spaghetti.rshiftk(instr_2msb:bor(0x10000000), 15):bor(0x00000100):band(0x00000101):assert(0x00000100, 0x00000001)
+		local instr_high = instr_16:bor(0x10000000):band(0x1000FFFF)
+		local instr_low = instr_wild:bor(0x10000000):band(0x1000FFFF)
+
+		local imm = instr_low
+
+		local mode_bit = spaghetti.rshiftk(instr_high, 15):bor(0x00000100):band(0x00000101):assert(0x00000100, 0x00000001)
 		local mode_bit_mask = spaghetti.constant(0x3FFFFFFF):lshift(mode_bit):lshift(mode_bit)
-		local wflags_bit = spaghetti.rshiftk(instr_2msb:bor(0x10000000), 14):bor(0x00000100):band(0x00000101):assert(0x00000100, 0x00000001)
+		local wflags_bit = spaghetti.rshiftk(instr_high, 14):bor(0x00000100):band(0x00000101):assert(0x00000100, 0x00000001)
 		local wflags_bit_mask = spaghetti.constant(0x3FFFFFFF):lshift(wflags_bit):lshift(wflags_bit)
 
 		local sec = sec_reg:bxor(imm):band(mode_bit_mask):bxor(sec_reg):assert(0x10000000, 0x0000FFFF)
 
 		local condition_outputs = condition.instantiate({
 			corestate = inputs.corestate,
-			op_bits   = instr_wild:bor(0x10000000):band(0x11F00000),
+			op_bits   = instr_high:bor(0x10000000):band(0x100001F0),
 		}, {
 			sync_value = params.sync_value,
 		})
 		local corestate_outputs = corestate.instantiate({
 			corestate = inputs.corestate,
 			sec       = sec,
-			op_bits   = instr_wild:bor(0x10000000):band(0x100F0000),
+			op_bits   = instr_high:bor(0x10000000):band(0x1000000F),
 			condition = condition_outputs.condition,
 		})
 		local shifter_outputs = shifter.instantiate({
@@ -75,10 +80,10 @@ return testbed.module({
 			pri = pri,
 			sec = sec,
 		})
-		local op_subtract = instr_wild:bor(0x10000000):band(0x10020000)
-		local op_subtract_17 = spaghetti.rshiftk(op_subtract, 17):assert(0x00000800, 0x00000001)
-		local op_carry = instr_wild:bor(0x10000000):band(0x10010000):band(inputs.corestate)
-		local op_carry_16 = spaghetti.rshiftk(op_carry, 16):assert(0x00001000, 0x00000001)
+		local op_subtract = instr_high:bor(0x10000000):band(0x10000002)
+		local op_subtract_17 = spaghetti.rshiftk(op_subtract, 1):assert(0x08000000, 0x00000001)
+		local op_carry = instr_high:bor(0x10000000):band(0x10000001):band(inputs.corestate)
+		local op_carry_16 = op_carry:assert(0x10000000, 0x00000001)
 		local adder_outputs = adder.instantiate({
 			pri      = pri,
 			sec      = sec,
@@ -104,12 +109,12 @@ return testbed.module({
 			l_st    = sec,                     -- TODO: output pri[31:16] as high half, set dest to r0
 			l_hlt   = sec,                     -- TODO: check if using a constant is better
 			l_add   = adder_outputs.l_add,     -- TODO: output pri[31:16] as high half
-			op_bits = instr_wild:bor(0x10000000):band(0x100F0000),
+			op_bits = instr_high:bor(0x10000000):band(0x1000000F),
 		})
 		local dest      = spaghetti.constant(0x00000000, 0xFFFFFFFF)
 		local dest_addr = spaghetti.constant(0x10000000, 0x0000001F)
 		local ram_addr  = spaghetti.constant(0x10000000, 0x0000FFFF)
-		local corestate = spaghetti.constant(0x10000000, 0x007FFFFF)
+		local corestate = corestate_outputs.corestate:bor(spaghetti.constant(0x10000000, 0x000F0000)) -- TODO
 		local fwinstr   = spaghetti.constant(0x00000000, 0xFFFFFFFF)
 		local cinstr    = spaghetti.constant(0x00000000, 0xFFFFFFFF)
 		return {

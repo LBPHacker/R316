@@ -1,0 +1,64 @@
+assume that there are all the necessary filts to the left of the megastack, that is
+    filt[ctype=1<<k]
+    filt[ctype=address] 
+    filt[ctype=10000003] 
+the [ and ] markers show the boundary of the pstn particles controlled by the address
+
+      megastack
+       ||
+       vv
+initially
+    p3    pt pt pt [ pt*       pt  ] pt -- as many pstns as bits to control; last pstn is pstn(-2)
+    p3 pt pt pt pt [ pt*       pt  ] pt -- retract (actually this needs a conductor other than pscn but whatever)
+    p3 cr pt pt pt [ pt*       pt  ] pt -- delete most of the piston except the last particle
+    p3 cr .. .. .. [ ..*       ..  ] pt -- spawn three filt(1)s
+    p3 ld f1 f1 f1 [ ..*       ..  ] pt -- set f1 ctype to address
+    p3 co f1 f1 f1 [ ..*       ..  ] pt -- convert first filt to aray
+    p3 dr ar f1 f1 [ ..*       ..  ] pt -- duplicate aray
+    p3 co ar ar f1 [ ..*       ..  ] pt -- convert first aray to filt(0)
+    p3 cr f0 ar f1 [ ..*       ..  ] pt -- spawn a bunch more aray but don't fill the last spot
+    p3 ld f0 ar f1 [ ar*       ..  ] pt -- set f0 ctype to 10000003
+    p3 co f0 ar f1 [ ar*       ..  ] pt -- conv sprk to metl
+    me co f0 ar f1 [ ar*       ..  ] pt -- conv metl to sprk
+    m4 ls f0 ar f1 [ ar*       ..  ] pt -- change m4 to m3
+    m3    f0 ar f1 [ ar*       ..  ] pt
+repeat as many times as there are bits to control
+    m3 ld f0 ar f1 [ ar* ar .. pt* ] pt -- set f0 ctype to 1 << k
+    m3 ar f0 ar f1 [ ar* ar .. pt* ] pt -- fire bray, either filling up the empty slot with a bray or not
+    m3 co f0 ar f1 [ ar* ar b? pt* ] pt -- conv sprk to pscn
+    ps co f0 ar f1 [ ar* ar b? pt* ] pt -- conv pscn to sprk
+    p4 ld f0 ar f1 [ ar* ar b? pt* ] pt -- set f0 ctype to 10000003
+    p4 ls f0 ar f1 [ ar* ar b? pt* ] pt -- change p4 to p3
+    p3 cr f0 ar f1 [ ar* ar b? pt* ] pt -- delete next aray (skip this step in the last iteration, in which there is no such aray)
+    p3 cr f0 ar f1 [ ar* .. b? pt* ] pt -- fire pscn cray, so the slot either turns into pstn(1 << k) or goes back to empty
+    p3 co f0 ar f1 [ ar* .. p? pt* ] pt -- conv sprk to metl
+    me co f0 ar f1 [ ar* .. p? pt* ] pt -- conv metl to sprk
+    m4 ls f0 ar f1 [ ar* .. p? pt* ] pt -- change m4 to m3
+    m3 cr f0 ar f1 [ ar* .. p? pt* ] pt -- fire metl cray, so the slot is either pstn(0) or pstn(1 << k)
+    m3    f0 ar f1 [ ar* .. pt pt* ] pt
+finally
+    m3 co f0 ar f1 [ pt*           ] pt -- conv sprk to pscn
+    ps co f0 ar f1 [ pt*           ] pt -- conv pscn to sprk
+    p4 ls f0 ar f1 [ pt*           ] pt -- change p4 to p3
+    p3 co f0 ar f1 [ pt*           ] pt -- conv filt to pstn
+    p3 dr pt ar f1 [ pt*           ] pt -- copy pstn over aray
+    p3 dr pt pt f1 [ pt*           ] pt -- copy pstn over aray filt(1)
+    p3 pt pt pt pt [ pt*           ] pt -- extend
+    p3    pt pt pt [ pt*           ] pt
+
+..: empty
+f#: filt[tmp=#]
+b?: potential bray
+p?: potential pstn
+co: conv
+ls: lsns
+ld: ldtc
+dr: dray
+cr: cray
+ar: aray
+pt: pstn
+ps: pscn
+me: metl
+p#: sprk[ctype=pscn,life=#]
+m#: sprk[ctype=metl,life=#]
+xx*: any number of xx's

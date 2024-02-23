@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("testbed")
 
 return testbed.module({
 	opt_params = {
@@ -30,7 +30,7 @@ return testbed.module({
 		{ name = "l_st"   , index = 21, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BADB },
 		{ name = "l_hlt"  , index = 23, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BADC },
 		{ name = "l_add"  , index = 25, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000BADD },
-		{ name = "op_bits", index = 27, keepalive = 0x10000000, payload = 0x000F0000, initial = 0x10000000 },
+		{ name = "op_bits", index = 27, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000000 },
 	},
 	outputs = {
 		{ name = "muxed"    , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
@@ -38,22 +38,26 @@ return testbed.module({
 	},
 	func = function(inputs)
 		local function select_op_bit(v0, v1, i)
-			local select_mask = spaghetti.lshift(0x3FFFFFFF, spaghetti.rshiftk(inputs.op_bits, i):bor(0x00010000):band(0x00010001))
+			local shifted = inputs.op_bits
+			if i ~= 0 then
+				shifted = spaghetti.rshiftk(shifted, i)
+			end
+			local select_mask = spaghetti.lshift(0x3FFFFFFF, shifted:bor(0x00010000):band(0x00010001))
 			return spaghetti.bxor(0x20000000, v0):bxor(v1):band(select_mask):bxor(v0)
 		end
-		local sel_01 = select_op_bit(inputs.l_mov, inputs.l_jmp, 16):assert(0x30000000, 0x0000FFFF)
-		local sel_23 = select_op_bit(inputs.l_ld , inputs.l_exh, 16):assert(0x30000000, 0x0000FFFF)
-		local sel_89 = select_op_bit(inputs.l_shl, inputs.l_shr, 16):assert(0x30000000, 0x0000FFFF)
-		local sel_AB = select_op_bit(inputs.l_st , inputs.l_hlt, 16):assert(0x30000000, 0x0000FFFF)
-		local sel_CD = select_op_bit(inputs.l_and, inputs.l_or , 16):assert(0x30000000, 0x0000FFFF)
-		local sel_EF = select_op_bit(inputs.l_xor, inputs.l_clr, 16):assert(0x30000000, 0x0000FFFF)
-		local sel_03 = select_op_bit(sel_01, sel_23, 17):assert(0x10000000, 0x0000FFFF)
+		local sel_01 = select_op_bit(inputs.l_mov, inputs.l_jmp, 0):assert(0x30000000, 0x0000FFFF)
+		local sel_23 = select_op_bit(inputs.l_ld , inputs.l_exh, 0):assert(0x30000000, 0x0000FFFF)
+		local sel_89 = select_op_bit(inputs.l_shl, inputs.l_shr, 0):assert(0x30000000, 0x0000FFFF)
+		local sel_AB = select_op_bit(inputs.l_st , inputs.l_hlt, 0):assert(0x30000000, 0x0000FFFF)
+		local sel_CD = select_op_bit(inputs.l_and, inputs.l_or , 0):assert(0x30000000, 0x0000FFFF)
+		local sel_EF = select_op_bit(inputs.l_xor, inputs.l_clr, 0):assert(0x30000000, 0x0000FFFF)
+		local sel_03 = select_op_bit(sel_01, sel_23, 1):assert(0x10000000, 0x0000FFFF)
 		local sel_47 = inputs.l_add
-		local sel_8B = select_op_bit(sel_89, sel_AB, 17):assert(0x10000000, 0x0000FFFF)
-		local sel_CF = select_op_bit(sel_CD, sel_EF, 17):assert(0x10000000, 0x0000FFFF)
-		local sel_07 = select_op_bit(sel_03, sel_47, 18):assert(0x30000000, 0x0000FFFF)
-		local sel_8F = select_op_bit(sel_8B, sel_CF, 18):assert(0x30000000, 0x0000FFFF)
-		local muxed = select_op_bit(sel_07, sel_8F, 19):assert(0x10000000, 0x0000FFFF)
+		local sel_8B = select_op_bit(sel_89, sel_AB, 1):assert(0x10000000, 0x0000FFFF)
+		local sel_CF = select_op_bit(sel_CD, sel_EF, 1):assert(0x10000000, 0x0000FFFF)
+		local sel_07 = select_op_bit(sel_03, sel_47, 2):assert(0x30000000, 0x0000FFFF)
+		local sel_8F = select_op_bit(sel_8B, sel_CF, 2):assert(0x30000000, 0x0000FFFF)
+		local muxed = select_op_bit(sel_07, sel_8F, 3):assert(0x10000000, 0x0000FFFF)
 		local zero_inv = spaghetti.lshift(0x3FFFFFFF, muxed) -- zero_inv bit 15 is clear iff muxed is zero
 		local zero = spaghetti.rshiftk(zero_inv, 15):bxor(1):band(0x00002001):assert(0x00002000, 0x00000001)
 		local sign = spaghetti.rshiftk(muxed, 14):bsub(1):assert(0x00004000, 0x00000002)
@@ -77,7 +81,7 @@ return testbed.module({
 		local l_st    = math.random(0x0000, 0xFFFF)
 		local l_hlt   = math.random(0x0000, 0xFFFF)
 		local l_add   = math.random(0x0000, 0xFFFF)
-		local op_bits = math.random(0x0000, 0x000F)
+		local op_bits = math.random(0x0, 0xF)
 		local inputs = {
 			[  0 ] = l_mov, [  1 ] = l_jmp, [  2 ] = l_ld , [  3 ] = l_exh,
 			[  4 ] = l_add, [  5 ] = l_add, [  6 ] = l_add, [  7 ] = l_add,
@@ -104,7 +108,7 @@ return testbed.module({
 				l_st    = bitx.bor(0x10000000, l_st ),
 				l_hlt   = bitx.bor(0x10000000, l_hlt),
 				l_add   = bitx.bor(0x10000000, l_add),
-				op_bits = bitx.bor(0x10000000, bitx.lshift(op_bits, 16)),
+				op_bits = bitx.bor(0x10000000, op_bits),
 			},
 			outputs = {
 				muxed     = bitx.bor(0x10000000, muxed),

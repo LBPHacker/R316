@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("testbed")
 
 return testbed.module({
 	opt_params = {
@@ -19,7 +19,7 @@ return testbed.module({
 	inputs = {
 		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
 		{ name = "sec"      , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
-		{ name = "op_bits"  , index = 5, keepalive = 0x10000000, payload = 0x000F0000, initial = 0x10000000 },
+		{ name = "op_bits"  , index = 5, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000000 },
 		{ name = "condition", index = 7, keepalive = 0x00010000, payload = 0x00000001, initial = 0x00010000 },
 	},
 	outputs = {
@@ -28,8 +28,7 @@ return testbed.module({
 	},
 	func = function(inputs)
 		local function op_is_k_mask_inv(k)
-			local op_bits_16 = spaghetti.rshiftk(inputs.op_bits, 16):assert(0x00001000, 0x0000000F)
-			local op_test = op_bits_16:bxor(k):assert(0x00001000, 0x0000000F) -- lsb is one of: 12, 3, 2, 1, 0
+			local op_test = inputs.op_bits:bxor(k):bor(0x00001000):assert(0x10001000, 0x0000000F) -- lsb is one of: 12, 3, 2, 1, 0
 			local mask_8 = spaghetti.constant(0x3FFFFFFF):lshift(op_test):lshift(op_test) -- shifted up 24, 6, 4, 2, or 0 bits
 			local mask = mask_8:rshift(0x100):bor(0x3FFF0000)
 			return mask
@@ -84,7 +83,7 @@ return testbed.module({
 			inputs = {
 				corestate = bitx.bor(0x10000000, old_corestate),
 				sec       = bitx.bor(0x10000000, sec),
-				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 16)),
+				op_bits   = bitx.bor(0x10000000, op_bits),
 				condition = bitx.bor(0x00010000, condition),
 			},
 			outputs = {

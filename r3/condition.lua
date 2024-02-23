@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("testbed")
 
 return testbed.module({
 	opt_params = {
@@ -18,7 +18,7 @@ return testbed.module({
 	work_slots    = 20,
 	inputs = {
 		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
-		{ name = "op_bits"  , index = 3, keepalive = 0x10000000, payload = 0x01F00000, initial = 0x10000000 },
+		{ name = "op_bits"  , index = 3, keepalive = 0x10000000, payload = 0x000001F0, initial = 0x10000000 },
 	},
 	outputs = {
 		{ name = "condition", index = 1, keepalive = 0x00010000, payload = 0x00000001 },
@@ -35,7 +35,7 @@ return testbed.module({
 			:lshift(0x2):bor(flag_be)
 			:lshift(0x2):bor(flag_l)
 			:assert(0x00013A00, 0x000000FF)
-		local op_bits = spaghetti.rshiftk(inputs.op_bits, 20)
+		local op_bits = spaghetti.rshiftk(inputs.op_bits, 4)
 		for i = 0, 2 do
 			local i22 = bitx.lshift(1, bitx.lshift(1, i))
 			local shift = spaghetti.rshiftk(op_bits, i):bor(0x00010000):band(0x00010001):bor(i22)
@@ -87,7 +87,7 @@ return testbed.module({
 		return {
 			inputs = {
 				corestate = bitx.bor(0x10000000, old_corestate),
-				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 20)),
+				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 4)),
 			},
 			outputs = {
 				condition = bitx.bor(0x00010000, condition),
