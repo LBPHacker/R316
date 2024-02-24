@@ -1,0 +1,25 @@
+row 0
+	register repeater ldtcs
+row 1
+	ram output
+	registers
+	register writer from the previous core
+	register readers
+		supplied by ram output and corestate
+		new spaghetti storage slot type needed: void
+		outputs would be lsns+ldtc-able offsets
+row 2
+	maaaaaaybe the core itself
+		if register/ram output passthrough worked like this
+			lsns+ldtc-able value ctype
+			lsns + metl on top
+			ldtc + aray on top
+			filt
+			dtec that sets a core input
+row 3
+	idk register writer bank somehow
+row 4
+row 5
+row 6
+row 7
+row 8

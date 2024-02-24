@@ -3,17 +3,17 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("testbed")
-local adder     = require("adder")
-local bitwise   = require("bitwise")
-local condition = require("condition")
-local corestate = require("corestate")
-local mux       = require("mux")
-local shifter   = require("shifter")
+local testbed   = require("r3.testbed")
+local adder     = require("r3.core.adder")
+local bitwise   = require("r3.core.bitwise")
+local condition = require("r3.core.condition")
+local corestate = require("r3.core.corestate")
+local mux       = require("r3.core.mux")
+local shifter   = require("r3.core.shifter")
 
 return testbed.module({
 	opt_params = {
-		thread_count  = 1,
+		thread_count  = 4,
 		temp_initial  = 1,
 		temp_final    = 0.95,
 		temp_loss     = 1e-7,

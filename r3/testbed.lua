@@ -3,6 +3,9 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
+local plot      = require("spaghetti.plot")
+
+local in_tpt = rawget(_G, "tpt") and true
 
 local function modulef(info)
 	local fuzz
@@ -51,6 +54,10 @@ local function modulef(info)
 		return named_outputs
 	end
 	local function design(params)
+		local probes = true
+		if params.probes ~= nil then
+			probes = params.probes
+		end
 		local inputs = {}
 		local outputs = {}
 		local clobbers = {}
@@ -70,16 +77,20 @@ local function modulef(info)
 			else
 				assert(bitx.band(input_info.initial, expr.keepalive_) ~= 0)
 			end
-			table.insert(extra_parts, { type = elem.DEFAULT_PT_FILT, x = 2 + input_info.index, y = -3, ctype = input_info.initial })
-			table.insert(extra_parts, { type = elem.DEFAULT_PT_LDTC, x = 2 + input_info.index, y = -1 })
+			if probes then
+				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -3, ctype = input_info.initial })
+				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + input_info.index, y = -1 })
+			end
 			auto_clobber(input_info.index + 1)
 			auto_clobber(input_info.index - 1)
 		end
 		local named_outputs = instantiate(named_inputs, params)
 		for _, output_info in ipairs(info.outputs or {}) do
 			outputs[output_info.index] = named_outputs[output_info.name]
-			table.insert(extra_parts, { type = elem.DEFAULT_PT_LDTC, x = 2 + output_info.index, y = 2 })
-			table.insert(extra_parts, { type = elem.DEFAULT_PT_FILT, x = 2 + output_info.index, y = 3 })
+			if probes then
+				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + output_info.index, y = 2 })
+				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + output_info.index, y = 3 })
+			end
 		end
 		for _, part in ipairs(info.extra_parts or {}) do
 			table.insert(extra_parts, part)

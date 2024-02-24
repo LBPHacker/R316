@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("testbed")
+local testbed   = require("r3.testbed")
 
 return testbed.module({
 	opt_params = {
