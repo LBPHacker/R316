@@ -13,12 +13,14 @@ end
 
 local function build(height_order)
 	local width_order = 7
+	local regs_order = 5
 	assert(width_order >= 6, "width order too small")
 	local height_order_2 = height_order + 1
 	assert(width_order >= height_order_2, "bad aspect ratio")
 	assert(width_order + height_order <= 16, "too many address bits")
 	local width = bitx.lshift(1, width_order)
 	local height = bitx.lshift(1, height_order)
+	local regs = bitx.lshift(1, regs_order)
 	local height_order_up = width_order
 	if height_order_up % 2 == 1 then
 		height_order_up = height_order_up + 1
@@ -371,7 +373,7 @@ local function build(height_order)
 		table.insert(apom_order, apom_order_pre[i].order)
 	end
 
-	local x_apom_parts = 3
+	local x_apom_parts = 118
 	for j = 1, #apom_order do
 		apom_order[j] = apom_order[j] + x_apom_parts
 	end
@@ -383,7 +385,7 @@ local function build(height_order)
 		end
 	end)
 	-- restore apom'd particles
-	local y_restore = core_count * core_pitch + 33
+	local y_restore = core_count * core_pitch + 31
 	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
 			local x = apom_order[j]
@@ -393,7 +395,7 @@ local function build(height_order)
 		end
 	end)
 
-	-- piston demuxer
+	-- ram piston demuxer
 	for i = 1, height_order_2 do
 		part({ type = pt.CRMC, x = -2 - i, y = y_ldtc_dray_bank - 1 })
 	end
@@ -415,7 +417,7 @@ local function build(height_order)
 		end
 
 		local x_stack = 1
-		local x_filt_bank = 3
+		local x_filt_bank = x_stack + 2
 		local function change_conductor(conductor)
 			part({ type = pt.CONV, x = x_stack, y = y - 2, ctype = conductor, tmp = pt.SPRK })
 			part({ type = pt.CONV, x = x_stack, y = y - 2, ctype = pt.SPRK, tmp = conductor })
@@ -477,16 +479,16 @@ local function build(height_order)
 	-- registers
 	per_core(function(i, y)
 		local y_registers = y + 2
-		for i = 0, 31 do
+		for i = 0, regs - 1 do
 			part({ type = pt.FILT, x = 38 - i * 2, y = y_registers, ctype = 0x20000000 + i })
 		end
-		for i = 1, 31 do
+		for i = 1, regs - 1 do
 			part({ type = pt.LDTC, x = 38 - i * 2, y = y_registers - 1, life = 6 })
 		end
 	end)
 	do
 		local y = y_call_sites - 6
-		for i = 1, 31 do
+		for i = 1, regs - 1 do
 			part({ type = pt.FILT, x = 38 - i * 2, y = y, ctype = 0x20000000 + i })
 			part({ type = pt.LDTC, x = 38 - i * 2, y = y + 1, life = core_count * core_pitch - 2 })
 		end
@@ -495,6 +497,107 @@ local function build(height_order)
 	-- register readers
 	per_core(function(i, y)
 		plot.merge_parts(70, y + 2, parts, rread)
+	end)
+
+	-- ram writer piston demuxer
+	per_core(function(i, y)
+		local dest_offset = 25
+		local x_bank_dray = 42
+		local x_stack = x_bank_dray + regs + 9
+		local y_stack = y
+		local x_filt_bank = x_stack + 20
+		local function change_conductor(conductor)
+			part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = conductor, tmp = pt.SPRK })
+			part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.SPRK, tmp = conductor })
+			part({ type = pt.LSNS, x = x_stack, y = y_stack, tmp = 3, tmp2 = 1 })
+		end
+
+		part({ type = pt.PSTN, x = x_stack - 1, y = y_stack, extend = 1 })
+		part({ type = pt.PSTN, x = x_stack - 2, y = y_stack, extend = 1 })
+		part({ type = pt.PSTN, x = x_stack - 3, y = y_stack, extend = 1 })
+		part({ type = pt.PSTN, x = x_stack - 4 - regs_order, y = y_stack })
+
+		part({ type = pt.FILT, x = x_filt_bank, y = y_stack, ctype = 0x10000003 })
+		part({ type = pt.FILT, x = x_filt_bank + 1, y = y_stack, ctype = 0x3C00FFFF })
+		local filt_offsets = {}
+		local add_bit
+		do
+			local seen = 0
+			function add_bit(k)
+				part({ type = pt.FILT, x = x_filt_bank + seen + 2, y = y_stack, ctype = bitx.lshift(1, k) })
+				filt_offsets[k] = seen
+				seen = seen + 1
+			end
+		end
+		for i = 0, regs_order - 1 do
+			add_bit(i + dest_offset)
+		end
+
+		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 3, ctype = pt.SPRK })
+		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 3, ctype = pt.FILT, ctype_high = 1 })
+		part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack })
+		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.STOR, tmp = pt.FILT })
+		part({ type = pt.DRAY, x = x_stack, y = y_stack, tmp = 1 })
+		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, ctype = pt.SPRK })
+		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, ctype = pt.FILT })
+		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = regs_order, tmp2 = 3, ctype = pt.SPRK })
+		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = regs_order - 1, tmp2 = 3, ctype = pt.STOR })
+		part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack - 1 })
+		change_conductor(pt.METL)
+		local function handle_bit(address_index, piston_bit, piston_index, last)
+			part({ type = pt.INSL, x = x_stack - 4 - piston_index, y = y_stack })
+			part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack + 1 + filt_offsets[address_index] })
+			part({ type = pt.ARAY, x = x_stack, y = y_stack })
+			part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack - 1 })
+			change_conductor(pt.PSCN)
+			if last then
+				part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
+			else
+				part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 2, tmp2 = 2 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
+			end
+			change_conductor(pt.METL)
+			part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(bitx.lshift(1, piston_bit)) })
+		end
+		for j = 0, regs_order - 1 do
+			handle_bit(j + dest_offset, j, regs_order - j - 1, j == regs_order - 1)
+		end
+		change_conductor(pt.PSCN)
+		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.PSTN, tmp = pt.FILT })
+		part({ type = pt.DRAY, x = x_stack, y = y_stack, tmp = 1 })
+		part({ type = pt.DRAY, x = x_stack, y = y_stack, tmp = 1, tmp2 = 1 })
+		part({ type = pt.PSTN, x = x_stack, y = y_stack, tmp = 1000 }) -- relies on the extension length of the dummy pstn on top
+		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.PSTN, tmp = pt.SPRK })
+		for j = 0, regs - 1 do
+			part({ type = j == 0 and pt.CRMC or pt.DRAY, x = x_stack - 9 - regs + j, y = y_stack, tmp = 1, tmp2 = j * 2 + 2 })
+		end
+
+		part({ type = pt.PSTN, x = x_stack, y = y_stack }) -- stack top placeholder
+		part({ type = pt.PSTN, x = x_stack + 1, y = y_stack }) -- stack spark placeholder
+		solid_spark(x_stack - 11 - 2 * regs, y_stack + 1, 1, -1, pt.PSCN) -- marks end of travel and provides the spark for the stack
+		part({ type = pt.PSTN, x = x_stack - 11 - 2 * regs, y = y_stack, extend = -2 }) -- dummy pstn, this is what the active pstn in the stack relies on
+		dray(x_stack - 12 - 2 * regs, y_stack, x_stack, y_stack, 2, pt.PSCN) -- replace placeholder with insl so the stack can make it work
+
+		local x_retract = x_stack + 10
+		part({ type = pt.PSTN, x = x_retract, y = y_stack, extend = math.huge, tmp = 1000 })
+		solid_spark(x_retract - 1, y_stack + 1, 1, 0, pt.NSCN)
+		for j = x_stack + 2, x_retract - 1 do
+			part({ type = pt.PSTN, x = j, y = y_stack })
+		end
+
+		local x_bank_dray_donor = x_retract - 3
+		cray(x_bank_dray_donor, y_stack - 1, x_bank_dray_donor, y_stack, pt.SPRK, 1, pt.PSCN) -- float bank dray's id before its update
+		cray(x_stack - 12 - 2 * regs, y_stack, x_bank_dray_donor, y_stack, pt.PSTN, 1, pt.PSCN) -- spawn a dummy piston in its place
+		cray(x_bank_dray_donor + 10, y_stack, x_bank_dray_donor, y_stack, pt.SPRK, 1, pt.PSCN) -- remove dummy piston from its place
+		cray(x_bank_dray_donor, y_stack + 1, x_bank_dray_donor, y_stack, pt.PSTN, 1, pt.PSCN) -- restore bank dray's id after its update
+		dray(x_bank_dray_donor + 3, y_stack - 1, x_bank_dray, y_stack - 1, 1, pt.PSCN) -- restore bank dray's id before its update
+		part({ type = pt.DRAY, x = x_bank_dray_donor + 2, y = y_stack - 1, tmp = 1, tmp2 = 1 }) -- bank dray template
+		cray(x_bank_dray - 2, y_stack + 1, x_bank_dray, y_stack - 1, pt.SPRK, 1, pt.PSCN) -- float bank dray's id after its update
+
+		lsns_spark({ type = pt.PSCN, x = x_bank_dray, y = y_stack - 2, life = 3 }, 1, 0, 2, 0)
+
+		part({ type = pt.FILT, x = x_bank_dray - 1, y = y_stack + 2, ctype = 0x10000000 }) -- register template
+		part({ type = pt.INSL, x = x_bank_dray, y = y_stack + 2 }) -- bank dray placeholder
+		solid_spark(x_bank_dray + 2, y_stack + 2, -1, 0, pt.PSCN)
 	end)
 
 	return parts

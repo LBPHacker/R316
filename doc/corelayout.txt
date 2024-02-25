@@ -1,4 +1,5 @@
 row 0
+	ram port
 	register repeater ldtcs
 row 1
 	ram output
@@ -17,9 +18,19 @@ row 2
 			filt
 			dtec that sets a core input
 row 3
-	idk register writer bank somehow
+	empty??????
 row 4
+	empty??????
 row 5
+	ram port
+	register writer dray copier sprk
 row 6
+	ram port
+	register writer dray copier
 row 7
+	ram port
+	register writer dray bank
+	register writer dray selector
 row 8
+	ram port
+	register repeater ldtcs

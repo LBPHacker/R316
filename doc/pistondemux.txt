@@ -8,7 +8,7 @@ the [ and ] markers show the boundary of the pstn particles controlled by the ad
        ||
        vv
 initially
-    m3    f0 st f1 [ pt*       pt  ] in -- as many pstns as bits to control; last pstn is pstn(-2)
+    m3    f0 st f1 [ pt*       pt  ] in -- as many pstns as bits to control
     m3 co f0 st f1 [ pt*       pt  ] in -- conv sprk to pscn
     ps co f0 st f1 [ pt*       pt  ] in -- conv pscn to sprk
     p4 ls f0 st f1 [ pt*       pt  ] in -- change p4 to p3
@@ -50,3 +50,50 @@ me: metl
 p#: sprk[ctype=pscn,life=#]
 m#: sprk[ctype=metl,life=#]
 xx*: any number of xx's
+
+
+or in the case of the register writer
+
+      megastack
+       ||
+       vv
+initially
+    p3    pt pt pt [ pt*       pt  ] pt -- as many pstns as bits to control; use last pstn to offset any overhead from the first three
+    p3 cr pt pt pt [ pt*       pt  ] pt -- remove first three pstns
+    p3 cr .. .. .. [ pt*       pt  ] pt -- spawn filt(1)s
+    p3 ld f1 f1 f1 [ pt*       pt  ] pt -- load address
+    p3 co f1 f1 f1 [ pt*       pt  ] pt -- conv nearest filt(1) to stor
+    p3 dr st f1 f1 [ pt*       pt  ] pt -- copy stor over
+    p3 cr st st f1 [ pt*       pt  ] pt -- remove first stor
+    p3 cr .. st f1 [ pt*       pt  ] pt -- spawn filt(0)
+    p3 cr f0 st f1 [ pt*       pt  ] pt -- delete most of the piston except the last particle
+    p3 cr f0 st f1 [ ..*       ..  ] pt -- spawn a bunch of stor but don't fill the last spot
+    p3 co f0 st f1 [ st*       ..  ] pt -- conv sprk to metl
+    me co f0 st f1 [ st*       ..  ] pt -- conv metl to sprk
+    m4 ls f0 st f1 [ st*       ..  ] pt -- change m4 to m3
+    m3    f0 st f1 [ st*       ..  ] pt
+repeat as many times as there are bits to control
+    m3 ld f0 st f1 [ st* st .. pt* ] pt -- set f0 ctype to 1 << k
+    m3 ar f0 st f1 [ st* st .. pt* ] pt -- fire bray, either filling up the empty slot with a bray or not
+    m3 co f0 st f1 [ st* st b? pt* ] pt -- conv sprk to pscn
+    ps co f0 st f1 [ st* st b? pt* ] pt -- conv pscn to sprk
+    p4 ld f0 st f1 [ st* st b? pt* ] pt -- set f0 ctype to 10000003
+    p4 ls f0 st f1 [ st* st b? pt* ] pt -- change p4 to p3
+    p3 cr f0 st f1 [ st* st b? pt* ] pt -- delete next stor (skip this step in the last iteration, in which there is no such stor)
+    p3 cr f0 st f1 [ st* .. b? pt* ] pt -- fire pscn cray, so the slot either turns into pstn(1 << k) or goes back to empty
+    p3 co f0 st f1 [ st* .. p? pt* ] pt -- conv sprk to metl
+    me co f0 st f1 [ st* .. p? pt* ] pt -- conv metl to sprk
+    m4 ls f0 st f1 [ st* .. p? pt* ] pt -- change m4 to m3
+    m3 cr f0 st f1 [ st* .. p? pt* ] pt -- fire metl cray, so the slot is either pstn(0) or pstn(1 << k)
+    m3    f0 st f1 [ st* .. pt pt* ] pt
+finally
+    m3    f0 st f1 [ pt*       pt  ] pt
+    m3 co f0 st f1 [ pt*       pt  ] pt -- conv sprk to pscn
+    ps co f0 st f1 [ pt*       pt  ] pt -- conv pscn to sprk
+    p4 ls f0 st f1 [ pt*       pt  ] pt -- change p4 to p3
+    p3 co f0 st f1 [ pt*       pt  ] pt -- convert filt(0) to pstn
+    p3 dr pt st f1 [ pt*       pt  ] pt -- clone pstn over stor
+    p3 dr pt pt f1 [ pt*       pt  ] pt -- clone pstn over filt(1)
+    p3 pt pt pt pt [ pt*       pt  ] pt -- extend
+    p3 co pt pt pt [ pt*       pt  ] pt -- convert sprk to pstn
+    pt    pt pt pt [ pt*       pt  ] pt
