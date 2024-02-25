@@ -78,6 +78,11 @@ local function build(height_order)
 				m.tmp2 = 1000
 			end
 		end
+		if p.type == pt.LSNS then
+			if not p.tmp2 then
+				m.tmp2 = 1
+			end
+		end
 		local q = mutate(p, m)
 		table.insert(parts, q)
 		return q
@@ -113,6 +118,17 @@ local function build(height_order)
 			end
 		end
 	end
+	local lsns_taboo
+	do
+		local dmnds = {}
+		function lsns_taboo(x, y)
+			local key = xy_key(x, y)
+			if not dmnds[key] then
+				dmnds[key] = true
+				part({ type = pt.DMND, x = x, y = y })
+			end
+		end
+	end
 	local lsns_spark
 	do
 		local lmap = {}
@@ -120,7 +136,7 @@ local function build(height_order)
 			local key = xy_key(p.x, p.y)
 			if not lmap[key] then
 				lmap[key] = true
-				part(mutate(p, { type = pt.LSNS, tmp = 3, tmp2 = 1 }))
+				part(mutate(p, { type = pt.LSNS, tmp = 3 }))
 			end
 		end
 		local fmap = {}
@@ -150,6 +166,16 @@ local function build(height_order)
 		local magn = math.max(dx_magn, dy_magn)
 		local q = part({ type = pt.DRAY, x = x, y = y, tmp = count, tmp2 = magn - count - 1, z = z })
 		solid_spark(x, y, -dx_sig, -dy_sig, conductor)
+		return q
+	end
+	local function ldtc(x, y, x_to, y_to, z)
+		local dx_sig, dx_magn = sig_magn(x_to - x)
+		local dy_sig, dy_magn = sig_magn(y_to - y)
+		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
+			error("bad offset", 2)
+		end
+		local magn = math.max(dx_magn, dy_magn)
+		local q = part({ type = pt.LDTC, x = x, y = y, life = magn - 1, z = z })
 		return q
 	end
 	local function cray(x, y, x_to, y_to, ptype, count, conductor, z)
@@ -278,10 +304,10 @@ local function build(height_order)
 	-- bank piston
 	local x_bank_piston = -3 - height_order_up
 	part_injected({ type = pt.PSTN, x = x_bank_piston    , y = y_ldtc_dray_bank - 1, extend = 2 }, 0, 11) -- extend to the programmed distance
-	lsns_spark   ({ type = pt.PSCN, x = x_bank_piston    , y = y_ldtc_dray_bank    , life = 3 }, -1, 1, 0, 1) -- spark for the above
+	lsns_spark   ({ type = pt.PSCN, x = x_bank_piston    , y = y_ldtc_dray_bank    , life = 3 }, -1, 1, 0, 1) -- spark for the above; TODO: lsns_taboo
 	part         ({ type = pt.PSTN, x = x_bank_piston - 1, y = y_ldtc_dray_bank - 1 }) -- filler
 	part_injected({ type = pt.PSTN, x = x_bank_piston - 2, y = y_ldtc_dray_bank - 1, extend = math.huge }, 3, 10) -- retract fully
-	lsns_spark   ({ type = pt.NSCN, x = x_bank_piston - 2, y = y_ldtc_dray_bank    , life = 3 }, 1, 1, 2, 1) -- spark for the above
+	lsns_spark   ({ type = pt.NSCN, x = x_bank_piston - 2, y = y_ldtc_dray_bank    , life = 3 }, 1, 1, 2, 1) -- spark for the above; TODO: lsns_taboo
 	part         ({ type = pt.INSL, x = x_bank_piston - 3, y = y_ldtc_dray_bank - 1 }) -- left cap
 	part         ({ type = pt.INSL, x = height * 2       , y = y_ldtc_dray_bank - 1 }) -- right cap
 	for i = height_order_2 + 1, height_order_up do
@@ -304,13 +330,13 @@ local function build(height_order)
 	-- active head piston
 	local x_ah_piston = -3 - height_order_up - width_order_up
 	part_injected({ type = pt.PSTN, x = x_ah_piston    , y = y_ldtc_dray_bank + 3, extend = 1 }, 5, 9) -- retract to the programmed distance
-	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston    , y = y_ldtc_dray_bank + 4, life = 3 }, -1, 1, -2, 1) -- spark for the above
+	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston    , y = y_ldtc_dray_bank + 4, life = 3 }, -1, 1, -2, 1) -- spark for the above; TODO: lsns_taboo
 	part         ({ type = pt.PSTN, x = x_ah_piston - 1, y = y_ldtc_dray_bank + 3 }) -- filler
 	part_injected({ type = pt.PSTN, x = x_ah_piston - 2, y = y_ldtc_dray_bank + 3, extend = math.huge }, 4, 8) -- extend fully
-	lsns_spark   ({ type = pt.PSCN, x = x_ah_piston - 2, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 0, 1) -- spark for the above
+	lsns_spark   ({ type = pt.PSCN, x = x_ah_piston - 2, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 0, 1) -- spark for the above; TODO: lsns_taboo
 	part         ({ type = pt.PSTN, x = x_ah_piston - 3, y = y_ldtc_dray_bank + 3 }) -- filler
 	part_injected({ type = pt.PSTN, x = x_ah_piston - 4, y = y_ldtc_dray_bank + 3, extend = math.huge }, 9, 7) -- retract fully
-	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston - 4, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 2, 1) -- spark for the above
+	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston - 4, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 2, 1) -- spark for the above; TODO: lsns_taboo
 	part         ({ type = pt.INSL, x = x_ah_piston - 5, y = y_ldtc_dray_bank + 3 }) -- left cap
 	part         ({ type = pt.INSL, x = width          , y = y_ldtc_dray_bank + 3 }) -- right cap
 	for i = 1, height_order_2 do
@@ -334,10 +360,10 @@ local function build(height_order)
 	-- copy active head
 	local active_head_copier = { type = pt.DRAY, x = -1, y = y_ldtc_dray_bank - 1, tmp = 2, tmp2 = 1 }
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 10 }), 1, 6, true)
-	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 11, life = 3 }, -1, 0, -1, -1) -- spark for the above
+	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 11, life = 3 }, -1, 0, -1, -1) -- spark for the above; TODO: lsns_taboo
 	-- active head copier
 	part_injected(active_head_copier, 2, 5)
-	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 2, life = 3 }, 0, -1, -1, -1) -- spark for the above
+	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 2, life = 3 }, 0, -1, -1, -1) -- spark for the above; TODO: lsns_taboo
 	-- active head placeholders
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 6 }), 7, 4, true, y_ldtc_dray_bank + 4)
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 5 }), 8, 3, true, y_ldtc_dray_bank + 3)
@@ -359,7 +385,7 @@ local function build(height_order)
 	part_injected({ type = pt.LDTC, x = x_get_ctype + 1, y = y_ldtc_dray_bank + 4, life = -3 - x_get_ctype }, 10, 1)
 	per_core(function(i, y)
 		part({ type = pt.FILT, x = x_get_ctype, y = y + 2 })
-		part({ type = pt.LDTC, x = x_get_ctype, y = y + 1, life = (i - 1) * core_pitch + y_call_sites - y_ldtc_dray_bank - 4 })
+		ldtc(x_get_ctype, y + 1, x_get_ctype, y_ldtc_dray_bank + 4)
 	end)
 
 	part_injected_patch()
@@ -421,7 +447,8 @@ local function build(height_order)
 		local function change_conductor(conductor)
 			part({ type = pt.CONV, x = x_stack, y = y - 2, ctype = conductor, tmp = pt.SPRK })
 			part({ type = pt.CONV, x = x_stack, y = y - 2, ctype = pt.SPRK, tmp = conductor })
-			part({ type = pt.LSNS, x = x_stack, y = y - 2, tmp = 3, tmp2 = 1 })
+			part({ type = pt.LSNS, x = x_stack, y = y - 2, tmp = 3 })
+			lsns_taboo(x_stack + 1, y - 1)
 		end
 
 		spark({ type = pt.METL, x = x_stack + 1, y = y - 2 })
@@ -496,10 +523,41 @@ local function build(height_order)
 
 	-- register readers
 	per_core(function(i, y)
-		plot.merge_parts(70, y + 2, parts, rread)
+		local x_reader = 70
+		local x_reader_storage = x_reader + 2
+		local y_reader = y + 2
+		do
+			-- TODO: wire up corestate instead of these two
+			part({ type = pt.FILT, x = x_reader_storage + 3, y = y - 1, ctype = 0x10000000 })
+			part({ type = pt.LDTC, x = x_reader_storage + 3, y = y + 1 })
+		end
+		plot.merge_parts(x_reader, y + 2, parts, rread)
+		dray(x_get_ctype - 1, y + 2, x_reader_storage + 1, y + 2, 1, pt.PSCN)
+
+		local function reader(stage_1_offset, storage_slot)
+			local x_stage_1 = x_reader + stage_1_offset
+			ldtc(x_stage_1 - 3, y_reader, x_reader_storage + storage_slot, y_reader)
+			part({ type = pt.FILT, x = x_stage_1 - 2, y = y_reader })
+			part({ type = pt.LSNS, x = x_stage_1 - 1, y = y_reader, tmp = 3 })
+			lsns_taboo(x_stage_1 - 1, y_reader - 1)
+			lsns_taboo(x_stage_1    , y_reader - 1)
+			lsns_taboo(x_stage_1 - 2, y_reader + 1)
+			lsns_taboo(x_stage_1 - 1, y_reader + 1)
+			lsns_taboo(x_stage_1    , y_reader + 1)
+			part({ type = pt.LDTC, x = x_stage_1    , y = y_reader })
+			part({ type = pt.FILT, x = x_stage_1 + 1, y = y_reader })
+			part({ type = pt.LDTC, life = 1, x = x_stage_1 + 3, y = y_reader })
+			part({ type = pt.ARAY, life = 1, x = x_stage_1 + 3, y = y_reader })
+			part({ type = pt.DTEC, x = x_stage_1 + 3, y = y_reader, tmp2 = 2 })
+			solid_spark(x_stage_1 + 3, y_reader, -1, 0, pt.METL)
+			part({ type = pt.FILT, x = x_stage_1 + 4, y = y_reader })
+			part({ type = pt.INSL, x = x_stage_1 + 6, y = y_reader })
+		end
+		reader(33, 1)
+		reader(49, 3)
 	end)
 
-	-- ram writer piston demuxer
+	-- register writers
 	per_core(function(i, y)
 		local dest_offset = 25
 		local x_bank_dray = 42
@@ -509,7 +567,8 @@ local function build(height_order)
 		local function change_conductor(conductor)
 			part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = conductor, tmp = pt.SPRK })
 			part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.SPRK, tmp = conductor })
-			part({ type = pt.LSNS, x = x_stack, y = y_stack, tmp = 3, tmp2 = 1 })
+			part({ type = pt.LSNS, x = x_stack, y = y_stack, tmp = 3 })
+			lsns_taboo(x_stack + 1, y_stack + 1)
 		end
 
 		part({ type = pt.PSTN, x = x_stack - 1, y = y_stack, extend = 1 })
@@ -594,6 +653,7 @@ local function build(height_order)
 		cray(x_bank_dray - 2, y_stack + 1, x_bank_dray, y_stack - 1, pt.SPRK, 1, pt.PSCN) -- float bank dray's id after its update
 
 		lsns_spark({ type = pt.PSCN, x = x_bank_dray, y = y_stack - 2, life = 3 }, 1, 0, 2, 0)
+		lsns_taboo(x_bank_dray + 2, y_stack - 1)
 
 		part({ type = pt.FILT, x = x_bank_dray - 1, y = y_stack + 2, ctype = 0x10000000 }) -- register template
 		part({ type = pt.INSL, x = x_bank_dray, y = y_stack + 2 }) -- bank dray placeholder
