@@ -19,12 +19,12 @@ return testbed.module({
 	inputs = {
 		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
 		{ name = "op_bits"  , index = 3, keepalive = 0x10000000, payload = 0x000001F0, initial = 0x10000000 },
+		{ name = "sync_bit" , index = 5, keepalive = 0x00010000, payload = 0x00000001, initial = 0x00010000 },
 	},
 	outputs = {
 		{ name = "condition", index = 1, keepalive = 0x00010000, payload = 0x00000001 },
 	},
-	func = function(inputs, params)
-		local sync_value = params.sync_value
+	func = function(inputs)
 		local flags = spaghetti.rshiftk(inputs.corestate, 16):assert(0x00001000, 0x0000007F):bsub(0x00F0)
 		local flag_be = spaghetti.rshiftk(flags, 2):bor(flags)                       :bsub(0x000E)
 		local flag_l  = spaghetti.rshiftk(flags, 3):bxor(spaghetti.rshiftk(flags, 1)):bsub(0x000E)
@@ -43,23 +43,20 @@ return testbed.module({
 			extended = extended:rshift(shift):never_zero()
 		end
 		local inv = spaghetti.rshiftk(op_bits, 3):bor(0x00010000):band(0x00010001)
-		local sync = spaghetti.rshiftk(op_bits, 4):bor(0x00010000):band(0x00010001)
-		if sync_value then
-			sync = 0x00010001
-		end
+		local ignore_sync = spaghetti.rshiftk(op_bits, 4):bor(0x00010000):band(0x00010001)
 		local extended_pinv = extended:bxor(inv):never_zero()
-		local condition = extended_pinv:bor(0x00010000):band(sync)
+		local condition = extended_pinv:bor(0x00010000):band(ignore_sync:bor(inputs.sync_bit))
 		return {
 			condition = condition,
 		}
 	end,
-	fuzz = function(params)
-		local sync_value = params.sync_value
+	fuzz = function()
 		local old_corestate =
 			math.random(0x00000000, 0x0000FFFF) +
 			math.random(0x00000000, 0x0000000B) * 0x10000 +
 			math.random(0x00000000, 0x00000007) * 0x100000
 		local op_bits = math.random(0x0, 0x1F)
+		local sync_bit = math.random(0x0, 0x1)
 		local flag_c = bitx.band(old_corestate, 0x10000) ~= 0
 		local flag_o = bitx.band(old_corestate, 0x20000) ~= 0
 		local flag_z = bitx.band(old_corestate, 0x40000) ~= 0
@@ -80,14 +77,15 @@ return testbed.module({
 		)
 		local inv = bitx.band(bitx.rshift(op_bits, 3), 1)
 		local condition = bitx.bxor(bitx.band(bitx.rshift(extended, bitx.bxor(bitx.band(op_bits, 7), 7)), 1), inv)
-		if not sync_value then
-			local sync = bitx.band(bitx.rshift(op_bits, 4), 1)
-			condition = bitx.band(condition, sync)
+		local ignore_sync = bitx.band(bitx.rshift(op_bits, 4), 1)
+		if ignore_sync == 0 then
+			condition = bitx.band(condition, sync_bit)
 		end
 		return {
 			inputs = {
 				corestate = bitx.bor(0x10000000, old_corestate),
 				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 4)),
+				sync_bit  = bitx.bor(0x00010000, sync_bit),
 			},
 			outputs = {
 				condition = bitx.bor(0x00010000, condition),

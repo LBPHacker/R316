@@ -55,7 +55,7 @@ local function modulef(info)
 	end
 	local function design(params)
 		local probes = true
-		if params.probes ~= nil then
+		if params and params.probes ~= nil then
 			probes = params.probes
 		end
 		local inputs = {}

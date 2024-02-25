@@ -27,6 +27,7 @@ return testbed.module({
 		{ name = "sec_wild"    , index =  3, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "ram_wild"    , index =  5, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "corestate"   , index =  7, keepalive = 0x10000000, payload = 0x007FFFFF,                    initial = 0x10000000 },
+		{ name = "sync_bit"    , index =  9, keepalive = 0x00010000, payload = 0x00000001,                    initial = 0x00010000 },
 		-- { name = "fwinstr_wild", index =  9, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		-- { name = "cinstr_wild" , index = 11, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 	},
@@ -39,7 +40,7 @@ return testbed.module({
 		{ name = "cinstr"   , index = 11, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "mux"      , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 	},
-	func = function(inputs, params)
+	func = function(inputs)
 		local pri     = inputs.pri_wild:bor(0x10000000):band(0x1000FFFF):assert(0x10000000, 0x0000FFFF)
 		local sec_reg = inputs.sec_wild:bor(0x30000000):band(0x3000FFFF):assert(0x30000000, 0x0000FFFF)
 
@@ -63,8 +64,7 @@ return testbed.module({
 		local condition_outputs = condition.instantiate({
 			corestate = inputs.corestate,
 			op_bits   = instr_high:bor(0x10000000):band(0x100001F0),
-		}, {
-			sync_value = params.sync_value,
+			sync_bit  = inputs.sync_bit,
 		})
 		local corestate_outputs = corestate.instantiate({
 			corestate = inputs.corestate,
@@ -132,6 +132,7 @@ return testbed.module({
 			local v = math.floor(math.random() * 0x100000000)
 			return v == 0 and 0x1F or v
 		end
+		local sync_bit = math.random(0x0, 0x1)
 		local pri_wild = any()
 		local sec_wild = any()
 		local ram_wild = any()
@@ -148,6 +149,7 @@ return testbed.module({
 				pri_wild  = pri_wild,
 				sec_wild  = sec_wild,
 				ram_wild  = ram_wild,
+				sync_bit  = sync_bit,
 				corestate = bitx.bor(0x10000000, corestate),
 			},
 			outputs = {
