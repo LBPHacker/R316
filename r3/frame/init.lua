@@ -5,6 +5,7 @@ local bitx = require("spaghetti.bitx")
 local plot = require("spaghetti.plot")
 
 local rread = require("r3.rread.generated")
+local core  = require("r3.core.generated")
 
 local function sig_magn(x)
 	local magn = math.abs(x)
@@ -541,9 +542,9 @@ local function build(height_order)
 			part({ type = pt.LSNS, x = x_stage_1 - 1, y = y_reader, tmp = 3 })
 			lsns_taboo(x_stage_1 - 1, y_reader - 1)
 			lsns_taboo(x_stage_1    , y_reader - 1)
-			lsns_taboo(x_stage_1 - 2, y_reader + 1)
-			lsns_taboo(x_stage_1 - 1, y_reader + 1)
-			lsns_taboo(x_stage_1    , y_reader + 1)
+			-- lsns_taboo(x_stage_1 - 2, y_reader + 1)
+			-- lsns_taboo(x_stage_1 - 1, y_reader + 1)
+			-- lsns_taboo(x_stage_1    , y_reader + 1)
 			part({ type = pt.LDTC, x = x_stage_1    , y = y_reader })
 			part({ type = pt.FILT, x = x_stage_1 + 1, y = y_reader })
 			part({ type = pt.LDTC, life = 1, x = x_stage_1 + 3, y = y_reader })
@@ -555,6 +556,11 @@ local function build(height_order)
 		end
 		reader(33, 1)
 		reader(49, 3)
+	end)
+
+	-- cores
+	per_core(function(i, y)
+		plot.merge_parts(36, y + 3, parts, core)
 	end)
 
 	-- register writers
