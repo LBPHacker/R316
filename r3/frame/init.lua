@@ -505,26 +505,27 @@ local function build(height_order)
 	end)
 
 	-- registers
+	local x_registers = 38
 	per_core(function(i, y)
 		local y_registers = y + 2
 		for i = 0, regs - 1 do
-			part({ type = pt.FILT, x = 38 - i * 2, y = y_registers, ctype = 0x20000000 + i })
+			part({ type = pt.FILT, x = x_registers - i * 2, y = y_registers, ctype = 0x20000000 + i })
 		end
 		for i = 1, regs - 1 do
-			part({ type = pt.LDTC, x = 38 - i * 2, y = y_registers - 1, life = 6 })
+			part({ type = pt.LDTC, x = x_registers - i * 2, y = y_registers - 1, life = 6 })
 		end
 	end)
 	do
 		local y = y_call_sites - 6
 		for i = 1, regs - 1 do
-			part({ type = pt.FILT, x = 38 - i * 2, y = y, ctype = 0x20000000 + i })
-			part({ type = pt.LDTC, x = 38 - i * 2, y = y + 1, life = core_count * core_pitch - 2 })
+			part({ type = pt.FILT, x = x_registers - i * 2, y = y, ctype = 0x20000000 + i })
+			part({ type = pt.LDTC, x = x_registers - i * 2, y = y + 1, life = core_count * core_pitch - 2 })
 		end
 	end
 
 	-- register readers
 	per_core(function(i, y)
-		local x_reader = 70
+		local x_reader = 73
 		local x_reader_storage = x_reader + 2
 		local y_reader = y + 2
 		do
@@ -552,6 +553,7 @@ local function build(height_order)
 			part({ type = pt.DTEC, x = x_stage_1 + 3, y = y_reader, tmp2 = 2 })
 			solid_spark(x_stage_1 + 3, y_reader, -1, 0, pt.METL)
 			part({ type = pt.FILT, x = x_stage_1 + 4, y = y_reader })
+			part({ type = pt.BRAY, x = x_stage_1 + 5, y = y_reader, life = 1 })
 			part({ type = pt.INSL, x = x_stage_1 + 6, y = y_reader })
 		end
 		reader(33, 1)
@@ -560,13 +562,13 @@ local function build(height_order)
 
 	-- cores
 	per_core(function(i, y)
-		plot.merge_parts(36, y + 3, parts, core)
+		plot.merge_parts(40, y + 3, parts, core)
 	end)
 
 	-- register writers
 	per_core(function(i, y)
 		local dest_offset = 25
-		local x_bank_dray = 42
+		local x_bank_dray = 45
 		local x_stack = x_bank_dray + regs + 9
 		local y_stack = y
 		local x_filt_bank = x_stack + 20
@@ -633,7 +635,7 @@ local function build(height_order)
 		part({ type = pt.PSTN, x = x_stack, y = y_stack, tmp = 1000 }) -- relies on the extension length of the dummy pstn on top
 		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.PSTN, tmp = pt.SPRK })
 		for j = 0, regs - 1 do
-			part({ type = j == 0 and pt.CRMC or pt.DRAY, x = x_stack - 9 - regs + j, y = y_stack, tmp = 1, tmp2 = j * 2 + 2 })
+			part({ type = j == 0 and pt.CRMC or pt.DRAY, x = x_stack - 9 - regs + j, y = y_stack, tmp = 1, tmp2 = j * 2 + x_bank_dray - x_registers - 2 })
 		end
 
 		part({ type = pt.PSTN, x = x_stack, y = y_stack }) -- stack top placeholder

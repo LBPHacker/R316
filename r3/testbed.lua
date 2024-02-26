@@ -95,11 +95,19 @@ local function modulef(info)
 		for _, part in ipairs(info.extra_parts or {}) do
 			table.insert(extra_parts, part)
 		end
+		local voids
+		if info.voids then
+			voids = {}
+			for _, value in ipairs(info.voids) do
+				voids[value] = true
+			end
+		end
 		return {
 			design = spaghetti.build({
 				inputs        = inputs,
 				outputs       = outputs,
 				clobbers      = clobbers,
+				voids         = voids,
 				stacks        = info.stacks,
 				storage_slots = info.storage_slots,
 				work_slots    = info.work_slots,
