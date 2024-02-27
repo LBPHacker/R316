@@ -22,7 +22,7 @@ return testbed.module({
 	stacks        = 1,
 	storage_slots = 80,
 	work_slots    = 30,
-	voids         = { 30, 31, 32, 62, 63, 64, 78, 79, 80 },
+	voids         = { 30, 31, 32, 62, 63, 64, 78, 79, 80 }, -- TODO: try to reset these with dray instead to save space for constants
 	inputs = {
 		{ name = "pri_wild"    , index =  1, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec_wild"    , index =  3, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },

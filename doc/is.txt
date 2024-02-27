@@ -66,3 +66,91 @@ write cycle
 
 inputs:  pri  sec       ram      corestate fwinstr cinstr
 outputs: dest dest_addr ram_addr corestate fwinstr cinstr
+
+non-memory cycle
+	ram = ram_read('ram_addr)
+	instr_aw = ram
+	instr = ram
+	r_addr_1, r_addr_2, r_addr_w = decode_instr(instr)
+	imm = decode_instr(ram)
+	reg_1 = reg_read(r_addr_1)
+	reg_2 = reg_read(r_addr_2)
+	pri = reg_1
+	sec = select_sec(reg_2, imm, instr)
+	result, alu_flags = alu(instr, pri, sec)
+	reg_write(r_addr_w, result)
+	outputs
+		flags' = select_flags(instr, flags, alu_flags)
+		pc' = incr_pc('pc)
+		curr_instr' = instr
+		ram_addr' = pc'
+read first cycle
+	ram = ram_read('ram_addr)
+	instr_aw = ram
+	instr = ram
+	r_addr_1, r_addr_2, r_addr_w = decode_instr(instr)
+	imm = decode_instr(ram)
+	reg_1 = reg_read(r_addr_1)
+	reg_2 = reg_read(r_addr_2)
+	pri = reg_1
+	sec = select_sec(reg_2, imm, instr)
+	result, alu_flags = alu(instr, pri, sec)
+	reg_write(r_addr_w, result)
+	outputs
+		flags' = select_flags(instr, flags, alu_flags)
+		pc' = incr_pc('pc)
+		curr_instr' = instr
+		ram_addr' = result # different from NM
+read second cycle
+	ram = ram_read('ram_addr)
+	instr_aw = ram
+	instr = 'curr_instr # different from NM and R
+	r_addr_1, r_addr_2, r_addr_w = decode_instr(instr)
+	imm = decode_instr(ram)
+	reg_1 = reg_read(r_addr_1)
+	reg_2 = reg_read(r_addr_2)
+	pri = reg_1
+	sec = select_sec(reg_2, imm, instr)
+	result, alu_flags = alu(instr, pri, sec)
+	reg_write(r_addr_w, result)
+	outputs
+		flags' = select_flags(instr, flags, alu_flags)
+		pc' = 'pc # different from NM and R
+		curr_instr' = instr
+		ram_addr' = pc'
+write first cycle
+	ram = ram_read('ram_addr)
+	instr_aw = ram
+	instr = ram
+	r_addr_1, r_addr_2, r_addr_w = decode_instr(instr)
+	imm = decode_instr(ram)
+	reg_1 = reg_read(r_addr_1)
+	reg_2 = reg_read(r_addr_2)
+	pri = reg_1
+	sec = select_sec(reg_2, imm, instr)
+	result, alu_flags = alu(instr, pri, sec)
+	reg_write(0, result) # different from NM and R
+	outputs
+		flags' = select_flags(instr, flags, alu_flags)
+		pc' = incr_pc('pc)
+		curr_instr' = instr
+		ram_addr' = pc'
+write second cycle
+	ram = ram_read('ram_addr)
+	instr_aw = ram
+	instr = 'curr_instr # different from NM and R
+	r_addr_1, r_addr_2, r_addr_w = decode_instr(instr)
+	imm = decode_instr(ram)
+	reg_1 = reg_read(r_addr_1)
+	reg_2 = reg_read(r_addr_2)
+	pri = reg_1
+	sec = select_sec(reg_2, imm, instr)
+	result, alu_flags = alu(instr, pri, sec)
+	reg_write(0, result) # different from NM and R
+	outputs
+		flags' = select_flags(instr, flags, alu_flags)
+		pc' = 'pc # different from NM and R
+		curr_instr' = instr
+		ram_addr' = pc'
+any cycle after write
+	ram = instr_aw # different from everything else
