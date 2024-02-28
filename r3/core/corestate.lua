@@ -17,7 +17,7 @@ return testbed.module({
 	storage_slots = 30,
 	work_slots    = 12,
 	inputs = {
-		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x007FFFFF, initial = 0x10000000 },
+		{ name = "corestate", index = 1, keepalive = 0x10000000, payload = 0x00FFFFFF, initial = 0x10000000 },
 		{ name = "sec"      , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x1000DEAD },
 		{ name = "op_bits"  , index = 5, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000000 },
 		{ name = "condition", index = 7, keepalive = 0x00010000, payload = 0x00000001, initial = 0x00010000 },
@@ -62,34 +62,40 @@ return testbed.module({
 			l_jmp     = ip_inc,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local op_bits = math.random(0x0, 0xF)
 		local mem_op = op_bits == 2 or op_bits == 10
-		local old_corestate =
-			math.random(0x00000000, 0x000FFFFF) +
-			(mem_op and bitx.lshift(math.random(0x00000000, 0x00000003), 20) or 0) +
+		local valid_mem_states = { 0, 1, 2, 8 }
+		local corestate = bitx.bor(
+			            math.random(0x00000000, 0x0000FFFF)     ,
+			bitx.lshift(math.random(0x00000000, 0x0000000B), 16),
+			bitx.lshift(valid_mem_states[math.random(1, 4)], 20),
 			bitx.lshift(math.random(0x00000000, 0x00000001), 22)
-		local mem_cycle = bitx.band(old_corestate, 0x00300000) ~= 0
-		local ip = bitx.band(old_corestate, 0x0000FFFF)
+		)
 		local sec = math.random(0x0000, 0xFFFF)
 		local condition = math.random(0x0, 0x1)
+		return {
+			corestate = bitx.bor(0x10000000, corestate),
+			sec       = bitx.bor(0x10000000, sec),
+			op_bits   = bitx.bor(0x10000000, op_bits),
+			condition = bitx.bor(0x00010000, condition),
+		}
+	end,
+	fuzz_outputs = function(inputs)
+		local op_bits = bitx.band(inputs.op_bits, 0xF)
+		local mem_cycle = bitx.band(inputs.corestate, 0x00300000) ~= 0
+		local ip = bitx.band(inputs.corestate, 0x0000FFFF)
+		local sec = bitx.band(inputs.sec, 0x0000FFFF)
+		local condition = bitx.band(inputs.condition, 0x1)
 		local ip_inc = (mem_cycle and ip or (ip + 1)) % 0x10000
 		local next_ip = (op_bits == 1 and condition == 1) and sec or ip_inc
 		local new_state_ld  = op_bits ==  2 and 0x100000 or 0x000000
 		local new_state_st  = op_bits == 10 and 0x200000 or 0x000000
-		local new_state_hlt = op_bits == 11 and 0x400000 or 0x000000
+		local new_state_hlt = op_bits == 11 and 0x400000 or 0x000000 -- TODO: implement external halt request
 		local new_corestate = bitx.bor(new_state_st, new_state_ld, new_state_hlt, next_ip)
 		return {
-			inputs = {
-				corestate = bitx.bor(0x10000000, old_corestate),
-				sec       = bitx.bor(0x10000000, sec),
-				op_bits   = bitx.bor(0x10000000, op_bits),
-				condition = bitx.bor(0x00010000, condition),
-			},
-			outputs = {
-				corestate = bitx.bor(0x10000000, new_corestate),
-				l_jmp     = bitx.bor(0x10000000, ip_inc),
-			},
+			corestate = bitx.bor(0x10000000, new_corestate),
+			l_jmp     = bitx.bor(0x10000000, ip_inc),
 		}
 	end,
 })

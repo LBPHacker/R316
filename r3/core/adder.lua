@@ -57,11 +57,23 @@ return testbed.module({
 			overflow_carry = overflow_carry,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local pri = math.random(0x0000, 0xFFFF)
 		local sec = math.random(0x0000, 0xFFFF)
 		local carry_in = math.random(0x0, 0x1)
 		local subtract_in = math.random(0x0, 0x1)
+		return {
+			pri      = bitx.bor(0x10000000, pri),
+			sec      = bitx.bor(0x10000000, sec),
+			carry    = bitx.bor(0x00200000, carry_in),
+			subtract = bitx.bor(0x00010000, subtract_in),
+		}
+	end,
+	fuzz_outputs = function(inputs)
+		local pri = bitx.band(inputs.pri, 0xFFFF)
+		local sec = bitx.band(inputs.sec, 0xFFFF)
+		local carry_in = bitx.band(inputs.carry, 0x1)
+		local subtract_in = bitx.band(inputs.subtract, 0x1)
 		local function to_signed(value)
 			if value >= 0x8000 then
 				value = value - 0x10000
@@ -81,16 +93,8 @@ return testbed.module({
 		local carry_out    = ( sum <  0x0000 or  sum > 0xFFFF) and 0x10000 or 0x00000
 		local overflow_out = (ssum < -0x8000 or ssum > 0x7FFF) and 0x20000 or 0x00000
 		return {
-			inputs = {
-				pri      = bitx.bor(0x10000000, pri),
-				sec      = bitx.bor(0x10000000, sec),
-				carry    = bitx.bor(0x00200000, carry_in),
-				subtract = bitx.bor(0x00010000, subtract_in),
-			},
-			outputs = {
-				l_add          = bitx.bor(0x10000000, sum % 0x10000),
-				overflow_carry = bitx.bor(bitx.bor(0x10000000, carry_out), overflow_out),
-			},
+			l_add          = bitx.bor(0x10000000, sum % 0x10000),
+			overflow_carry = bitx.bor(bitx.bor(0x10000000, carry_out), overflow_out),
 		}
 	end,
 })

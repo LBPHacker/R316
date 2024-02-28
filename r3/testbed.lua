@@ -9,7 +9,7 @@ local in_tpt = rawget(_G, "tpt") and true
 
 local function modulef(info)
 	local fuzz
-	if info.fuzz then
+	if info.fuzz_inputs then
 		math.randomseed(os.time())
 		function fuzz(fuzz_expect, ctype_at, params)
 			-- TODO: test inputs/outputs against keepalive/payload specification
@@ -21,12 +21,36 @@ local function modulef(info)
 					end
 				end
 			end
-			local values = info.fuzz(params)
+			local input_values = info.fuzz_inputs(params)
 			for _, input_info in ipairs(info.inputs or {}) do
-				local set_value = values.inputs[input_info.name]
+				local set_value = input_values[input_info.name]
+				if input_info.never_zero then
+					if set_value == 0 then
+						return nil, ("input %s test value %08X does not conform to +never_zero"):format(input_info.name, set_value)
+					end
+				else
+					if bitx.band(set_value, input_info.keepalive) ~= input_info.keepalive or
+					   bitx.band(set_value, bitx.bor(input_info.keepalive, input_info.payload)) ~= set_value then
+						return nil, ("input %s test value %08X does not conform to keepalive/payload %08X/%08X"):format(input_info.name, set_value, input_info.keepalive, input_info.payload)
+					end
+				end
 				ctype_at(2 + input_info.index, -3, set_value)
 			end
-			return values.outputs
+			local output_values = info.fuzz_outputs(input_values, params)
+			for _, output_info in ipairs(info.outputs or {}) do
+				local expect_value = output_values[output_info.name]
+				if output_info.never_zero then
+					if expect_value == 0 then
+						return nil, ("output %s expected value %08X does not conform to +never_zero"):format(output_info.name, expect_value)
+					end
+				else
+					if bitx.band(expect_value, output_info.keepalive) ~= output_info.keepalive or
+					   bitx.band(expect_value, bitx.bor(output_info.keepalive, output_info.payload)) ~= expect_value then
+						return nil, ("output %s expected value %08X does not conform to keepalive/payload %08X/%08X"):format(output_info.name, expect_value, output_info.keepalive, output_info.payload)
+					end
+				end
+			end
+			return output_values
 		end
 	end
 	local function instantiate(named_inputs, params)

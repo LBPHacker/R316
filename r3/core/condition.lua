@@ -50,17 +50,26 @@ return testbed.module({
 			condition = condition,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local old_corestate =
 			math.random(0x00000000, 0x0000FFFF) +
 			math.random(0x00000000, 0x0000000B) * 0x10000 +
 			math.random(0x00000000, 0x00000007) * 0x100000
 		local op_bits = math.random(0x0, 0x1F)
 		local sync_bit = math.random(0x0, 0x1)
-		local flag_c = bitx.band(old_corestate, 0x10000) ~= 0
-		local flag_o = bitx.band(old_corestate, 0x20000) ~= 0
-		local flag_z = bitx.band(old_corestate, 0x40000) ~= 0
-		local flag_s = bitx.band(old_corestate, 0x80000) ~= 0
+		return {
+			corestate = bitx.bor(0x10000000, old_corestate),
+			op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 4)),
+			sync_bit  = bitx.bor(0x00010000, sync_bit),
+		}
+	end,
+	fuzz_outputs = function(inputs)
+		local op_bits = bitx.band(bitx.rshift(inputs.op_bits, 4), 0x1F)
+		local sync_bit = bitx.band(inputs.sync_bit, 0x1)
+		local flag_c = bitx.band(inputs.corestate, 0x10000) ~= 0
+		local flag_o = bitx.band(inputs.corestate, 0x20000) ~= 0
+		local flag_z = bitx.band(inputs.corestate, 0x40000) ~= 0
+		local flag_s = bitx.band(inputs.corestate, 0x80000) ~= 0
 		local flag_be = flag_c or flag_z
 		local flag_l  = flag_s ~= flag_o
 		local flag_ng = flag_l or flag_z
@@ -82,14 +91,7 @@ return testbed.module({
 			condition = bitx.band(condition, sync_bit)
 		end
 		return {
-			inputs = {
-				corestate = bitx.bor(0x10000000, old_corestate),
-				op_bits   = bitx.bor(0x10000000, bitx.lshift(op_bits, 4)),
-				sync_bit  = bitx.bor(0x00010000, sync_bit),
-			},
-			outputs = {
-				condition = bitx.bor(0x00010000, condition),
-			},
+			condition = bitx.bor(0x00010000, condition),
 		}
 	end,
 })

@@ -27,7 +27,7 @@ return testbed.module({
 		{ name = "pri_wild"    , index =  1, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec_wild"    , index =  3, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "ram_wild"    , index =  5, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "corestate"   , index =  7, keepalive = 0x10000000, payload = 0x007FFFFF,                    initial = 0x10000000 },
+		{ name = "corestate"   , index =  7, keepalive = 0x10000000, payload = 0x00FFFFFF,                    initial = 0x10000000 },
 		{ name = "sync_bit"    , index =  9, keepalive = 0x00010000, payload = 0x00000001,                    initial = 0x00010000 },
 		-- { name = "fwinstr_wild", index =  9, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		-- { name = "cinstr_wild" , index = 11, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
@@ -36,7 +36,7 @@ return testbed.module({
 		{ name = "dest"     , index =  1, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "dest_addr", index =  3, keepalive = 0x10000000, payload = 0x0000001F                    },
 		{ name = "ram_addr" , index =  5, keepalive = 0x10000000, payload = 0x0000FFFF                    },
-		{ name = "corestate", index =  7, keepalive = 0x10000000, payload = 0x007FFFFF                    },
+		{ name = "corestate", index =  7, keepalive = 0x10000000, payload = 0x00FFFFFF                    },
 		{ name = "fwinstr"  , index =  9, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "cinstr"   , index = 11, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "mux"      , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF                    },
@@ -128,7 +128,7 @@ return testbed.module({
 			mux       = mux_outputs.muxed,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local function any()
 			local v = math.floor(math.random() * 0x100000000)
 			return v == 0 and 0x1F or v
@@ -137,31 +137,42 @@ return testbed.module({
 		local pri_wild = any()
 		local sec_wild = any()
 		local ram_wild = any()
-		local pri     = bitx.bor(0x10000000, bitx.band(pri_wild, 0x0000FFFF))
-		local sec_reg = bitx.bor(0x10000000, bitx.band(sec_wild, 0x0000FFFF))
-		local imm     = bitx.bor(0x10000000, bitx.band(ram_wild, 0x0000FFFF))
-		local sec     = bitx.band(ram_wild, 0x80000000) ~= 0 and imm or sec_reg
-		local corestate =
-			math.random(0x00000000, 0x0000FFFF) +
-			math.random(0x00000000, 0x0000000B) * 0x10000 +
-			math.random(0x00000000, 0x00000007) * 0x100000
+		local ew_instr = any()
+		local valid_mem_states = { 0, 1, 2, 8 }
+		local corestate = bitx.bor(
+			            math.random(0x00000000, 0x0000FFFF)     ,
+			bitx.lshift(math.random(0x00000000, 0x0000000B), 16),
+			bitx.lshift(valid_mem_states[math.random(1, 4)], 20),
+			bitx.lshift(math.random(0x00000000, 0x00000001), 22)
+		)
 		return {
-			inputs = {
-				pri_wild  = pri_wild,
-				sec_wild  = sec_wild,
-				ram_wild  = ram_wild,
-				sync_bit  = sync_bit,
-				corestate = bitx.bor(0x10000000, corestate),
-			},
-			outputs = {
-				dest      = false,
-				dest_addr = false,
-				ram_addr  = false,
-				corestate = false,
-				fwinstr   = false,
-				cinstr    = false,
-				mux       = false,
-			},
+			pri_wild  = pri_wild,
+			sec_wild  = sec_wild,
+			ram_wild  = ram_wild,
+			ew_instr  = ew_instr,
+			sync_bit  = sync_bit,
+			corestate = bitx.bor(0x10000000, corestate),
+		}
+	end,
+	fuzz_outputs = function(inputs)
+		local instr = inputs.ram_wild
+		if bitx.band(inputs.corestate, 0x00800000) ~= 0 then
+			instr = inputs.ew_instr
+		end
+		
+		-- local pri     = bitx.bor(0x10000000, bitx.band(pri_wild, 0x0000FFFF))
+		-- local sec_reg = bitx.bor(0x10000000, bitx.band(sec_wild, 0x0000FFFF))
+		-- local imm     = bitx.bor(0x10000000, bitx.band(ram_wild, 0x0000FFFF))
+		-- local sec     = bitx.band(ram_wild, 0x80000000) ~= 0 and imm or sec_reg
+
+		return {
+			dest      = false,
+			dest_addr = false,
+			ram_addr  = false,
+			corestate = false,
+			fwinstr   = false,
+			cinstr    = false,
+			mux       = false,
 		}
 	end,
 })

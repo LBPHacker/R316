@@ -67,7 +67,7 @@ return testbed.module({
 			sign_zero = sign_zero,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local l_xor   = math.random(0x0000, 0xFFFF)
 		local l_clr   = math.random(0x0000, 0xFFFF)
 		local l_and   = math.random(0x0000, 0xFFFF)
@@ -82,38 +82,39 @@ return testbed.module({
 		local l_hlt   = math.random(0x0000, 0xFFFF)
 		local l_add   = math.random(0x0000, 0xFFFF)
 		local op_bits = math.random(0x0, 0xF)
-		local inputs = {
-			[  0 ] = l_mov, [  1 ] = l_jmp, [  2 ] = l_ld , [  3 ] = l_exh,
-			[  4 ] = l_add, [  5 ] = l_add, [  6 ] = l_add, [  7 ] = l_add,
-			[  8 ] = l_shl, [  9 ] = l_shr, [ 10 ] = l_st , [ 11 ] = l_hlt,
-			[ 12 ] = l_and, [ 13 ] = l_or , [ 14 ] = l_xor, [ 15 ] = l_clr,
+		return {
+			l_xor   = bitx.bor(0x10000000, l_xor),
+			l_clr   = bitx.bor(0x10000000, l_clr),
+			l_and   = bitx.bor(0x10000000, l_and),
+			l_or    = bitx.bor(0x10000000, l_or ),
+			l_shl   = bitx.bor(0x10000000, l_shl),
+			l_shr   = bitx.bor(0x10000000, l_shr),
+			l_ld    = bitx.bor(0x10000000, l_ld ),
+			l_exh   = bitx.bor(0x10000000, l_exh),
+			l_mov   = bitx.bor(0x10000000, l_mov),
+			l_jmp   = bitx.bor(0x10000000, l_jmp),
+			l_st    = bitx.bor(0x10000000, l_st ),
+			l_hlt   = bitx.bor(0x10000000, l_hlt),
+			l_add   = bitx.bor(0x10000000, l_add),
+			op_bits = bitx.bor(0x10000000, op_bits),
 		}
-		local muxed = inputs[op_bits]
+	end,
+	fuzz_outputs = function(inputs)
+		local select_from = {
+			[  0 ] = inputs.l_mov, [  1 ] = inputs.l_jmp, [  2 ] = inputs.l_ld , [  3 ] = inputs.l_exh,
+			[  4 ] = inputs.l_add, [  5 ] = inputs.l_add, [  6 ] = inputs.l_add, [  7 ] = inputs.l_add,
+			[  8 ] = inputs.l_shl, [  9 ] = inputs.l_shr, [ 10 ] = inputs.l_st , [ 11 ] = inputs.l_hlt,
+			[ 12 ] = inputs.l_and, [ 13 ] = inputs.l_or , [ 14 ] = inputs.l_xor, [ 15 ] = inputs.l_clr,
+		}
+		local op_bits = bitx.band(inputs.op_bits, 0xF)
+		local muxed = bitx.band(select_from[op_bits], 0xFFFF)
 		local sign_zero = bitx.bor(
 			muxed == 0                    and 0x00040000 or 0x00000000,
 			bitx.band(muxed, 0x8000) ~= 0 and 0x00080000 or 0x00000000
 		)
 		return {
-			inputs = {
-				l_xor   = bitx.bor(0x10000000, l_xor),
-				l_clr   = bitx.bor(0x10000000, l_clr),
-				l_and   = bitx.bor(0x10000000, l_and),
-				l_or    = bitx.bor(0x10000000, l_or ),
-				l_shl   = bitx.bor(0x10000000, l_shl),
-				l_shr   = bitx.bor(0x10000000, l_shr),
-				l_ld    = bitx.bor(0x10000000, l_ld ),
-				l_exh   = bitx.bor(0x10000000, l_exh),
-				l_mov   = bitx.bor(0x10000000, l_mov),
-				l_jmp   = bitx.bor(0x10000000, l_jmp),
-				l_st    = bitx.bor(0x10000000, l_st ),
-				l_hlt   = bitx.bor(0x10000000, l_hlt),
-				l_add   = bitx.bor(0x10000000, l_add),
-				op_bits = bitx.bor(0x10000000, op_bits),
-			},
-			outputs = {
-				muxed     = bitx.bor(0x10000000, muxed),
-				sign_zero = bitx.bor(0x10000000, sign_zero),
-			},
+			muxed     = bitx.bor(0x10000000, muxed),
+			sign_zero = bitx.bor(0x10000000, sign_zero),
 		}
 	end,
 })

@@ -34,20 +34,22 @@ return testbed.module({
 			l_clr = inputs.sec:bxor(0x30000000):bsub(inputs.pri):bxor(0x30000000),
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local pri = math.random(0x0000, 0xFFFF)
 		local sec = math.random(0x0000, 0xFFFF)
 		return {
-			inputs = {
-				pri = bitx.bor(0x10000000, pri),
-				sec = bitx.bor(0x10000000, sec),
-			},
-			outputs = {
-				l_and = bitx.bor(0x10000000, bitx.band(sec, pri)),
-				l_or  = bitx.bor(0x10000000, bitx.bor (sec, pri)),
-				l_xor = bitx.bor(0x10000000, bitx.bxor(sec, pri)),
-				l_clr = bitx.bor(0x10000000, bitx.band(sec, bitx.bxor(pri, 0xFFFF))),
-			},
+			pri = bitx.bor(0x10000000, pri),
+			sec = bitx.bor(0x10000000, sec),
+		}
+	end,
+	fuzz_outputs = function(inputs)
+		local pri = bitx.band(inputs.pri, 0xFFFF)
+		local sec = bitx.band(inputs.sec, 0xFFFF)
+		return {
+			l_and = bitx.bor(0x10000000, bitx.band(sec, pri)),
+			l_or  = bitx.bor(0x10000000, bitx.bor (sec, pri)),
+			l_xor = bitx.bor(0x10000000, bitx.bxor(sec, pri)),
+			l_clr = bitx.bor(0x10000000, bitx.band(sec, bitx.bxor(pri, 0xFFFF))),
 		}
 	end,
 })

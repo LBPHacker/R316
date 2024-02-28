@@ -49,19 +49,21 @@ return testbed.module({
 			l_shr = right,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local pri = math.random(0x0000, 0xFFFF)
 		local sec = math.random(0x0000, 0xFFFF)
+		return {
+			pri = bitx.bor(0x10000000, pri),
+			sec = bitx.bor(0x10000000, sec),
+		}
+	end,
+	fuzz_outputs = function(inputs)
+		local pri = bitx.band(inputs.pri, 0xFFFF)
+		local sec = bitx.band(inputs.sec, 0xFFFF)
 		local amount = bitx.band(sec, 0x000F)
 		return {
-			inputs = {
-				pri = bitx.bor(0x10000000, pri),
-				sec = bitx.bor(0x10000000, sec),
-			},
-			outputs = {
-				l_shl = bitx.bor(0x10000000, bitx.band(bitx.lshift(pri, amount), 0x0000FFFF)),
-				l_shr = bitx.bor(0x10000000, bitx.band(bitx.rshift(pri, amount), 0x0000FFFF)),
-			},
+			l_shl = bitx.bor(0x10000000, bitx.band(bitx.lshift(pri, amount), 0x0000FFFF)),
+			l_shr = bitx.bor(0x10000000, bitx.band(bitx.rshift(pri, amount), 0x0000FFFF)),
 		}
 	end,
 })

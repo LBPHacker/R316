@@ -35,7 +35,7 @@ return testbed.module({
 			sec_reg = sec_reg,
 		}
 	end,
-	fuzz = function()
+	fuzz_inputs = function()
 		local function any()
 			local v = math.floor(math.random() * 0x100000000)
 			return v == 0 and 0x1F or v
@@ -45,21 +45,21 @@ return testbed.module({
 			math.random(0x00000000, 0x0000FFFF) +
 			math.random(0x00000000, 0x0000000B) * 0x10000 +
 			math.random(0x00000000, 0x00000007) * 0x100000
+		return {
+			ram_wild  = ram_wild,
+			corestate = bitx.bor(0x10000000, corestate),
+		}
+	end,
+	fuzz_outputs = function(inputs)
 		local pri_reg_offset = 20
-		if bitx.band(corestate, 0x200000) ~= 0 then
+		if bitx.band(inputs.corestate, 0x200000) ~= 0 then
 			pri_reg_offset = 25
 		end
-		local pri_reg = bitx.band(bitx.rshift(ram_wild, pri_reg_offset), 0x1F)
-		local sec_reg = bitx.band(ram_wild, 0x1F)
+		local pri_reg = bitx.band(bitx.rshift(inputs.ram_wild, pri_reg_offset), 0x1F)
+		local sec_reg = bitx.band(inputs.ram_wild, 0x1F)
 		return {
-			inputs = {
-				ram_wild  = ram_wild,
-				corestate = bitx.bor(0x10000000, corestate),
-			},
-			outputs = {
-				pri_reg = bitx.bor(0x10000000, pri_reg),
-				sec_reg = bitx.bor(0x10000000, sec_reg),
-			},
+			pri_reg = bitx.bor(0x10000000, pri_reg),
+			sec_reg = bitx.bor(0x10000000, sec_reg),
 		}
 	end,
 })
