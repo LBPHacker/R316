@@ -33,13 +33,9 @@ local function build(height_order)
 
 	local y_filt_block = 0
 	local y_ldtc_dray_bank = 10
-	local y_call_sites = 30
+	local y_call_sites = 18
 	local core_count = 3
-	local core_pitch = 8
-	local addresses = { 0x2000DEAD, 0x2000DEAD, 0x2000CAFE }
-	local writes    = { 0x2000BABE,      false,      false }
-	assert(#addresses == core_count)
-	assert(#writes == core_count)
+	local core_pitch = 6
 
 	local function per_core(func)
 		for i = 1, core_count do
@@ -84,6 +80,21 @@ local function build(height_order)
 				m.tmp2 = 1
 			end
 		end
+		if p.type == pt.DTEC then
+			if not p.tmp2 then
+				m.tmp2 = 1
+			end
+		end
+		if p.type == pt.ARAY then
+			if not p.life then
+				m.life = 1
+			end
+		end
+		if p.type == pt.BRAY then
+			if not p.life then
+				m.life = 1
+			end
+		end
 		local q = mutate(p, m)
 		table.insert(parts, q)
 		return q
@@ -101,16 +112,16 @@ local function build(height_order)
 	local solid_spark
 	do
 		local map = {}
-		function solid_spark(x, y, xoff, yoff, conductor)
-			local key = xy_key(x + xoff, y + yoff)
+		function solid_spark(x, y, x_off, y_off, conductor)
+			local key = xy_key(x + x_off, y + y_off)
 			if map[key] then
 				if not (map[key].x == x and map[key].y == y and map[key].conductor == conductor) then
 					error("spark conflict", 2)
 				end
 			else
-				part ({ type = pt.CONV  , x = x       , y = y       , tmp = pt.SPRK, ctype = conductor, z = 10000000 })
-				part ({ type = pt.CONV  , x = x       , y = y       , tmp = conductor, ctype = pt.SPRK, z = 10000001 })
-				spark({ type = conductor, x = x + xoff, y = y + yoff })
+				part ({ type = pt.CONV  , x = x        , y = y        , tmp = pt.SPRK, ctype = conductor, z = 10000000 })
+				part ({ type = pt.CONV  , x = x        , y = y        , tmp = conductor, ctype = pt.SPRK, z = 10000001 })
+				spark({ type = conductor, x = x + x_off, y = y + y_off })
 				map[key] = {
 					x = x,
 					y = y,
@@ -188,6 +199,11 @@ local function build(height_order)
 		local magn = math.max(dx_magn, dy_magn)
 		local q = part({ type = pt.CRAY, x = x, y = y, ctype = ptype, tmp = count, tmp2 = magn - 1, z = z })
 		solid_spark(x, y, -dx_sig, -dy_sig, conductor)
+		return q
+	end
+	local function aray(x, y, x_off, y_off, conductor, z)
+		local q = part({ type = pt.ARAY, x = x, y = y, z = z })
+		solid_spark(x, y, x_off, y_off, conductor)
 		return q
 	end
 	local apom_order_pre = {}
@@ -321,8 +337,8 @@ local function build(height_order)
 	part({ type = pt.INSL, x = x_bank_piston - 2, y = y_ldtc_dray_bank + 4 })
 	part({ type = pt.INSL, x = x_bank_piston - 4, y = y_ldtc_dray_bank + 4 })
 	per_core(function(i, y)
-		part({ type = pt.INSL, x = x_bank_piston    , y = y - 3 })
-		part({ type = pt.INSL, x = x_bank_piston - 2, y = y - 3 })
+		part({ type = pt.INSL, x = x_bank_piston    , y = y - (i == 1 and 3 or 4) })
+		part({ type = pt.INSL, x = x_bank_piston - 2, y = y - (i == 1 and 3 or 4) })
 	end)
 
 	-- active head piston frame
@@ -375,8 +391,16 @@ local function build(height_order)
 		local x = -7 - height_order_up
 		part({ type = pt.FILT, x = x, y = y_ldtc_dray_bank + 2, ctype = 0x10000000 })
 		per_core(function(i, y)
-			part({ type = pt.FILT, x = x, y = y - 1, ctype = writes[i] or 0x3FFFFFFF })
+			part({ type = pt.FILT, x = x, y = y - 1 })
 			dray(x, y, x, y_ldtc_dray_bank + 2, 1, pt.PSCN)
+
+			local x_take_addr = 115
+			part({ type = pt.INSL, x = x_take_addr, y = y + 1 })
+			part({ type = pt.BRAY, x = x_take_addr, y = y + 2 })
+			aray(x_take_addr, y + 4, 0, 1, pt.METL)
+			part({ type = pt.DTEC, x = x_take_addr + 1, y = y + 4, tmp2 = 2 })
+			part({ type = pt.FILT, x = x_take_addr + 2, y = y + 5, tmp2 = 2 })
+			dray(x_take_addr + 3, y - 1, x, y - 1, 1, pt.PSCN)
 		end)
 	end
 
@@ -408,11 +432,11 @@ local function build(height_order)
 	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
 			part({ type = pt.CRMC, x = apom_order[j], y = y })
-			cray(-12 - height_order_up - width_order_up, y, apom_order[j], y, pt.CRMC, 1, pt.PSCN)
+			cray(-11 - height_order_up - width_order_up, y, apom_order[j], y, pt.CRMC, 1, pt.PSCN)
 		end
 	end)
 	-- restore apom'd particles
-	local y_restore = core_count * core_pitch + 31
+	local y_restore = core_count * core_pitch + y_call_sites + 1
 	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
 			local x = apom_order[j]
@@ -429,6 +453,8 @@ local function build(height_order)
 	for i = 1, width_order do
 		part({ type = pt.CRMC, x = -2 - i - height_order_2, y = y_ldtc_dray_bank + 3 })
 	end
+	local x_stack = 1
+	local x_take_addr = -13 - height_order_up - width_order_up
 	per_core(function(i, y)
 		for j = 0, height_order_2 - 1 do
 			local x = -3 - j
@@ -443,7 +469,6 @@ local function build(height_order)
 			dray(x, y - 1 + stagger, x, y_ldtc_dray_bank + 3 + stagger, 1 + stagger, pt.PSCN)
 		end
 
-		local x_stack = 1
 		local x_filt_bank = x_stack + 2
 		local function change_conductor(conductor)
 			part({ type = pt.CONV, x = x_stack, y = y - 2, ctype = conductor, tmp = pt.SPRK })
@@ -455,7 +480,7 @@ local function build(height_order)
 		spark({ type = pt.METL, x = x_stack + 1, y = y - 2 })
 		part ({ type = pt.FILT, x = x_stack - 1, y = y - 2, ctype = 0x10000003 })
 		part ({ type = pt.STOR, x = x_stack - 2, y = y - 2 })
-		part ({ type = pt.FILT, x = x_stack - 3, y = y - 2, tmp = 1, ctype = addresses[i] + (writes[i] and 0x10000 or 0) })
+		part ({ type = pt.FILT, x = x_stack - 3, y = y - 2, tmp = 1 })
 
 		part({ type = pt.FILT, x = x_filt_bank, y = y - 2, ctype = 0x10000003 })
 		local filt_offsets = {}
@@ -502,25 +527,56 @@ local function build(height_order)
 		local pistons = width_order + height_order_2
 		cray(x_stack - 4 - pistons, y - 2, x_stack - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
 		cray(x_stack - 4 - pistons, y - 2, x_stack - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
+
+		if i ~= 1 then
+			local fix_lsns_x = 119
+			part({ type = pt.INSL, x = fix_lsns_x - 1, y = y - 3 })
+			dray(fix_lsns_x, y - 3, x_stack, y - 3, 1, pt.PSCN)
+		end
+	end)
+
+	-- forward ram addr
+	per_core(function(i, y)
+		aray(x_take_addr, y - 2, 0, 1, pt.METL)
+		part({ type = pt.BRAY, x = x_take_addr    , y = y - 4 })
+		part({ type = pt.INSL, x = x_take_addr    , y = y - 5 })
+		part({ type = pt.INSL, x = x_take_addr - 1, y = y - 2 })
+		part({ type = pt.DTEC, x = x_take_addr + 3, y = y - 2, tmp2 = 3 })
+		part({ type = pt.FILT, x = x_take_addr + 4, y = y - 2, tmp = 1 })
+		dray(x_take_addr + 3, y - 2, x_stack - 3, y - 2, 1, pt.PSCN)
+		dray(129, y - 3, x_take_addr, y - 3, 1, pt.PSCN)
+		dray(x_take_addr, y_call_sites + core_pitch * core_count, x_take_addr, y - 3, 1, pt.PSCN) -- cleanup
 	end)
 
 	-- registers
 	local x_registers = 38
 	per_core(function(i, y)
 		local y_registers = y + 2
-		for i = 0, regs - 1 do
-			part({ type = pt.FILT, x = x_registers - i * 2, y = y_registers, ctype = 0x20000000 + i })
+		for j = 0, regs - 1 do
+			part({ type = pt.FILT, x = x_registers - j * 2, y = y_registers, ctype = 0x20000000 + j })
 		end
-		for i = 1, regs - 1 do
-			part({ type = pt.LDTC, x = x_registers - i * 2, y = y_registers - 1, life = 6 })
+		if i ~= 1 then
+			for j = 1, regs - 1 do
+				ldtc(x_registers - j * 2, y_registers - 1, x_registers - j * 2, y_registers - core_pitch)
+			end
 		end
 	end)
+	for j = 1, regs - 1 do
+		local y_last_registers = y_call_sites + core_count * core_pitch + 2
+		local y_bottom_rep = y_call_sites + core_pitch * core_count + 1
+		part({ type = pt.FILT, x = x_registers - j * 2, y = y_bottom_rep, ctype = 0x20000000 + j })
+		ldtc(x_registers - j * 2, y_bottom_rep - 1, x_registers - j * 2, y_last_registers - core_pitch)
+		dray(x_registers - j * 2, y_bottom_rep + 1, x_registers - j * 2, y_call_sites + 2, 1, pt.PSCN)
+	end
+
+	-- last core ram addr and data repeaters
 	do
-		local y = y_call_sites - 6
-		for i = 1, regs - 1 do
-			part({ type = pt.FILT, x = x_registers - i * 2, y = y, ctype = 0x20000000 + i })
-			part({ type = pt.LDTC, x = x_registers - i * 2, y = y + 1, life = core_count * core_pitch - 2 })
+		local function repeater(x, y, initial)
+			part({ type = pt.FILT, x = x, y = y, ctype = initial })
+			dray(x, y + core_pitch * core_count + 1, x, y, 1, pt.PSCN)
 		end
+		repeater(117, y_call_sites - 1, 0xCAFEBABE)
+		repeater(128, y_call_sites - 3, 0x10000000)
 	end
 
 	-- register readers
@@ -528,14 +584,15 @@ local function build(height_order)
 		local x_reader = 73
 		local x_reader_storage = x_reader + 2
 		local y_reader = y + 2
-		do
-			-- TODO: wire up corestate instead of these two
-			part({ type = pt.FILT, x = x_reader_storage + 3, y = y - 1, ctype = 0x10000000 })
-			part({ type = pt.LDTC, x = x_reader_storage + 3, y = y + 1 })
-		end
+		ldtc(x_reader_storage, y + 1, x_reader_storage - core_pitch + 2, y - core_pitch + 3)
 		plot.merge_parts(x_reader, y + 2, parts, rread)
-		dray(x_get_ctype - 1, y + 2, x_reader_storage + 1, y + 2, 1, pt.PSCN)
+		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
+		part({ type = pt.INSL, x = x_reader + 52, y = y_reader })
+		part({ type = pt.DTEC, x = x_reader + 38, y = y_reader })
+		part({ type = pt.BRAY, x = x_reader + 37, y = y_reader })
+		part({ type = pt.FILT, x = x_reader + 36, y = y_reader })
+		dray(x_get_ctype - 1, y + 2, x_reader + 36, y + 2, 1, pt.PSCN)
 		local function reader(stage_1_offset, storage_slot)
 			local x_stage_1 = x_reader + stage_1_offset
 			ldtc(x_stage_1 - 3, y_reader, x_reader_storage + storage_slot, y_reader)
@@ -543,31 +600,63 @@ local function build(height_order)
 			part({ type = pt.LSNS, x = x_stage_1 - 1, y = y_reader, tmp = 3 })
 			lsns_taboo(x_stage_1 - 1, y_reader - 1)
 			lsns_taboo(x_stage_1    , y_reader - 1)
-			-- lsns_taboo(x_stage_1 - 2, y_reader + 1)
-			-- lsns_taboo(x_stage_1 - 1, y_reader + 1)
-			-- lsns_taboo(x_stage_1    , y_reader + 1)
 			part({ type = pt.LDTC, x = x_stage_1    , y = y_reader })
 			part({ type = pt.FILT, x = x_stage_1 + 1, y = y_reader })
 			part({ type = pt.LDTC, life = 1, x = x_stage_1 + 3, y = y_reader })
-			part({ type = pt.ARAY, life = 1, x = x_stage_1 + 3, y = y_reader })
+			part({ type = pt.ARAY, x = x_stage_1 + 3, y = y_reader })
 			part({ type = pt.DTEC, x = x_stage_1 + 3, y = y_reader, tmp2 = 2 })
 			solid_spark(x_stage_1 + 3, y_reader, -1, 0, pt.METL)
 			part({ type = pt.FILT, x = x_stage_1 + 4, y = y_reader })
-			part({ type = pt.BRAY, x = x_stage_1 + 5, y = y_reader, life = 1 })
-			part({ type = pt.INSL, x = x_stage_1 + 6, y = y_reader })
+			part({ type = pt.BRAY, x = x_stage_1 + 5, y = y_reader })
 		end
-		reader(33, 1)
-		reader(49, 3)
+		reader(30, 1)
+		reader(46, 2)
 	end)
 
 	-- cores
+	local vertical_inputs = {}
+	local function vertical_input(index, repeater, initial)
+		table.insert(vertical_inputs, {
+			index    = index,
+			repeater = repeater,
+			initial  = initial,
+		})
+	end
+	vertical_input(10,  true, 0x1000000F)
+	vertical_input(12,  true, 0x1000FFFF)
+	vertical_input(14,  true, 0x1000FFFF)
+	vertical_input(16,  true, 0x1000000B)
+	vertical_input(29, false, 0x1000FFFF)
+	vertical_input(62, false, 0x1000001F)
+	vertical_input( 7, false, 0x2BADC0DE)
+	local x_core = 40
+	local function x_storage_slot(k)
+		return x_core + 2 + k
+	end
 	per_core(function(i, y)
-		plot.merge_parts(40, y + 3, parts, core)
+		for _, info in ipairs(vertical_inputs) do
+			if info.repeater then
+				local x = x_storage_slot(info.index)
+				ldtc(x, y + 1, x, y - core_pitch + 3)
+			end
+		end
+		do -- sync bit
+			local x = x_storage_slot(86)
+			ldtc(x, y + 1, x, y - 1)
+			part({ type = pt.FILT, x = x, y = y - 1, ctype = 0x10000 + (i == core_count and 1 or 0) })
+			part({ type = pt.FILT, x = x, y = y + 2 })
+		end
+		plot.merge_parts(x_core, y + 3, parts, core)
 	end)
+	for _, info in ipairs(vertical_inputs) do
+		local x = x_storage_slot(info.index)
+		local y = y_call_sites - 3
+		part({ type = pt.FILT, x = x, y = y })
+		ldtc(x, y + 1, x, y + core_pitch * core_count)
+	end
 
 	-- register writers
 	per_core(function(i, y)
-		local dest_offset = 25
 		local x_bank_dray = 45
 		local x_stack = x_bank_dray + regs + 9
 		local y_stack = y
@@ -584,8 +673,14 @@ local function build(height_order)
 		part({ type = pt.PSTN, x = x_stack - 3, y = y_stack, extend = 1 })
 		part({ type = pt.PSTN, x = x_stack - 4 - regs_order, y = y_stack })
 
-		part({ type = pt.FILT, x = x_filt_bank, y = y_stack, ctype = 0x10000003 })
-		part({ type = pt.FILT, x = x_filt_bank + 1, y = y_stack, ctype = 0x3C00FFFF })
+		ldtc(x_bank_dray + 1, y_stack, x_bank_dray - 2, y_stack - 3) -- set register template
+		part({ type = pt.FILT, x = x_bank_dray, y = y_stack + 1 }) -- conduit
+		part({ type = pt.FILT, x = x_bank_dray - 1, y = y_stack + 2 }) -- register template
+
+		local x_filt13 = x_filt_bank + 7
+		part({ type = pt.FILT, x = x_filt13, y = y_stack, ctype = 0x10000003 })
+		ldtc(x_filt_bank, y_stack - 1, x_filt_bank - 2, y_stack - 3)
+		part({ type = pt.FILT, x = x_filt_bank + 1, y = y_stack })
 		local filt_offsets = {}
 		local add_bit
 		do
@@ -597,25 +692,25 @@ local function build(height_order)
 			end
 		end
 		for i = 0, regs_order - 1 do
-			add_bit(i + dest_offset)
+			add_bit(i)
 		end
 
 		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 3, ctype = pt.SPRK })
 		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 3, ctype = pt.FILT, ctype_high = 1 })
-		part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack })
+		ldtc(x_stack, y_stack, x_filt_bank + 1, y_stack)
 		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.STOR, tmp = pt.FILT })
 		part({ type = pt.DRAY, x = x_stack, y = y_stack, tmp = 1 })
 		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, ctype = pt.SPRK })
 		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, ctype = pt.FILT })
 		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = regs_order, tmp2 = 3, ctype = pt.SPRK })
 		part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = regs_order - 1, tmp2 = 3, ctype = pt.STOR })
-		part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack - 1 })
+		ldtc(x_stack, y_stack, x_filt13, y_stack)
 		change_conductor(pt.METL)
 		local function handle_bit(address_index, piston_bit, piston_index, last)
 			part({ type = pt.INSL, x = x_stack - 4 - piston_index, y = y_stack })
-			part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack + 1 + filt_offsets[address_index] })
+			ldtc(x_stack, y_stack, x_filt_bank + 2 + filt_offsets[address_index], y_stack)
 			part({ type = pt.ARAY, x = x_stack, y = y_stack })
-			part({ type = pt.LDTC, x = x_stack, y = y_stack, life = x_filt_bank - x_stack - 1 })
+			ldtc(x_stack, y_stack, x_filt13, y_stack)
 			change_conductor(pt.PSCN)
 			if last then
 				part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
@@ -626,7 +721,7 @@ local function build(height_order)
 			part({ type = pt.CRAY, x = x_stack, y = y_stack, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(bitx.lshift(1, piston_bit)) })
 		end
 		for j = 0, regs_order - 1 do
-			handle_bit(j + dest_offset, j, regs_order - j - 1, j == regs_order - 1)
+			handle_bit(j, j, regs_order - j - 1, j == regs_order - 1)
 		end
 		change_conductor(pt.PSCN)
 		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.PSTN, tmp = pt.FILT })
@@ -660,13 +755,46 @@ local function build(height_order)
 		part({ type = pt.DRAY, x = x_bank_dray_donor + 2, y = y_stack - 1, tmp = 1, tmp2 = 1 }) -- bank dray template
 		cray(x_bank_dray - 2, y_stack + 1, x_bank_dray, y_stack - 1, pt.SPRK, 1, pt.PSCN) -- float bank dray's id after its update
 
-		lsns_spark({ type = pt.PSCN, x = x_bank_dray, y = y_stack - 2, life = 3 }, 1, 0, 2, 0)
+		lsns_spark({ type = pt.PSCN, x = x_bank_dray, y = y_stack - 2, life = 3 }, -1, 1, -2, 1)
 		lsns_taboo(x_bank_dray + 2, y_stack - 1)
 
-		part({ type = pt.FILT, x = x_bank_dray - 1, y = y_stack + 2, ctype = 0x10000000 }) -- register template
 		part({ type = pt.INSL, x = x_bank_dray, y = y_stack + 2 }) -- bank dray placeholder
 		solid_spark(x_bank_dray + 2, y_stack + 2, -1, 0, pt.PSCN)
 	end)
+
+	do -- frame
+		local parts_by_pos = {}
+		for _, part in ipairs(parts) do
+			parts_by_pos[xy_key(part.x, part.y)] = part
+		end
+		for _, info in ipairs(vertical_inputs) do
+			local x = x_storage_slot(info.index)
+			local part = assert(parts_by_pos[xy_key(x, y_call_sites + core_pitch * core_count - 3)])
+			part.ctype = info.initial
+		end
+		local function add_dmnd(x, y)
+			local key = xy_key(x, y)
+			if not parts_by_pos[key] then
+				parts_by_pos[key] = part({ type = pt.DMND, x = x, y = y })
+			end
+		end
+		local x1 = -15 - height_order_up - width_order_up
+		local x2 = width + 3
+		local y1 = y_filt_block - height
+		local y2 = y_call_sites + core_count * core_pitch + 4
+		for x = x1, x2 do
+			add_dmnd(x, y1)
+			add_dmnd(x, y1 - 1)
+			add_dmnd(x, y2)
+			add_dmnd(x, y2 + 1)
+		end
+		for y = y1, y2 do
+			add_dmnd(x1, y)
+			add_dmnd(x1 - 1, y)
+			add_dmnd(x2, y)
+			add_dmnd(x2 + 1, y)
+		end
+	end
 
 	return parts
 end

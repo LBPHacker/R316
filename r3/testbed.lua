@@ -34,7 +34,7 @@ local function modulef(info)
 						return nil, ("input %s test value %08X does not conform to keepalive/payload %08X/%08X"):format(input_info.name, set_value, input_info.keepalive, input_info.payload)
 					end
 				end
-				ctype_at(2 + input_info.index, -3, set_value)
+				ctype_at(2 + input_info.index, -4, set_value)
 			end
 			local output_values = info.fuzz_outputs(input_values, params)
 			for _, output_info in ipairs(info.outputs or {}) do
@@ -84,17 +84,10 @@ local function modulef(info)
 		end
 		local inputs = {}
 		local outputs = {}
-		local clobbers = {}
-		local function auto_clobber(index)
-			if index >= 1 and index <= info.storage_slots then
-				clobbers[index] = true
-			end
-		end
 		local extra_parts = {}
 		local named_inputs = {}
-		for _, input_info in ipairs(info.inputs or {}) do
+		for input_index, input_info in ipairs(info.inputs or {}) do
 			local expr = spaghetti.input(input_info.keepalive, input_info.payload)
-			inputs[input_info.index] = expr
 			named_inputs[input_info.name] = expr
 			if input_info.never_zero then
 				expr:never_zero()
@@ -102,22 +95,31 @@ local function modulef(info)
 				assert(bitx.band(input_info.initial, expr.keepalive_) ~= 0)
 			end
 			if probes then
-				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -3, ctype = input_info.initial })
-				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + input_info.index, y = -1 })
+				input_info.index = input_index * 2 - 1
+				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -4, ctype = input_info.initial })
+				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + input_info.index, y = -2 })
+				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -1, ctype = input_info.initial })
 			end
-			auto_clobber(input_info.index + 1)
-			auto_clobber(input_info.index - 1)
+			inputs[input_info.index] = expr
 		end
 		local named_outputs = instantiate(named_inputs, params)
-		for _, output_info in ipairs(info.outputs or {}) do
-			outputs[output_info.index] = named_outputs[output_info.name]
+		for output_index, output_info in ipairs(info.outputs or {}) do
 			if probes then
+				output_info.index = output_index * 2 - 1
 				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + output_info.index, y = 2 })
 				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + output_info.index, y = 3 })
 			end
+			outputs[output_info.index] = named_outputs[output_info.name]
 		end
 		for _, part in ipairs(info.extra_parts or {}) do
 			table.insert(extra_parts, part)
+		end
+		local clobbers
+		if info.clobbers then
+			clobbers = {}
+			for _, value in ipairs(info.clobbers) do
+				clobbers[value] = true
+			end
 		end
 		local voids
 		if info.voids then
