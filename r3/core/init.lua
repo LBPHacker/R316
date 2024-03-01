@@ -30,7 +30,8 @@ return testbed.module({
 		{ name = "imm_memcc"  , index = 12, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
 		{ name = "pc"         , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
 		{ name = "flags"      , index = 16, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000B },
-		{ name = "sync_bit"   , index = 86, keepalive = 0x00010000, payload = 0x00000001,                    initial = 0x00010001 },
+		{ name = "sync_bit"   , index = 83, keepalive = 0x00010000, payload = 0x00000001,                    initial = 0x00010001 },
+		{ name = "io_state"   , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000F },
 		{ name = "pri"        , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec"        , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "ram"        , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
@@ -60,6 +61,7 @@ return testbed.module({
 			:bor(inputs.state)
 			:bor(inputs.pc)
 			:bor(inputs.flags)
+			:bor(inputs.io_state)
 			:band(0x10000000)
 		
 		return {

@@ -38,6 +38,12 @@ T: secondary source register
 1110: xor destination, primary, secondary
 1111: clr destination, primary, secondary
 
+i/o
+	address
+	data out
+	response
+	data in
+
 flag layout in corestate: Cf Of Zf Sf
 flag layout when checking condition:
 	.BNT..Z.

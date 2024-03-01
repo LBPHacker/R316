@@ -307,7 +307,7 @@ local function build(core_count, height_order)
 		part ({ type = pt.DRAY, x = y * 2 + 1, y = y_ldtc_dray_bank    , tmp = 1, tmp2 = dist + 1 })
 		spark({ type = pt.PSCN, x = y * 2 + 1, y = y_ldtc_dray_bank + 1, life = 3 }) -- spark for the above
 	end
-	-- active head second row template; TODO: fix life so it doesn't have to be put this far to the left to not extend pistons
+	-- active head second row template
 	local x_ah_sr_template = -10 - height_order_up - width_order_up
 	lsns_spark({ type = pt.PSCN, x = x_ah_sr_template, y = y_ldtc_dray_bank + 1, life = 3 }, -1, -1, -1, 0)
 	dray(x_ah_sr_template - 2, y_ldtc_dray_bank + 1, 0, y_ldtc_dray_bank + 1, 2, pt.PSCN)
@@ -322,16 +322,78 @@ local function build(core_count, height_order)
 		part({ type = pt.FILT, x = y, y = y_ldtc_dray_bank + 2 })
 	end
 
+	local x_core = 40
+	local function x_storage_slot(k)
+		return x_core + 2 + k
+	end
+
+	-- input and output
+	local x_ram_inject = -27
+	local x_io = 135
+	per_core(function(i, y)
+		local function filt_line_to(x, y)
+			local qs = {}
+			for xx = x, x_io do
+				table.insert(qs, part({ type = pt.FILT, x = xx, y = y }))
+			end
+			return qs
+		end
+		filt_line_to(x_io, y - 3)
+		filt_line_to(x_io, y - 2)
+		filt_line_to(x_io - 4, y)
+		local qs_io_state = filt_line_to(x_io - 7, y - 1)
+		local x_default_io = x_io - 13
+		part({ type = pt.FILT, x = x_default_io, y = y - 1, ctype = 0x10000000 }) -- default io state
+		ldtc(x_io - 8, y - 1, x_default_io, y - 1)
+		ldtc(x_io - 1, y - 3, x_io - 4, y - 3)
+		local x_data_up = x_io - 18
+		ldtc(x_io - 1, y - 2, x_data_up, y - 2)
+		part({ type = pt.FILT, x = x_data_up, y = y + 4 })
+
+		local x_io_state = x_storage_slot(86)
+		ldtc(x_io_state, y + 7, x_io_state, y + 5)
+		part({ type = pt.FILT, x = x_io_state, y = y + 8 })
+		part({ type = pt.FILT, x = x_io - 4, y = y - 2, ctype = 0x00000008 })
+		qs_io_state[4].tmp = 1
+		if i ~= 1 then
+			cray(98, y - 4, x_io - 4, y - 4, pt.METL, 1, pt.PSCN)
+			cray(98, y - 4, x_io - 4, y - 4, pt.METL, 1, pt.PSCN)
+			local sprk = cray(114, y - 4, x_io - 4, y - 4, pt.SPRK, 1, pt.INWR)
+			sprk.life = 3
+			part({ type = pt.SPRK, x = x_io - 4, y = y - 4, life = 3, ctype = pt.METL })
+		end
+		part({ type = pt.INSL, x = x_io - 4, y = y + 1 }) -- id donor
+		dray(x_io - 3, y + 1, x_ram_inject, y + 1, 1, pt.PSCN)
+
+		part({ type = pt.DTEC, x = x_ram_inject, y = y + 2 })
+		local x_fix_core_left13 = x_io - 3
+		ldtc(x_ram_inject, y + 3, x_fix_core_left13, y + 3)
+		part({ type = pt.FILT, x = x_fix_core_left13, y = y + 3, ctype = 0x10000003 })
+	end)
+	part({ type = pt.INSL, x = x_io - 4, y = y_call_sites + core_count * core_pitch - 4 })
+	lsns_spark({ type = pt.METL, x = x_io - 4, y = y_call_sites - 4, life = 3 }, 0, -1, 0, -2)
+	per_core(function(i, y)
+		local y_io_apom_float = y_call_sites - 8
+		local y_io_apom_reset = y_call_sites + core_count * core_pitch
+		local y_ram_inject_cleanup = y_call_sites + core_count * core_pitch + 2
+		cray(x_io - 4, y_io_apom_float, x_io - 4, y - 3 + 4, pt.SPRK, 1, pt.PSCN)
+		cray(x_io - 4, y_io_apom_float, x_io - 4, y - 3, pt.ARAY, 1, pt.PSCN)
+		dray(x_io - 4, y_io_apom_reset, x_io - 4, y - 3 + 4, 1, pt.PSCN)
+		cray(x_io - 4, y_io_apom_reset, x_io - 4, y - 3, pt.SPRK, 1, pt.PSCN)
+		cray(x_io - 4, y_io_apom_reset, x_io - 4, y - 3 + 4, pt.INSL, 1, pt.PSCN)
+		dray(x_ram_inject, y_ram_inject_cleanup, x_ram_inject, y + 1, 1, pt.PSCN)
+	end)
+
 	-- bank piston frame
 	part         ({ type = pt.FRME, x = -2, y = y_ldtc_dray_bank - 2 })
 	part         ({ type = pt.FRME, x = -2, y = y_ldtc_dray_bank - 1 })
 	-- bank piston
 	local x_bank_piston = -3 - height_order_up
 	part_injected({ type = pt.PSTN, x = x_bank_piston    , y = y_ldtc_dray_bank - 1, extend = 2 }, 0, 11) -- extend to the programmed distance
-	lsns_spark   ({ type = pt.PSCN, x = x_bank_piston    , y = y_ldtc_dray_bank    , life = 3 }, -1, 1, 0, 1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.PSCN, x = x_bank_piston    , y = y_ldtc_dray_bank    , life = 3 }, -1, 1, 0, 1) -- spark for the above
 	part         ({ type = pt.PSTN, x = x_bank_piston - 1, y = y_ldtc_dray_bank - 1 }) -- filler
 	part_injected({ type = pt.PSTN, x = x_bank_piston - 2, y = y_ldtc_dray_bank - 1, extend = math.huge }, 3, 10) -- retract fully
-	lsns_spark   ({ type = pt.NSCN, x = x_bank_piston - 2, y = y_ldtc_dray_bank    , life = 3 }, 1, 1, 2, 1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.NSCN, x = x_bank_piston - 2, y = y_ldtc_dray_bank    , life = 3 }, 1, 1, 2, 1) -- spark for the above
 	part         ({ type = pt.INSL, x = x_bank_piston - 3, y = y_ldtc_dray_bank - 1 }) -- left cap
 	part         ({ type = pt.INSL, x = height * 2       , y = y_ldtc_dray_bank - 1 }) -- right cap
 	for i = height_order_2 + 1, height_order_up do
@@ -354,13 +416,13 @@ local function build(core_count, height_order)
 	-- active head piston
 	local x_ah_piston = -3 - height_order_up - width_order_up
 	part_injected({ type = pt.PSTN, x = x_ah_piston    , y = y_ldtc_dray_bank + 3, extend = 1 }, 5, 9) -- retract to the programmed distance
-	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston    , y = y_ldtc_dray_bank + 4, life = 3 }, -1, 1, -2, 1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston    , y = y_ldtc_dray_bank + 4, life = 3 }, -1, 1, -2, 1) -- spark for the above
 	part         ({ type = pt.PSTN, x = x_ah_piston - 1, y = y_ldtc_dray_bank + 3 }) -- filler
 	part_injected({ type = pt.PSTN, x = x_ah_piston - 2, y = y_ldtc_dray_bank + 3, extend = math.huge }, 4, 8) -- extend fully
-	lsns_spark   ({ type = pt.PSCN, x = x_ah_piston - 2, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 0, 1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.PSCN, x = x_ah_piston - 2, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 0, 1) -- spark for the above
 	part         ({ type = pt.PSTN, x = x_ah_piston - 3, y = y_ldtc_dray_bank + 3 }) -- filler
 	part_injected({ type = pt.PSTN, x = x_ah_piston - 4, y = y_ldtc_dray_bank + 3, extend = math.huge }, 9, 7) -- retract fully
-	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston - 4, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 2, 1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.NSCN, x = x_ah_piston - 4, y = y_ldtc_dray_bank + 4, life = 3 }, 1, 1, 2, 1) -- spark for the above
 	part         ({ type = pt.INSL, x = x_ah_piston - 5, y = y_ldtc_dray_bank + 3 }) -- left cap
 	part         ({ type = pt.INSL, x = width          , y = y_ldtc_dray_bank + 3 }) -- right cap
 	for i = 1, height_order_2 do
@@ -384,10 +446,10 @@ local function build(core_count, height_order)
 	-- copy active head
 	local active_head_copier = { type = pt.DRAY, x = -1, y = y_ldtc_dray_bank - 1, tmp = 2, tmp2 = 1 }
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 10 }), 1, 6, true)
-	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 11, life = 3 }, -1, 0, -1, -1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 11, life = 3 }, -1, 0, -1, -1) -- spark for the above
 	-- active head copier
 	part_injected(active_head_copier, 2, 5)
-	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 2, life = 3 }, -1, -1, -2, -1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 2, life = 3 }, -1, -1, -2, -1) -- spark for the above
 	-- active head placeholders
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 6 }), 7, 4, true, y_ldtc_dray_bank + 4)
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 5 }), 8, 3, true, y_ldtc_dray_bank + 3)
@@ -578,12 +640,14 @@ local function build(core_count, height_order)
 
 	-- last core ram addr and data repeaters
 	do
-		local function repeater(x, y, initial)
-			part({ type = pt.FILT, x = x, y = y, ctype = initial })
-			dray(x, y + core_pitch * core_count + 1, x, y, 1, pt.PSCN)
+		local function repeater(x, y, initial, count)
+			for j = 0, count - 1 do
+				part({ type = pt.FILT, x = x, y = y - j, ctype = initial })
+			end
+			dray(x, y + core_pitch * core_count + 1, x, y, count, pt.PSCN)
 		end
-		repeater(117, y_call_sites - 1, 0xCAFEBABE)
-		repeater(128, y_call_sites - 3, 0x10000000)
+		repeater(117, y_call_sites - 1, 0xCAFEBABE, 2)
+		repeater(128, y_call_sites - 3, 0x10000000, 1)
 	end
 
 	-- register readers
@@ -595,7 +659,7 @@ local function build(core_count, height_order)
 		plot.merge_parts(x_reader, y + 2, parts, rread)
 		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
-		part({ type = pt.INSL, x = x_reader + 52, y = y_reader })
+		part({ type = pt.INSL, x = x_reader + 53, y = y_reader })
 		part({ type = pt.DTEC, x = x_reader + 38, y = y_reader })
 		part({ type = pt.BRAY, x = x_reader + 37, y = y_reader })
 		part({ type = pt.FILT, x = x_reader + 36, y = y_reader })
@@ -636,11 +700,7 @@ local function build(core_count, height_order)
 	vertical_input(29, false, 0x1000FFFF)
 	vertical_input(62, false, 0x1000001F)
 	vertical_input( 7, false, 0x2BADC0DE)
-	local x_core = 40
-	local function x_storage_slot(k)
-		return x_core + 2 + k
-	end
-	local x_sync_bit = x_storage_slot(86)
+	local x_sync_bit = x_storage_slot(83)
 	per_core(function(i, y)
 		for _, info in ipairs(vertical_inputs) do
 			if info.repeater then
@@ -769,7 +829,7 @@ local function build(core_count, height_order)
 
 	do -- frame
 		local x1 = -15 - height_order_up - width_order_up
-		local x2 = width + 3
+		local x2 = width + 6
 		local y1 = y_filt_block - height
 		local y2 = y_call_sites + core_count * core_pitch + 4
 		local x_buttons = 80
