@@ -12,9 +12,11 @@ local function sig_magn(x)
 	return x == 0 and 0 or (x / magn), magn
 end
 
-local function build(height_order)
+local function build(core_count, height_order)
 	local width_order = 7
 	local regs_order = 5
+	assert(core_count >= 1, "core count too small")
+	assert(height_order >= 4, "height order too small")
 	assert(width_order >= 6, "width order too small")
 	local height_order_2 = height_order + 1
 	assert(width_order >= height_order_2, "bad aspect ratio")
@@ -31,10 +33,9 @@ local function build(height_order)
 		width_order_up = width_order_up + 1
 	end
 
-	local y_filt_block = 0
+	local y_filt_block = 7
 	local y_ldtc_dray_bank = 10
 	local y_call_sites = 18
-	local core_count = 3
 	local core_pitch = 6
 
 	local function per_core(func)
@@ -214,7 +215,7 @@ local function build(height_order)
 	local apom_order_pre = {}
 	local part_injected, part_injected_patch
 	do
-		local y_apom_juggle = -10
+		local y_apom_juggle = -7
 		local inject_z = 0
 		local per_core_info = {}
 		local cray_groups = 4
@@ -277,6 +278,7 @@ local function build(height_order)
 				for i = #clone, 1, -1 do
 					apom_depth = apom_depth + apom_depth_at[clone[i].x]
 					clone[i].tmp = apom_depth
+					clone[i].tmp2 = clone[i].tmp2 - apom_depth
 					add_insl(clone[i].x, clone[i].y - clone[i].tmp2)
 					add_insl(clone[i].x, clone[i].y - clone[i].tmp2 - apom_depth - 1)
 				end
@@ -385,7 +387,7 @@ local function build(height_order)
 	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 11, life = 3 }, -1, 0, -1, -1) -- spark for the above; TODO: lsns_taboo
 	-- active head copier
 	part_injected(active_head_copier, 2, 5)
-	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 2, life = 3 }, 0, -1, -1, -1) -- spark for the above; TODO: lsns_taboo
+	lsns_spark   ({ type = pt.PSCN, x = -1, y = y_ldtc_dray_bank - 2, life = 3 }, -1, -1, -2, -1) -- spark for the above; TODO: lsns_taboo
 	-- active head placeholders
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 6 }), 7, 4, true, y_ldtc_dray_bank + 4)
 	part_injected(mutate(active_head_copier, { y = y_ldtc_dray_bank - 5 }), 8, 3, true, y_ldtc_dray_bank + 3)
