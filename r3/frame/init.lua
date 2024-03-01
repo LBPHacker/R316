@@ -163,13 +163,15 @@ local function build(height_order)
 				end
 			end
 		end
-		function lsns_spark(p, lxoff, lyoff, fxoff, fyoff)
+		function lsns_spark(p, x_l_off, y_l_off, x_f_off, y_f_off)
+			assert(p and x_l_off and y_l_off and x_f_off and y_f_off)
 			spark(p)
-			lsns({ x = p.x + lxoff, y = p.y + lyoff })
-			filt({ x = p.x + fxoff, y = p.y + fyoff }, p.life)
+			lsns({ x = p.x + x_l_off, y = p.y + y_l_off })
+			filt({ x = p.x + x_f_off, y = p.y + y_f_off }, p.life)
 		end
 	end
 	local function dray(x, y, x_to, y_to, count, conductor, z)
+		assert(x and y and x_to and y_to and count and conductor)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
 		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
@@ -181,6 +183,7 @@ local function build(height_order)
 		return q
 	end
 	local function ldtc(x, y, x_to, y_to, z)
+		assert(x and y and x_to and y_to)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
 		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
@@ -191,6 +194,7 @@ local function build(height_order)
 		return q
 	end
 	local function cray(x, y, x_to, y_to, ptype, count, conductor, z)
+		assert(x and y and x_to and y_to and ptype and count and conductor)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
 		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
@@ -202,6 +206,7 @@ local function build(height_order)
 		return q
 	end
 	local function aray(x, y, x_off, y_off, conductor, z)
+		assert(x and y and x_off and y_off and conductor)
 		local q = part({ type = pt.ARAY, x = x, y = y, z = z })
 		solid_spark(x, y, x_off, y_off, conductor)
 		return q
@@ -226,9 +231,9 @@ local function build(height_order)
 			local y_target = p.y
 			per_core(function(i, y)
 				if not skip_payload then
-					table.insert(per_core_info[i].cray_groups[1], cray(p.x, y, p.x, y_apom_juggle, pt.CRMC, 1, pt.PSCN, 1900)) -- the 1 gets patched in part_injected_patch
-					table.insert(per_core_info[i].cray_groups[2], cray(p.x, y, p.x, y_apom_juggle, pt.CRMC, 1, pt.PSCN, 1901)) -- the 1 gets patched in part_injected_patch
-					table.insert(per_core_info[i].cray_groups[3], cray(p.x, y, p.x, y_apom_juggle, pt.CRMC, 1, pt.PSCN, 1902)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[1], cray(p.x, y, p.x, y_apom_juggle, pt.BRCK, 1, pt.PSCN, 1900)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[2], cray(p.x, y, p.x, y_apom_juggle, pt.BRCK, 1, pt.PSCN, 1901)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[3], cray(p.x, y, p.x, y_apom_juggle, pt.BRCK, 1, pt.PSCN, 1902)) -- the 1 gets patched in part_injected_patch
 				end
 			end)
 			per_core(function(i, y)
@@ -239,7 +244,7 @@ local function build(height_order)
 					part(mutate(p, { y = y - 1 }))
 				end
 				if not skip_payload then
-					table.insert(per_core_info[i].cray_groups[4], cray(p.x, y, p.x, y_apom_juggle, pt.CRMC, 1, pt.PSCN, 2100)) -- the 1 gets patched in part_injected_patch
+					table.insert(per_core_info[i].cray_groups[4], cray(p.x, y, p.x, y_apom_juggle, pt.BRCK, 1, pt.PSCN, 2100)) -- the 1 gets patched in part_injected_patch
 				end
 				dray(p.x, y, p.x, p.y, 1, pt.PSCN, 3000 + inject_z)
 			end)
@@ -431,8 +436,8 @@ local function build(height_order)
 	-- float apom'd particles
 	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
-			part({ type = pt.CRMC, x = apom_order[j], y = y })
-			cray(-11 - height_order_up - width_order_up, y, apom_order[j], y, pt.CRMC, 1, pt.PSCN)
+			part({ type = pt.BRCK, x = apom_order[j], y = y })
+			cray(-11 - height_order_up - width_order_up, y, apom_order[j], y, pt.BRCK, 1, pt.PSCN)
 		end
 	end)
 	-- restore apom'd particles
@@ -440,18 +445,18 @@ local function build(height_order)
 	per_core(function(i, y)
 		for j = #apom_order, 1, -1 do
 			local x = apom_order[j]
-			cray(2, y + core_pitch, x, y + core_pitch, pt.CRMC, 1, pt.PSCN)
-			cray(x, y_restore + x % 2, x, y + core_pitch, pt.CRMC, 1, pt.PSCN)
-			cray(x, y_restore + x % 2, x, y             , pt.CRMC, 1, pt.PSCN)
+			cray(2, y + core_pitch, x, y + core_pitch, pt.BRCK, 1, pt.PSCN)
+			cray(x, y_restore + x % 2, x, y + core_pitch, pt.BRCK, 1, pt.PSCN)
+			cray(x, y_restore + x % 2, x, y             , pt.BRCK, 1, pt.PSCN)
 		end
 	end)
 
 	-- ram piston demuxer
 	for i = 1, height_order_2 do
-		part({ type = pt.CRMC, x = -2 - i, y = y_ldtc_dray_bank - 1 })
+		part({ type = pt.BRCK, x = -2 - i, y = y_ldtc_dray_bank - 1 })
 	end
 	for i = 1, width_order do
-		part({ type = pt.CRMC, x = -2 - i - height_order_2, y = y_ldtc_dray_bank + 3 })
+		part({ type = pt.BRCK, x = -2 - i - height_order_2, y = y_ldtc_dray_bank + 3 })
 	end
 	local x_stack = 1
 	local x_take_addr = -13 - height_order_up - width_order_up
@@ -633,6 +638,7 @@ local function build(height_order)
 	local function x_storage_slot(k)
 		return x_core + 2 + k
 	end
+	local x_sync_bit = x_storage_slot(86)
 	per_core(function(i, y)
 		for _, info in ipairs(vertical_inputs) do
 			if info.repeater then
@@ -640,12 +646,9 @@ local function build(height_order)
 				ldtc(x, y + 1, x, y - core_pitch + 3)
 			end
 		end
-		do -- sync bit
-			local x = x_storage_slot(86)
-			ldtc(x, y + 1, x, y - 1)
-			part({ type = pt.FILT, x = x, y = y - 1, ctype = 0x10000 + (i == core_count and 1 or 0) })
-			part({ type = pt.FILT, x = x, y = y + 2 })
-		end
+		ldtc(x_sync_bit, y + 1, x_sync_bit, y - 1) -- sync bit
+		part({ type = pt.FILT, x = x_sync_bit, y = y - 1, ctype = 0x10000 + (i == core_count and 1 or 0) })
+		part({ type = pt.FILT, x = x_sync_bit, y = y + 2 })
 		plot.merge_parts(x_core, y + 3, parts, core)
 	end)
 	for _, info in ipairs(vertical_inputs) do
@@ -730,7 +733,7 @@ local function build(height_order)
 		part({ type = pt.PSTN, x = x_stack, y = y_stack, tmp = 1000 }) -- relies on the extension length of the dummy pstn on top
 		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.PSTN, tmp = pt.SPRK })
 		for j = 0, regs - 1 do
-			part({ type = j == 0 and pt.CRMC or pt.DRAY, x = x_stack - 9 - regs + j, y = y_stack, tmp = 1, tmp2 = j * 2 + x_bank_dray - x_registers - 2 })
+			part({ type = j == 0 and pt.BRCK or pt.DRAY, x = x_stack - 9 - regs + j, y = y_stack, tmp = 1, tmp2 = j * 2 + x_bank_dray - x_registers - 2 })
 		end
 
 		part({ type = pt.PSTN, x = x_stack, y = y_stack }) -- stack top placeholder
@@ -763,9 +766,88 @@ local function build(height_order)
 	end)
 
 	do -- frame
+		local x1 = -15 - height_order_up - width_order_up
+		local x2 = width + 3
+		local y1 = y_filt_block - height
+		local y2 = y_call_sites + core_count * core_pitch + 4
+		local x_buttons = 80
+		local function button(p, x)
+			for yy = 0, 3 do
+				for xx = 0, 7 do
+					if not (yy == 0 and (xx == 0 or xx == 7)) then
+						part(mutate(p, { x = x + xx, y = y2 - 2 + yy }))
+					end
+				end
+			end
+		end
+		local x_button_start = x_buttons
+		local x_button_stop  = x_buttons + 11
+		local x_running      = x_buttons + 22
+		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_start)
+		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_stop )
+		button({ type = pt.LCRY, dcolour = 0xFF00FF00 }, x_running     )
+
+		do
+			local x_source = x_storage_slot(10)
+			local x_target = 105
+			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 7
+			ldtc(x_source, y_indicator - 1, x_source, y_indicator - 4)
+			part({ type = pt.FILT, x = x_source    , y = y_indicator })
+			part({ type = pt.STOR, x = x_source - 1, y = y_indicator })
+			part({ type = pt.FILT, x = x_source - 2, y = y_indicator, tmp = 1, ctype = 0x00000008 })
+			part({ type = pt.NSCN, x = x_source - 3, y = y_indicator })
+			part({ type = pt.INSL, x = x_source - 4, y = y_indicator })
+			aray(x_source + 1, y_indicator, 1, 0, pt.METL)
+
+			local sprk = cray(x_source - 8, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.INWR)
+			sprk.life = 3
+			dray(x_source - 5, y_indicator, x_target, y_indicator, 2, pt.PSCN)
+			cray(x_source - 5, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.PSCN)
+
+			cray(x_source + 4, y_indicator, x_source - 3, y_indicator, pt.PSCN, 1, pt.PSCN)
+			cray(x_source + 7, y_indicator, x_source - 3, y_indicator, pt.NSCN, 1, pt.METL)
+
+			part({ type = pt.INSL, x = x_target    , y = y_indicator })
+			part({ type = pt.INSL, x = x_target + 1, y = y_indicator })
+		end
+		do
+			local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
+			local x_source = 100
+			part({ type = pt.FILT, x = x_source, y = y_sync_bit, ctype = 0x00010001 })
+			ldtc(x_sync_bit - 1, y_sync_bit, x_source, y_sync_bit)
+
+			part({ type = pt.FILT, x = x_source, y = y_sync_bit + 8, ctype = 0x00010001 })
+			ldtc(x_source, y_sync_bit + 1, x_source, y_sync_bit + 8)
+
+			aray(x_source - 4, y_sync_bit + 6, -1, 0, pt.METL)
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010001 })
+			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
+			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 6 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00410001 })
+			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 7 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00810001 })
+			part({ type = pt.DTEC, x = x_source - 1, y = y_sync_bit + 8, tmp2 = 2 })
+
+			local function connect_button(x, y)
+				for xx = x, x_source - 4 do
+					part({ type = pt.STOR, x = xx, y = y })
+				end
+				part({ type = pt.ARAY, x = x - 1, y = y })
+				part({ type = pt.NSCN, x = x - 2, y = y })
+				for yy = y + 2, y_sync_bit + 10 do
+					part({ type = pt.INST, x = x - 1, y = yy })
+				end
+			end
+			connect_button(x_button_start, y_sync_bit + 7)
+			connect_button(x_button_stop, y_sync_bit + 8)
+		end
+
 		local parts_by_pos = {}
 		for _, part in ipairs(parts) do
 			parts_by_pos[xy_key(part.x, part.y)] = part
+			if not part.dcolour then
+				part.dcolour = 0xFF3F3F3F
+			end
 		end
 		for _, info in ipairs(vertical_inputs) do
 			local x = x_storage_slot(info.index)
@@ -775,13 +857,9 @@ local function build(height_order)
 		local function add_dmnd(x, y)
 			local key = xy_key(x, y)
 			if not parts_by_pos[key] then
-				parts_by_pos[key] = part({ type = pt.DMND, x = x, y = y })
+				parts_by_pos[key] = part({ type = pt.DMND, x = x, y = y, dcolour = 0xFFFFFFFF })
 			end
 		end
-		local x1 = -15 - height_order_up - width_order_up
-		local x2 = width + 3
-		local y1 = y_filt_block - height
-		local y2 = y_call_sites + core_count * core_pitch + 4
 		for x = x1, x2 do
 			add_dmnd(x, y1)
 			add_dmnd(x, y1 - 1)
