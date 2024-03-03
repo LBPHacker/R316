@@ -6,7 +6,7 @@ todo
 	ram control
 	halt gating
 
-F: update flags
+F: don't update flags
 O: operation
 R: destination register
 	though it's actually the source register in the case of ld
@@ -40,8 +40,15 @@ T: secondary source register
 
 i/o
 	address
+		bit 16: internal write
+		bit 17: external write
+		bit 18: internal read
+		bit 19: external read
 	data out
 	response
+		bit 0: wait
+		bit 3: override result
+			idk maybe this should be automatically set on external reads
 	data in
 
 flag layout in corestate: Cf Of Zf Sf

@@ -21,7 +21,14 @@ local function modulef(info)
 					end
 				end
 			end
-			local input_values = info.fuzz_inputs(params)
+			local input_values
+			do
+				local err
+				input_values, err = info.fuzz_inputs(params)
+				if not input_values then
+					return nil, ("failed to generate inputs: %s"):format(err)
+				end
+			end
 			for _, input_info in ipairs(info.inputs or {}) do
 				local set_value = input_values[input_info.name]
 				if input_info.never_zero then
@@ -36,17 +43,26 @@ local function modulef(info)
 				end
 				ctype_at(2 + input_info.index, -4, set_value)
 			end
-			local output_values = info.fuzz_outputs(input_values, params)
+			local output_values
+			do
+				local err
+				output_values, err = info.fuzz_outputs(input_values, params)
+				if not output_values then
+					return nil, ("failed to generate outputs: %s"):format(err)
+				end
+			end
 			for _, output_info in ipairs(info.outputs or {}) do
 				local expect_value = output_values[output_info.name]
-				if output_info.never_zero then
-					if expect_value == 0 then
-						return nil, ("output %s expected value %08X does not conform to +never_zero"):format(output_info.name, expect_value)
-					end
-				else
-					if bitx.band(expect_value, output_info.keepalive) ~= output_info.keepalive or
-					   bitx.band(expect_value, bitx.bor(output_info.keepalive, output_info.payload)) ~= expect_value then
-						return nil, ("output %s expected value %08X does not conform to keepalive/payload %08X/%08X"):format(output_info.name, expect_value, output_info.keepalive, output_info.payload)
+				if expect_value then
+					if output_info.never_zero then
+						if expect_value == 0 then
+							return nil, ("output %s expected value %08X does not conform to +never_zero"):format(output_info.name, expect_value)
+						end
+					else
+						if bitx.band(expect_value, output_info.keepalive) ~= output_info.keepalive or
+						   bitx.band(expect_value, bitx.bor(output_info.keepalive, output_info.payload)) ~= expect_value then
+							return nil, ("output %s expected value %08X does not conform to keepalive/payload %08X/%08X"):format(output_info.name, expect_value, output_info.keepalive, output_info.payload)
+						end
 					end
 				end
 			end
@@ -95,7 +111,7 @@ local function modulef(info)
 				assert(bitx.band(input_info.initial, expr.keepalive_) ~= 0)
 			end
 			if probes then
-				input_info.index = input_index * 2 - 1
+				-- input_info.index = input_index * 2 - 1
 				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -4, ctype = input_info.initial })
 				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + input_info.index, y = -2 })
 				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -1, ctype = input_info.initial })
@@ -105,7 +121,7 @@ local function modulef(info)
 		local named_outputs = instantiate(named_inputs, params)
 		for output_index, output_info in ipairs(info.outputs or {}) do
 			if probes then
-				output_info.index = output_index * 2 - 1
+				-- output_info.index = output_index * 2 - 1
 				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + output_info.index, y = 2 })
 				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + output_info.index, y = 3 })
 			end
@@ -143,12 +159,19 @@ local function modulef(info)
 		}
 	end
 	return {
-		design      = design,
-		instantiate = instantiate,
-		fuzz        = fuzz,
+		design       = design,
+		instantiate  = instantiate,
+		fuzz         = fuzz,
+		fuzz_outputs = info.fuzz_outputs,
 	}
+end
+
+local function any()
+	local v = bitx.bor(math.random(0x0000, 0xFFFF), bitx.lshift(math.random(0x0000, 0xFFFF), 16))
+	return v == 0 and 0x1F or v
 end
 
 return {
 	module = modulef,
+	any    = any,
 }

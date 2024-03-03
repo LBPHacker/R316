@@ -294,7 +294,7 @@ local function build(core_count, height_order)
 	-- block of filt
 	for y = 0, height - 1 do
 		for x = 0, width - 1 do
-			table.insert(parts, { type = pt.FILT, x = width - 1 - x, y = y_filt_block - y, ctype = 0xC0DE0000 + y * width + x })
+			table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - height + y + 1, ctype = 0xC0DE0000 + y * width + x })
 		end
 	end
 
@@ -351,8 +351,8 @@ local function build(core_count, height_order)
 		part({ type = pt.FILT, x = x_data_up, y = y + 4 })
 
 		local x_io_state = x_storage_slot(86)
-		ldtc(x_io_state, y + 7, x_io_state, y + 5)
-		part({ type = pt.FILT, x = x_io_state, y = y + 8 })
+		ldtc(x_io_state, y + 1, x_io_state, y - 1)
+		part({ type = pt.FILT, x = x_io_state, y = y + 2 })
 		part({ type = pt.FILT, x = x_io - 4, y = y - 2, ctype = 0x00000008 })
 		qs_io_state[4].tmp = 1
 		if i ~= 1 then
@@ -572,26 +572,31 @@ local function build(core_count, height_order)
 		part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = width_order + height_order_2    , tmp2 = 3, ctype = pt.SPRK })
 		part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = width_order + height_order_2 - 1, tmp2 = 3, ctype = pt.STOR })
 		change_conductor(pt.METL)
-		local function handle_bit(address_index, piston_bit, piston_index, last)
+		local function handle_bit(address_index, piston_bit, piston_index, last, invert)
 			part({ type = pt.LDTC, x = x_stack, y = y - 2, life = x_filt_bank - x_stack + filt_offsets[address_index] })
 			part({ type = pt.ARAY, x = x_stack, y = y - 2 })
 			part({ type = pt.LDTC, x = x_stack, y = y - 2, life = x_filt_bank - x_stack - 1 })
 			change_conductor(pt.PSCN)
+			local extend_if_set = piston_extend(bitx.lshift(1, piston_bit))
+			local extend_if_clear = piston_extend(0)
+			if invert then
+				extend_if_clear, extend_if_set = extend_if_set, extend_if_clear
+			end
 			if last then
-				part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
+				part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = extend_if_clear })
 			else
-				part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = 2, tmp2 = 2 + piston_index, ctype = pt.PSTN, temp = piston_extend(0) })
+				part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = 2, tmp2 = 2 + piston_index, ctype = pt.PSTN, temp = extend_if_clear })
 			end
 			change_conductor(pt.METL)
-			part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = piston_extend(bitx.lshift(1, piston_bit)) })
+			part({ type = pt.CRAY, x = x_stack, y = y - 2, tmp = 1, tmp2 = 3 + piston_index, ctype = pt.PSTN, temp = extend_if_set })
 		end
 		for i = 0, width_order - 1 do
-			handle_bit(i, i, width_order + height_order_2 - 1 - i, false)
+			handle_bit(i, i, width_order + height_order_2 - 1 - i, false, true)
 		end
 		for i = 0, height_order - 1 do
-			handle_bit(i + width_order, i + 1, height_order_2 - 1 - i, false)
+			handle_bit(i + width_order, i + 1, height_order_2 - 1 - i, false, true)
 		end
-		handle_bit(16, 0, 0, true)
+		handle_bit(16, 0, 0, true, false)
 
 		local pistons = width_order + height_order_2
 		cray(x_stack - 4 - pistons, y - 2, x_stack - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
@@ -885,9 +890,9 @@ local function build(core_count, height_order)
 			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00410001 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010003 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00810001 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010005 })
 			part({ type = pt.DTEC, x = x_source - 1, y = y_sync_bit + 8, tmp2 = 2 })
 
 			local function connect_button(x, y)
