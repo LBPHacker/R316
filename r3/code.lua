@@ -6,9 +6,7 @@ local testbed = require("r3.testbed")
 
 local function build(ram_size)
 	local image = {}
-	for i = 0, ram_size - 1 do
-		image[i] = bitx.band(testbed.any(), 0xFFF0FFFF)
-	end
+	image[0] = 0x0E2E0001
 	return image
 end
 

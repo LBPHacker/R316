@@ -608,7 +608,8 @@ local function build(core_count, height_order)
 		if i ~= 1 then
 			local fix_lsns_x = 119
 			part({ type = pt.INSL, x = fix_lsns_x - 1, y = y - 3 })
-			dray(fix_lsns_x, y - 3, x_stack, y - 3, 1, pt.PSCN)
+			dray(fix_lsns_x, y - 3, x_stack, y - 3, 1, pt.PSCN) -- fix lsns in S neighbour stack being confused by this filt
+			dray(fix_lsns_x, y - 3, -25, y - 3, 1, pt.PSCN) -- fix dtec in SW neighbour stack clobbering register 31
 		end
 	end)
 
@@ -665,6 +666,8 @@ local function build(core_count, height_order)
 		local y_reader = y + 2
 		ldtc(x_reader_storage - 1, y, x_reader_storage - core_pitch + 2, y - core_pitch + 3)
 		part({ type = pt.FILT, x = x_reader_storage, y = y + 1 }) -- conduit for the above
+		ldtc(x_reader_storage + 18, y, x_reader_storage - core_pitch + 21, y - core_pitch + 3)
+		part({ type = pt.FILT, x = x_reader_storage + 17, y = y + 1 }) -- conduit for the above
 		plot.merge_parts(x_reader, y + 2, parts, rread)
 		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
@@ -703,10 +706,10 @@ local function build(core_count, height_order)
 		})
 	end
 	vertical_input(10,  true, 0x1000000F)
-	vertical_input(12,  true, 0x1000FFFF)
 	vertical_input(14,  true, 0x1000FFFF)
 	vertical_input(16,  true, 0x1000000B)
 	vertical_input(29, false, 0x1000FFFF)
+	vertical_input(54,  true, 0x1000FFFF)
 	vertical_input(62, false, 0x1000001F)
 	vertical_input( 7, false, 0x2BADC0DE)
 	local x_sync_bit = x_storage_slot(83)
