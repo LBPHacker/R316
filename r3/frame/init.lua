@@ -5,7 +5,8 @@ local bitx = require("spaghetti.bitx")
 local plot = require("spaghetti.plot")
 
 local rread = require("r3.rread.generated")
-local core  = require("r3.core.generated")
+local core  = require("r3.core2.generated")
+local code  = require("r3.code")
 
 local function sig_magn(x)
 	local magn = math.abs(x)
@@ -292,9 +293,11 @@ local function build(core_count, height_order)
 	end
 
 	-- block of filt
+	local frame_code = code.build(width * height)
 	for y = 0, height - 1 do
 		for x = 0, width - 1 do
-			table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - height + y + 1, ctype = 0xC0DE0000 + y * width + x })
+			local addr = y * width + x
+			table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - height + y + 1, ctype = frame_code[addr] or 0 })
 		end
 	end
 
@@ -660,7 +663,8 @@ local function build(core_count, height_order)
 		local x_reader = 73
 		local x_reader_storage = x_reader + 2
 		local y_reader = y + 2
-		ldtc(x_reader_storage, y + 1, x_reader_storage - core_pitch + 2, y - core_pitch + 3)
+		ldtc(x_reader_storage - 1, y, x_reader_storage - core_pitch + 2, y - core_pitch + 3)
+		part({ type = pt.FILT, x = x_reader_storage, y = y + 1 }) -- conduit for the above
 		plot.merge_parts(x_reader, y + 2, parts, rread)
 		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
@@ -710,7 +714,8 @@ local function build(core_count, height_order)
 		for _, info in ipairs(vertical_inputs) do
 			if info.repeater then
 				local x = x_storage_slot(info.index)
-				ldtc(x, y + 1, x, y - core_pitch + 3)
+				ldtc(x, y, x, y - core_pitch + 3)
+				part({ type = pt.FILT, x = x, y = y + 1 })
 			end
 		end
 		ldtc(x_sync_bit, y + 1, x_sync_bit, y - 1) -- sync bit
@@ -800,7 +805,13 @@ local function build(core_count, height_order)
 		part({ type = pt.PSTN, x = x_stack, y = y_stack, tmp = 1000 }) -- relies on the extension length of the dummy pstn on top
 		part({ type = pt.CONV, x = x_stack, y = y_stack, ctype = pt.PSTN, tmp = pt.SPRK })
 		for j = 0, regs - 1 do
-			part({ type = j == 0 and pt.BRCK or pt.DRAY, x = x_stack - 9 - regs + j, y = y_stack, tmp = 1, tmp2 = j * 2 + x_bank_dray - x_registers - 2 })
+			local q = { type = pt.BRCK, x = x_stack - 9 - regs + j, y = y_stack }
+			if j ~= 0 then
+				q.type = pt.DRAY
+				q.tmp = 1
+				q.tmp2 = j * 2 + x_bank_dray - x_registers - 2
+			end
+			part(q)
 		end
 
 		part({ type = pt.PSTN, x = x_stack, y = y_stack }) -- stack top placeholder
@@ -890,9 +901,9 @@ local function build(core_count, height_order)
 			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010003 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010005 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010005 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010003 })
 			part({ type = pt.DTEC, x = x_source - 1, y = y_sync_bit + 8, tmp2 = 2 })
 
 			local function connect_button(x, y)
@@ -923,7 +934,15 @@ local function build(core_count, height_order)
 		end
 		local function add_dmnd(x, y)
 			local key = xy_key(x, y)
-			if not parts_by_pos[key] then
+			local q = parts_by_pos[key]
+			if q then
+				if q.type == pt.FILT  then
+					q.dcolour = 0xFF00FFFF
+				end
+				if q.type == pt.LDTC then
+					q.dcolour = 0xFF007F7F
+				end
+			else
 				parts_by_pos[key] = part({ type = pt.DMND, x = x, y = y, dcolour = 0xFFFFFFFF })
 			end
 		end
@@ -939,6 +958,22 @@ local function build(core_count, height_order)
 			add_dmnd(x2, y)
 			add_dmnd(x2 + 1, y)
 		end
+
+		local function filt_initial(x, y, value)
+			parts_by_pos[xy_key(x, y)].ctype = value
+		end
+		local y_top    = y_call_sites - 3
+		local y_bottom = y_call_sites + core_count * core_pitch - 3
+		filt_initial(x_storage_slot(10)    ,  y_bottom, 0x10000001) -- state -- TODO: half by default
+		filt_initial(x_storage_slot(29)    ,  y_bottom, 0x10000000) -- curr_instr
+		filt_initial(x_storage_slot(12)    ,  y_bottom, 0x10000000) -- curr_imm
+		filt_initial(x_storage_slot(14)    ,  y_bottom, 0x10000000) -- pc
+		filt_initial(x_storage_slot(16)    ,  y_bottom, 0x10000000) -- flags
+		filt_initial(x_storage_slot( 7)    ,  y_bottom, 0x10000000) -- wreg_data
+		filt_initial(x_storage_slot(62)    ,  y_bottom, 0x10000000) -- wreg_addr
+		filt_initial(x_storage_slot(86)    , y_top + 0, 0x10000000) -- ram_addr*
+		filt_initial(x_storage_slot(73) + 2, y_top + 1, 0x10000000) -- ram_data*
+		filt_initial(x_storage_slot(73) + 2, y_top + 2, 0x10000000) -- ram_data*
 	end
 
 	return parts

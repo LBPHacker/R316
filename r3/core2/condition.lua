@@ -26,6 +26,7 @@ return testbed.module({
 		{ name = "condition", index = 1, keepalive = 0x00010000, payload = 0x00000001 },
 	},
 	func = function(inputs)
+		local instr_not_jmp  = util.op_is_not_k(inputs.instr, 1)
 		local flag_c  = inputs.flags
 		local flag_o  = spaghetti.rshiftk(flag_c, 1)
 		local flag_z  = spaghetti.rshiftk(flag_o, 1)
@@ -55,7 +56,8 @@ return testbed.module({
 		flag_array = flag_array:bor(0x00010000):bxor(instr):never_zero()
 		instr = spaghetti.rshiftk(instr, 1)
 		local have_sync = inputs.sync_bit:bor(instr):assert(0x00310000, 0x000001FF)
-		flag_array = flag_array:band(have_sync):never_zero()
+		local have_sync_jmp = have_sync:bsub(instr_not_jmp:band(0x1000000F)):assert(0x00310000, 0x000001FF)
+		flag_array = flag_array:band(have_sync_jmp):never_zero()
 		return {
 			condition = flag_array:bor(0x00010000):band(0x00010001),
 		}
@@ -69,6 +71,7 @@ return testbed.module({
 	end,
 	fuzz_outputs = function(inputs)
 		local sync_bit         = bitx.band(inputs.sync_bit, 0x1) ~= 0
+		local op               = bitx.band(inputs.instr, 0x000F)
 		local flag_array_index = bitx.bxor(bitx.band(bitx.rshift(inputs.instr, 4), 7), 7)
 		local invert           = bitx.band(inputs.instr, 0x0080) ~= 0
 		local ignore_sync      = bitx.band(inputs.instr, 0x0100) ~= 0
@@ -95,6 +98,7 @@ return testbed.module({
 		if not ignore_sync then
 			flag_good = flag_good and sync_bit
 		end
+		flag_good = flag_good and op == 1
 		return {
 			condition = bitx.bor(0x00010000, flag_good and 1 or 0),
 		}

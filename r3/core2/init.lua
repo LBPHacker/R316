@@ -31,29 +31,29 @@ return testbed.module({
 	voids         = {    30, 31, 32,         59, 60, 61,                             75, 76, 77, 78         },
 	clobbers      = { 1,             57, 58,             62, 63, 65, 68, 70, 73, 74,                 79, 81 },
 	inputs = {
-		{ name = "pri_reg"    , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "sec_reg"    , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "ram"        , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "io_state"   , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000F },
-		{ name = "state"      , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000E },
-		{ name = "curr_instr" , index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
+		{ name = "state"      , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
 		{ name = "curr_imm"   , index = 12, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
-		{ name = "pc"         , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
+		{ name = "pc"         , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
 		{ name = "flags"      , index = 16, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000B },
+		{ name = "curr_instr" , index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
+		{ name = "pri_reg"    , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "ram"        , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "sec_reg"    , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sync_bit"   , index = 83, keepalive = 0x00010000, payload = 0x00000007,                    initial = 0x00010001 },
+		{ name = "io_state"   , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
 	},
 	outputs = {
+		-- { name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
+		{ name = "wreg_data" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: accept any value
 		{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F                    },
-		{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
 		{ name = "curr_imm"  , index = 12, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 		{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 		{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F                    },
-		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: control bits
+		{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
 		{ name = "wreg_addr" , index = 62, keepalive = 0x10000000, payload = 0x0000001F                    },
 		-- { name = "ram_data"  , index = 73, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
-		-- { name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "ram_data"  , index = 73, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: accept any value
-		{ name = "wreg_data" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: accept any value
+		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: control bits
 	},
 	func = function(inputs)
 		local high_half_pri_outputs = high_half.instantiate({

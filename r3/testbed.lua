@@ -9,6 +9,7 @@ local in_tpt = rawget(_G, "tpt") and true
 
 local function modulef(info)
 	local fuzz
+	local probe_length = info.probe_length or 1
 	if info.fuzz_inputs then
 		math.randomseed(os.time())
 		function fuzz(fuzz_expect, ctype_at, params)
@@ -16,7 +17,7 @@ local function modulef(info)
 			if fuzz_expect then
 				for _, output_info in ipairs(info.outputs or {}) do
 					local expect_value = fuzz_expect[output_info.name]
-					if expect_value ~= false and ctype_at(2 + output_info.index, 3) ~= expect_value then
+					if expect_value ~= false and ctype_at(2 + output_info.index, 2 + probe_length) ~= expect_value then
 						return nil, ("output %s expected to have value %08X"):format(output_info.name, expect_value)
 					end
 				end
@@ -41,7 +42,7 @@ local function modulef(info)
 						return nil, ("input %s test value %08X does not conform to keepalive/payload %08X/%08X"):format(input_info.name, set_value, input_info.keepalive, input_info.payload)
 					end
 				end
-				ctype_at(2 + input_info.index, -4, set_value)
+				ctype_at(2 + input_info.index, -probe_length - 3, set_value)
 			end
 			local output_values
 			do
@@ -112,9 +113,11 @@ local function modulef(info)
 			end
 			if probes then
 				-- input_info.index = input_index * 2 - 1
-				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -4, ctype = input_info.initial })
-				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + input_info.index, y = -2 })
-				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -1, ctype = input_info.initial })
+				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -probe_length - 3, ctype = input_info.initial })
+				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + input_info.index, y = -probe_length - 1 })
+				for i = 1, probe_length do
+					table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + input_info.index, y = -i, ctype = input_info.initial })
+				end
 			end
 			inputs[input_info.index] = expr
 		end
@@ -123,7 +126,9 @@ local function modulef(info)
 			if probes then
 				-- output_info.index = output_index * 2 - 1
 				table.insert(extra_parts, { type = plot.pt.LDTC, x = 2 + output_info.index, y = 2 })
-				table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + output_info.index, y = 3 })
+				for i = 1, probe_length do
+					table.insert(extra_parts, { type = plot.pt.FILT, x = 2 + output_info.index, y = 2 + i })
+				end
 			end
 			outputs[output_info.index] = named_outputs[output_info.name]
 		end
