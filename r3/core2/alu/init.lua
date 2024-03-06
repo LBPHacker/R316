@@ -55,11 +55,11 @@ return testbed.module({
 			res_or  = bitwise_outputs.res_or,  -- TODO: res_high = inputs.pri_high
 			res_shl = shifter_outputs.res_shl, -- TODO: res_high = inputs.pri_high
 			res_shr = shifter_outputs.res_shr, -- TODO: res_high = inputs.pri_high
-			res_ld  = inputs.sec,              -- TODO: res_high = inputs.instr
+			res_ld  = adder_outputs.res_add,   -- TODO: res_high = inputs.instr
 			res_exh = inputs.pri,              -- TODO: res_high = inputs.sec
 			res_mov = inputs.sec,              -- TODO: res_high = inputs.pri_high
 			res_jmp = inputs.pc_incr,          -- TODO: res_high = 0
-			res_st  = inputs.sec,              -- TODO: res_high = inputs.pri_high (and write_2 should probably use dest as both pri and sec)
+			res_st  = adder_outputs.res_add,   -- TODO: res_high = inputs.pri_high
 			res_hlt = inputs.sec,              -- TODO: res_high = inputs.pri_high
 			res_add = adder_outputs.res_add,   -- TODO: res_high = inputs.pri_high
 			instr   = inputs.instr,            -- TODO: res_high = inputs.pri_high
@@ -82,41 +82,48 @@ return testbed.module({
 		}
 	end,
 	fuzz_outputs = function(inputs)
-		-- local pri      = bitx.band(inputs.pri     , 0xFFFF)
-		-- local sec      = bitx.band(inputs.sec     , 0xFFFF)
-		-- local flags    = bitx.band(inputs.flags   , 0x000F)
-		-- local instr    = bitx.band(inputs.instr   , 0xFFFF)
-		-- local pc_incr  = bitx.band(inputs.pc_incr , 0xFFFF)
-		local adder_outputs = adder.fuzz_outputs({
+		local adder_outputs, err = adder.fuzz_outputs({
 			pri   = inputs.pri,
 			sec   = inputs.sec,
 			flags = inputs.flags,
 			instr = inputs.instr,
 		})
-		local bitwise_outputs = bitwise.fuzz_outputs({
+		if not adder_outputs then
+			return nil, "adder: " .. err
+		end
+		local bitwise_outputs, err = bitwise.fuzz_outputs({
 			pri = inputs.pri,
 			sec = inputs.sec,
 		})
-		local shifter_outputs = shifter.fuzz_outputs({
+		if not bitwise_outputs then
+			return nil, "bitwise: " .. err
+		end
+		local shifter_outputs, err = shifter.fuzz_outputs({
 			pri = inputs.pri,
 			sec = inputs.sec,
 		})
-		local mux_outputs = mux.fuzz_outputs({
+		if not shifter_outputs then
+			return nil, "shifter: " .. err
+		end
+		local mux_outputs, err = mux.fuzz_outputs({
 			res_xor = bitwise_outputs.res_xor,
 			res_clr = bitwise_outputs.res_clr,
 			res_and = bitwise_outputs.res_and,
 			res_or  = bitwise_outputs.res_or,
 			res_shl = shifter_outputs.res_shl,
 			res_shr = shifter_outputs.res_shr,
-			res_ld  = inputs.sec,
+			res_ld  = adder_outputs.res_add,
 			res_exh = inputs.pri,
 			res_mov = inputs.sec,
 			res_jmp = inputs.pc_incr,
-			res_st  = inputs.sec,
+			res_st  = adder_outputs.res_add,
 			res_hlt = inputs.sec,
 			res_add = adder_outputs.res_add,
 			instr   = inputs.instr,
 		})
+		if not mux_outputs then
+			return nil, "mux: " .. err
+		end
 		local flags_out = bitx.bor(mux_outputs.sign_zero, adder_outputs.overflow_carry)
 		return {
 			res      = mux_outputs.muxed,

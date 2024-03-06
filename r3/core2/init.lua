@@ -31,16 +31,16 @@ return testbed.module({
 	voids         = {    30, 31, 32,         59, 60, 61,                             75, 76, 77, 78         },
 	clobbers      = { 1,             57, 58,             62, 63, 65, 68, 70, 73, 74,                 79, 81 },
 	inputs = {
-		{ name = "state"      , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
-		{ name = "pc"         , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
-		{ name = "flags"      , index = 16, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000B },
-		{ name = "curr_instr" , index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
-		{ name = "curr_imm"   , index = 48, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
-		{ name = "pri_reg"    , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "ram"        , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "sec_reg"    , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "sync_bit"   , index = 83, keepalive = 0x00010000, payload = 0x00000007,                    initial = 0x00010001 },
-		{ name = "io_state"   , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
+		{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
+		{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
+		{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000B },
+		{ name = "curr_instr", index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
+		{ name = "curr_imm"  , index = 48, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
+		{ name = "pri_reg"   , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "ram"       , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "sec_reg"   , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "sync_bit"  , index = 83, keepalive = 0x00010000, payload = 0x00000007,                    initial = 0x00010001 },
+		{ name = "io_state"  , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
 	},
 	outputs = {
 		-- { name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
@@ -51,8 +51,7 @@ return testbed.module({
 		{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
 		{ name = "curr_imm"  , index = 54, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 		{ name = "wreg_addr" , index = 62, keepalive = 0x10000000, payload = 0x0000001F                    },
-		-- { name = "ram_data"  , index = 73, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
-		{ name = "ram_data"  , index = 73, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: accept any value
+		{ name = "ram_data"  , index = 73, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: control bits
 	},
 	func = function(inputs)
@@ -120,35 +119,35 @@ return testbed.module({
 			flags      = flags_sel_outputs.flags,
 			ram_addr   = pc_sel_outputs.pc, -- TODO: ram_addr_sel
 			wreg_addr  = wreg_addr_sel_outputs.wreg_addr,
-			ram_data   = alu_outputs.res:bor(inputs.io_state), -- TODO: unbullshit
+			ram_data   = inputs.pri_reg,
 			wreg_data  = alu_outputs.res:bor(inputs.io_state), -- TODO: unbullshit
 		}
 	end,
 	fuzz_inputs = function()
 		return {
-			pri_reg     = testbed.any(),
-			sec_reg     = testbed.any(),
-			ram         = testbed.any(),
-			io_state    = bitx.bor(0x10000000, math.random(0x0000, 0x000F)),
-			state       = bitx.bor(0x10000000, util.any_state()),
-			curr_instr  = bitx.bor(0x10000000, math.random(0x00000000, 0x0001FFFF)),
-			curr_imm    = bitx.bor(0x10000000, math.random(0x00000000, 0x0000FFFF)),
-			pc          = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			flags       = bitx.bor(0x10000000, math.random(0x0000, 0x000B)),
-			sync_bit    = bitx.bor(0x00010000, math.random(0x0000, 0x0007)),
+			pri_reg    = testbed.any(),
+			sec_reg    = testbed.any(),
+			ram        = testbed.any(),
+			io_state   = bitx.bor(0x10000000, math.random(0x0000, 0x000F)),
+			state      = bitx.bor(0x10000000, util.any_state()),
+			curr_instr = bitx.bor(0x10000000, math.random(0x00000000, 0x0001FFFF)),
+			curr_imm   = bitx.bor(0x10000000, math.random(0x00000000, 0x0000FFFF)),
+			pc         = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			flags      = bitx.bor(0x10000000, math.random(0x0000, 0x000B)),
+			sync_bit   = bitx.bor(0x00010000, math.random(0x0000, 0x0007)),
 		}
 	end,
 	fuzz_outputs = function(inputs)
 		return {
-			state       = false,
-			curr_instr  = false,
-			curr_imm    = false,
-			pc          = false,
-			flags       = false,
-			ram_addr    = false,
-			wreg_addr   = false,
-			ram_data    = false,
-			wreg_data   = false,
+			state      = false,
+			curr_instr = false,
+			curr_imm   = false,
+			pc         = false,
+			flags      = false,
+			ram_addr   = false,
+			wreg_addr  = false,
+			ram_data   = false,
+			wreg_data  = false,
 		}
 	end,
 })

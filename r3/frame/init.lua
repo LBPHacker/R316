@@ -894,19 +894,19 @@ local function build(core_count, height_order)
 		do
 			local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
 			local x_source = 100
-			part({ type = pt.FILT, x = x_source, y = y_sync_bit, ctype = 0x00010001 })
+			part({ type = pt.FILT, x = x_source, y = y_sync_bit, ctype = 0x00010000 })
 			ldtc(x_sync_bit - 1, y_sync_bit, x_source, y_sync_bit)
 
-			part({ type = pt.FILT, x = x_source, y = y_sync_bit + 8, ctype = 0x00010001 })
+			part({ type = pt.FILT, x = x_source, y = y_sync_bit + 8, ctype = 0x00010000 })
 			ldtc(x_source, y_sync_bit + 1, x_source, y_sync_bit + 8)
 
 			aray(x_source - 4, y_sync_bit + 6, -1, 0, pt.METL)
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010001 })
-			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010000 })
+			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010000 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010005 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010000 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010003 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010000 })
 			part({ type = pt.DTEC, x = x_source - 1, y = y_sync_bit + 8, tmp2 = 2 })
 
 			local function connect_button(x, y)
@@ -969,7 +969,7 @@ local function build(core_count, height_order)
 		local y_bottom = y_call_sites + core_count * core_pitch - 3
 		filt_initial(x_storage_slot(10)    ,  y_bottom, 0x10000001) -- state -- TODO: half by default
 		filt_initial(x_storage_slot(29)    ,  y_bottom, 0x10000000) -- curr_instr
-		filt_initial(x_storage_slot(12)    ,  y_bottom, 0x10000000) -- curr_imm
+		filt_initial(x_storage_slot(48)    ,  y_bottom, 0x10000000) -- curr_imm
 		filt_initial(x_storage_slot(14)    ,  y_bottom, 0x10000000) -- pc
 		filt_initial(x_storage_slot(16)    ,  y_bottom, 0x10000000) -- flags
 		filt_initial(x_storage_slot( 7)    ,  y_bottom, 0x10000000) -- wreg_data
