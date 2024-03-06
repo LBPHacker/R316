@@ -521,6 +521,7 @@ local function build(core_count, height_order)
 	end
 	local x_stack = 1
 	local x_take_addr = -13 - height_order_up - width_order_up
+	local reclaimed_voids = { 30, 31, 32, 59, 60, 61, 75 }
 	per_core(function(i, y)
 		for j = 0, height_order_2 - 1 do
 			local x = -3 - j
@@ -599,9 +600,12 @@ local function build(core_count, height_order)
 		cray(x_stack - 4 - pistons, y - 2, x_stack - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
 		cray(x_stack - 4 - pistons, y - 2, x_stack - 3 - pistons, y - 2, pt.INSL, pistons, pt.PSCN)
 
+		local fix_lsns_x = 119
+		part({ type = pt.BRCK, x = fix_lsns_x - 1, y = y + 3 })
+		for _, index in ipairs(reclaimed_voids) do
+			dray(fix_lsns_x, y + 3, x_storage_slot(index), y + 3, 1, pt.PSCN) -- reclaim voids
+		end
 		if i ~= 1 then
-			local fix_lsns_x = 119
-			part({ type = pt.INSL, x = fix_lsns_x - 1, y = y - 3 })
 			dray(fix_lsns_x, y - 3, x_stack, y - 3, 1, pt.PSCN) -- fix lsns in S neighbour stack being confused by this filt
 			dray(fix_lsns_x, y - 3, -25, y - 3, 1, pt.PSCN) -- fix dtec in SW neighbour stack clobbering register 31
 		end
@@ -893,19 +897,19 @@ local function build(core_count, height_order)
 		do
 			local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
 			local x_source = 100
-			part({ type = pt.FILT, x = x_source, y = y_sync_bit, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_source, y = y_sync_bit, ctype = 0x00010001 })
 			ldtc(x_sync_bit - 1, y_sync_bit, x_source, y_sync_bit)
 
-			part({ type = pt.FILT, x = x_source, y = y_sync_bit + 8, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_source, y = y_sync_bit + 8, ctype = 0x00010001 })
 			ldtc(x_source, y_sync_bit + 1, x_source, y_sync_bit + 8)
 
 			aray(x_source - 4, y_sync_bit + 6, -1, 0, pt.METL)
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010000 })
-			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010001 })
+			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010005 })
 			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010003 })
 			part({ type = pt.DTEC, x = x_source - 1, y = y_sync_bit + 8, tmp2 = 2 })
 
 			local function connect_button(x, y)
@@ -976,6 +980,13 @@ local function build(core_count, height_order)
 		filt_initial(x_storage_slot(86)    , y_top + 0, 0x10000000) -- ram_addr*
 		filt_initial(x_storage_slot(64) + 2, y_top + 1, 0x10000000) -- ram_data*
 		filt_initial(x_storage_slot(64) + 3, y_top + 2, 0x10000000) -- ram_data*
+
+		-- reclaim voids
+		per_core(function(i, y)
+			for _, index in ipairs(reclaimed_voids) do
+				parts_by_pos[xy_key(x_storage_slot(index), y + 3)].type = pt.BRCK
+			end
+		end)
 	end
 
 	return parts

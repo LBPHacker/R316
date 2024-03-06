@@ -18,18 +18,22 @@ local util          = require("r3.core2.util")
 
 return testbed.module({
 	opt_params = {
-		thread_count  = 1,
+		thread_count  = 1, -- fast
 		temp_initial  = 1,
 		temp_final    = 0.5,
 		temp_loss     = 1e-6,
 		round_length  = 10000,
+		-- thread_count  = 8, -- good
+		-- temp_initial  = 1,
+		-- temp_final    = 0.8,
+		-- temp_loss     = 1e-7,
+		-- round_length  = 40000,
 	},
 	stacks        = 1,
 	storage_slots = 86,
 	work_slots    = 32,
-	-- TODO: maybe reset these voids with dray instead to save space for constants
-	voids         = {    30, 31, 32,         59, 60, 61,                             75, 76, 77, 78         },
-	clobbers      = { 1,             57, 58,             62, 63, 65, 68, 70, 73, 74,                 79, 81 },
+	voids         = {                                                                    76, 77, 78         },
+	clobbers      = { 1, 30, 31, 32, 57, 58, 59, 60, 61, 62, 63, 65, 68, 70, 73, 74, 75,             79, 81 },
 	inputs = {
 		{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
 		{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
