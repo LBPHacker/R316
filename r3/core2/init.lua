@@ -51,7 +51,6 @@ return testbed.module({
 		{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
 		{ name = "curr_imm"  , index = 54, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 		{ name = "wreg_addr" , index = 62, keepalive = 0x10000000, payload = 0x0000001F                    },
-		{ name = "ram_data"  , index = 73, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: control bits
 	},
 	func = function(inputs)
@@ -119,7 +118,6 @@ return testbed.module({
 			flags      = flags_sel_outputs.flags,
 			ram_addr   = pc_sel_outputs.pc, -- TODO: ram_addr_sel
 			wreg_addr  = wreg_addr_sel_outputs.wreg_addr,
-			ram_data   = inputs.pri_reg,
 			wreg_data  = alu_outputs.res:bor(inputs.io_state), -- TODO: unbullshit
 		}
 	end,
@@ -146,7 +144,6 @@ return testbed.module({
 			flags      = false,
 			ram_addr   = false,
 			wreg_addr  = false,
-			ram_data   = false,
 			wreg_data  = false,
 		}
 	end,

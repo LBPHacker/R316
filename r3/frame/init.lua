@@ -333,6 +333,7 @@ local function build(core_count, height_order)
 	-- input and output
 	local x_ram_inject = -27
 	local x_io = 135
+	local x_ram_data_up = x_storage_slot(64)
 	per_core(function(i, y)
 		local function filt_line_to(x, y)
 			local qs = {}
@@ -349,9 +350,8 @@ local function build(core_count, height_order)
 		part({ type = pt.FILT, x = x_default_io, y = y - 1, ctype = 0x10000000 }) -- default io state
 		ldtc(x_io - 8, y - 1, x_default_io, y - 1)
 		ldtc(x_io - 1, y - 3, x_io - 4, y - 3)
-		local x_data_up = x_io - 18
-		ldtc(x_io - 1, y - 2, x_data_up, y - 2)
-		part({ type = pt.FILT, x = x_data_up, y = y + 4 })
+		ldtc(x_io - 1, y - 2, x_ram_data_up + 2, y - 2)
+		part({ type = pt.FILT, x = x_ram_data_up + 2, y = y + 4 })
 
 		local x_io_state = x_storage_slot(86)
 		ldtc(x_io_state, y + 1, x_io_state, y - 1)
@@ -465,14 +465,8 @@ local function build(core_count, height_order)
 		per_core(function(i, y)
 			part({ type = pt.FILT, x = x, y = y - 1 })
 			dray(x, y, x, y_ldtc_dray_bank + 2, 1, pt.PSCN)
-
-			local x_take_addr = 115
-			part({ type = pt.INSL, x = x_take_addr, y = y + 1 })
-			part({ type = pt.BRAY, x = x_take_addr, y = y + 2 })
-			aray(x_take_addr, y + 4, 0, 1, pt.METL)
-			part({ type = pt.DTEC, x = x_take_addr + 1, y = y + 4, tmp2 = 2 })
-			part({ type = pt.FILT, x = x_take_addr + 2, y = y + 5, tmp2 = 2 })
-			dray(x_take_addr + 3, y - 1, x, y - 1, 1, pt.PSCN)
+			part({ type = pt.FILT, x = x_ram_data_up + 3, y = y + 5, tmp2 = 2 })
+			dray(x_ram_data_up + 4, y - 1, x, y - 1, 1, pt.PSCN)
 		end)
 	end
 
@@ -649,14 +643,15 @@ local function build(core_count, height_order)
 
 	-- last core ram addr and data repeaters
 	do
-		local function repeater(x, y, initial, count)
+		local function repeater(x, y, count)
 			for j = 0, count - 1 do
-				part({ type = pt.FILT, x = x, y = y - j, ctype = initial })
+				part({ type = pt.FILT, x = x, y = y - j })
 			end
 			dray(x, y + core_pitch * core_count + 1, x, y, count, pt.PSCN)
 		end
-		repeater(117, y_call_sites - 1, 0xCAFEBABE, 2)
-		repeater(128, y_call_sites - 3, 0x10000000, 1)
+		repeater(x_ram_data_up + 2, y_call_sites - 2, 1)
+		repeater(x_ram_data_up + 3, y_call_sites - 1, 1)
+		repeater(x_storage_slot(86), y_call_sites - 3, 1)
 	end
 
 	-- register readers
@@ -764,8 +759,12 @@ local function build(core_count, height_order)
 		do
 			local seen = 0
 			function add_bit(k)
-				part({ type = pt.FILT, x = x_filt_bank + seen + 2, y = y_stack, ctype = bitx.lshift(1, k) })
-				filt_offsets[k] = seen
+				local x_seen = seen
+				if k == 2 then
+					x_seen = 6 -- so it doesn't get clobbered by the core's pri_reg input
+				end
+				part({ type = pt.FILT, x = x_filt_bank + x_seen + 2, y = y_stack, ctype = bitx.lshift(1, k) })
+				filt_offsets[k] = x_seen
 				seen = seen + 1
 			end
 		end
@@ -967,7 +966,7 @@ local function build(core_count, height_order)
 		end
 		local y_top    = y_call_sites - 3
 		local y_bottom = y_call_sites + core_count * core_pitch - 3
-		filt_initial(x_storage_slot(10)    ,  y_bottom, 0x10000001) -- state -- TODO: half by default
+		filt_initial(x_storage_slot(10)    ,  y_bottom, 0x10000001) -- state -- TODO: halt by default
 		filt_initial(x_storage_slot(29)    ,  y_bottom, 0x10000000) -- curr_instr
 		filt_initial(x_storage_slot(48)    ,  y_bottom, 0x10000000) -- curr_imm
 		filt_initial(x_storage_slot(14)    ,  y_bottom, 0x10000000) -- pc
@@ -975,8 +974,8 @@ local function build(core_count, height_order)
 		filt_initial(x_storage_slot( 7)    ,  y_bottom, 0x10000000) -- wreg_data
 		filt_initial(x_storage_slot(62)    ,  y_bottom, 0x10000000) -- wreg_addr
 		filt_initial(x_storage_slot(86)    , y_top + 0, 0x10000000) -- ram_addr*
-		filt_initial(x_storage_slot(73) + 2, y_top + 1, 0x10000000) -- ram_data*
-		filt_initial(x_storage_slot(73) + 2, y_top + 2, 0x10000000) -- ram_data*
+		filt_initial(x_storage_slot(64) + 2, y_top + 1, 0x10000000) -- ram_data*
+		filt_initial(x_storage_slot(64) + 3, y_top + 2, 0x10000000) -- ram_data*
 	end
 
 	return parts
