@@ -27,16 +27,39 @@ return testbed.module({
 		{ name = "overflow_carry", index = 3, keepalive = 0x10000000, payload = 0x00000003 },
 	},
 	func = function(inputs)
-		-- TODO: implement an actual adder
-		local pri = inputs.pri
-		local sec = inputs.sec
-		local dummy = inputs.flags:bor(inputs.instr):band(0x3FFF0000)
+		local lhs_ka = inputs.pri:bor(0x3FFF0000):assert(0x3FFF0000, 0x0000FFFF)
+		local rhs_ka = inputs.sec:bor(0x00010000):assert(0x10010000, 0x0000FFFF)
+		local instr_2 = spaghetti.rshiftk(inputs.instr, 1)
+		local rhs_ka_subtract = rhs_ka:bxor(0x3FFFFFFF):bxor(spaghetti.lshift(0x3FFFFFFF, instr_2:bor(0x10000):bsub(0xFFFE)))
+		local generate    = lhs_ka:band(rhs_ka_subtract):assert(0x10010000, 0x0000FFFF)
+		local propagate   = lhs_ka:bxor(rhs_ka_subtract):assert(0x2FFE0000, 0x0000FFFF)
+		local onebit_sums = lhs_ka:bxor(rhs_ka)         :assert(0x2FFE0000, 0x0000FFFF)
+		for i = 0, 3 do
+			local bit_i = bitx.lshift(1, i + 1)
+			local bit_i_m1 = bitx.lshift(1, i)
+			local generate_keepalive = bitx.band(bitx.bor(0x30000000, bitx.lshift(bitx.lshift(1, bit_i) - 1, 16)), 0x3FFFFFFF)
+			local propagate_fill     = bitx.lshift(1, bit_i_m1) - 1
+			generate  = generate:bor(propagate:band(spaghetti.lshiftk(generate, bit_i_m1))):assert(generate_keepalive, 0x0000FFFF)
+			propagate = propagate:band(spaghetti.lshiftk(propagate, bit_i_m1):bor(propagate_fill):bor(0x3FFF0000)):assert(0x2FFE0000, 0x0000FFFF)
+		end
+		generate:assert(0x3FFF0000, 0x0000FFFF)
+		propagate:assert(0x2FFE0000, 0x0000FFFF)
+		local generate_shifted      = spaghetti.lshiftk(generate, 1)                               :assert(0x3FFE0000, 0x0001FFFE)
+		local propagate_shifted     = spaghetti.lshiftk(propagate, 1):bor(spaghetti.constant(0, 1)):assert(0x1FFC0000, 0x0001FFFF)
+		local carry_in = inputs.flags:band(inputs.instr):bsub(0xFFFE)                              :assert(0x10000000, 0x00000001)
+		local propagate_conditional = propagate_shifted:band(spaghetti.lshift(0x3FFFFFFF, carry_in))
+		local carries    = generate_shifted:bor(propagate_conditional)                             :assert(0x3FFE0000, 0x0001FFFF)
+		local carries_15 = spaghetti.rshiftk(carries, 15)                                          :assert(0x00007FFC, 0x00000003)
+		local carry      = spaghetti.rshiftk(carries, 16)                   :bor(0x00010000):bsub(0xFFFE)
+		local overflow   = carries_15:bxor(carry)                           :bor(0x00010000):bsub(0xFFFE)
+		local overflow_carry = spaghetti.lshiftk(overflow, 1):bor(carry):bor(0x10000000):band(0x1000000F)
+		local sum            = onebit_sums:bxor(carries):band(0x1000FFFF)
 		return {
-			res_add        = pri:bor(sec),
-			overflow_carry = pri:bor(sec):bor(dummy):band(0x10000003),
+			res_add        = sum,
+			overflow_carry = overflow_carry,
 		}
 	end,
-	fuzz_inputs = function()
+	fuzz_inputs = function(inputs)
 		return {
 			pri   = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 			sec   = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
@@ -45,11 +68,31 @@ return testbed.module({
 		}
 	end,
 	fuzz_outputs = function(inputs)
-		local pri = bitx.band(inputs.pri, 0xFFFF)
-		local sec = bitx.band(inputs.sec, 0xFFFF)
+		local pri         = bitx.band(inputs.pri  , 0xFFFF)
+		local sec         = bitx.band(inputs.sec  , 0xFFFF)
+		local carry_in    = bitx.band(inputs.flags, 0x0001, inputs.instr)
+		local subtract_in = bitx.band(inputs.instr, 0x0002)
+		local function to_signed(value)
+			if value >= 0x8000 then
+				value = value - 0x10000
+			end
+			return value
+		end
+		local ssec = to_signed(sec)
+		local spri = to_signed(pri)
+		local sum, ssum
+		if subtract_in == 0 then -- yes, it's inverted
+			 sum =  sec - ( pri + carry_in)
+			ssum = ssec - (spri + carry_in)
+		else
+			 sum =  sec + ( pri + carry_in)
+			ssum = ssec + (spri + carry_in)
+		end
+		local carry_out    = ( sum <  0x0000 or  sum > 0xFFFF) and 1 or 0
+		local overflow_out = (ssum < -0x8000 or ssum > 0x7FFF) and 2 or 0
 		return {
-			res_add        = bitx.bor(0x10000000, bitx.bor(sec, pri)),
-			overflow_carry = bitx.bor(0x10000000, bitx.band(bitx.bor(sec, pri), 3)),
+			res_add        = bitx.bor(0x10000000, sum % 0x10000),
+			overflow_carry = bitx.bor(bitx.bor(0x10000000, carry_out), overflow_out),
 		}
 	end,
 })
