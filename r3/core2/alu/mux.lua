@@ -15,7 +15,7 @@ return testbed.module({
 	},
 	stacks        = 1,
 	storage_slots = 30,
-	work_slots    = 12,
+	work_slots    = 20,
 	inputs = {
 		{ name = "res_xor", index =  1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 		{ name = "res_clr", index =  3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
@@ -37,30 +37,31 @@ return testbed.module({
 		{ name = "sign_zero", index = 3, keepalive = 0x00050000, payload = 0x0000000C },
 	},
 	func = function(inputs)
-		local function select_op_bit(v0, v1, i)
-			local shifted = inputs.instr
-			if i ~= 0 then
-				shifted = spaghetti.rshiftk(shifted, i)
-			end
-			local select_mask = spaghetti.lshift(0x3FFFFFFF, shifted:bor(0x00010000):band(0x00010001))
-			return spaghetti.bxor(0x20000000, v0)
-				:bxor(v1)
-				:band(select_mask)
-				:bxor(v0)
-		end
-		local sel_01 = select_op_bit(inputs.res_mov, inputs.res_jmp, 0):assert(0x30000000, 0x0000FFFF)
-		local sel_23 = select_op_bit(inputs.res_ld , inputs.res_exh, 0):assert(0x30000000, 0x0000FFFF)
-		local sel_89 = select_op_bit(inputs.res_shl, inputs.res_shr, 0):assert(0x30000000, 0x0000FFFF)
-		local sel_AB = select_op_bit(inputs.res_st , inputs.res_hlt, 0):assert(0x30000000, 0x0000FFFF)
-		local sel_CD = select_op_bit(inputs.res_and, inputs.res_or , 0):assert(0x30000000, 0x0000FFFF)
-		local sel_EF = select_op_bit(inputs.res_xor, inputs.res_clr, 0):assert(0x30000000, 0x0000FFFF)
-		local sel_03 = select_op_bit(sel_01, sel_23, 1):assert(0x10000000, 0x0000FFFF)
+		local sel_01, sel_23, sel_89, sel_AB, sel_CD, sel_EF = spaghetti.select(
+			spaghetti.rshiftk(inputs.instr, 0):band(1):zeroable(),
+			inputs.res_jmp, inputs.res_mov,
+			inputs.res_exh, inputs.res_ld ,
+			inputs.res_shr, inputs.res_shl,
+			inputs.res_hlt, inputs.res_st ,
+			inputs.res_or , inputs.res_and,
+			inputs.res_clr, inputs.res_xor
+		)
+		local sel_03, sel_8B, sel_CF = spaghetti.select(
+			spaghetti.rshiftk(inputs.instr, 1):band(1):zeroable(),
+			sel_23, sel_01,
+			sel_AB, sel_89,
+			sel_EF, sel_CD
+		)
 		local sel_47 = inputs.res_add
-		local sel_8B = select_op_bit(sel_89, sel_AB, 1):assert(0x10000000, 0x0000FFFF)
-		local sel_CF = select_op_bit(sel_CD, sel_EF, 1):assert(0x10000000, 0x0000FFFF)
-		local sel_07 = select_op_bit(sel_03, sel_47, 2):assert(0x30000000, 0x0000FFFF)
-		local sel_8F = select_op_bit(sel_8B, sel_CF, 2):assert(0x30000000, 0x0000FFFF)
-		local muxed  = select_op_bit(sel_07, sel_8F, 3):assert(0x10000000, 0x0000FFFF)
+		local sel_07, sel_8F = spaghetti.select(
+			spaghetti.rshiftk(inputs.instr, 2):band(1):zeroable(),
+			sel_47, sel_03,
+			sel_CF, sel_8B
+		)
+		local muxed = spaghetti.select(
+			spaghetti.rshiftk(inputs.instr, 3):band(1):zeroable(),
+			sel_8F, sel_07
+		)
 		local zero      = spaghetti.rshift(0x10000000, muxed):never_zero()
 		                     :bor(0x00010000):band(0x00010001):assert(0x00010000, 0x00000001)
 		local sign      = spaghetti.rshiftk(muxed, 12):bsub(7):assert(0x00010000, 0x00000008)

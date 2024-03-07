@@ -869,9 +869,9 @@ local function build(core_count, height_order)
 		button({ type = pt.LCRY, dcolour = 0xFF00FF00 }, x_running     )
 
 		do
-			local x_source = x_storage_slot(10) - 3
-			local x_target = x_running + 8
-			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 9
+			local x_source = x_storage_slot(10)
+			local x_target = x_running + 3
+			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 7
 			ldtc(x_source, y_indicator - 1, x_source, y_call_sites + core_count * core_pitch - 3)
 			part({ type = pt.FILT, x = x_source    , y = y_indicator })
 			part({ type = pt.STOR, x = x_source - 1, y = y_indicator })
