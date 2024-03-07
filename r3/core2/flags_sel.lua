@@ -25,7 +25,7 @@ return testbed.module({
 		{ name = "flags", index = 1, keepalive = 0x10000000, payload = 0x0000000F },
 	},
 	func = function(inputs)
-		local keep_flags = spaghetti.rshiftk(inputs.instr, 15):bor(0x00010000):band(0x00010001)
+		local keep_flags = spaghetti.rshiftk(inputs.instr, 15):bor(0x00010000):band(0x00010001):bxor(1)
 		local sel_diff   = inputs.flags_new:bxor(inputs.flags_old)          :assert(0x00050000, 0x0000000F)
 		local sel_mask   = spaghetti.constant(0x3FFFFFFF):lshift(keep_flags):assert(0x3FFF0000, 0x0000FFFF)
 		local flags      = sel_diff:band(sel_mask):bxor(inputs.flags_new)   :assert(0x10000000, 0x0000000F)
@@ -41,7 +41,7 @@ return testbed.module({
 		}
 	end,
 	fuzz_outputs = function(inputs)
-		local keep_flags = bitx.band(inputs.instr, 0x8000) ~= 0
+		local keep_flags = bitx.band(inputs.instr, 0x8000) == 0
 		local flags_new  = bitx.band(inputs.flags_new, 0x000F)
 		local flags_old  = bitx.band(inputs.flags_old, 0x000F)
 		return {

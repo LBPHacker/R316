@@ -71,6 +71,7 @@ return testbed.module({
 			both_halves = inputs.ram,
 		})
 		local instr_sel_outputs = instr_sel.instantiate({
+			state      = inputs.state,
 			ram_instr  = high_half_ram_outputs.high_half,
 			ram_imm    = high_half_ram_outputs.low_half,
 			curr_instr = inputs.curr_instr,
