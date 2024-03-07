@@ -4,10 +4,10 @@ strict.wrap_env()
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
 local testbed   = require("r3.testbed")
-local adder     = require("r3.core2.alu.adder")
-local bitwise   = require("r3.core2.alu.bitwise")
-local shifter   = require("r3.core2.alu.shifter")
-local mux       = require("r3.core2.alu.mux")
+local adder     = require("r3.core.alu.adder")
+local bitwise   = require("r3.core.alu.bitwise")
+local shifter   = require("r3.core.alu.shifter")
+local mux       = require("r3.core.alu.mux")
 
 return testbed.module({
 	opt_params = {

@@ -5,7 +5,7 @@ local bitx = require("spaghetti.bitx")
 local plot = require("spaghetti.plot")
 
 local rread = require("r3.rread.generated")
-local core  = require("r3.core2.generated")
+local core  = require("r3.core.generated")
 local code  = require("r3.code")
 
 local function sig_magn(x)
