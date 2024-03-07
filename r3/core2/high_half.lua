@@ -27,7 +27,7 @@ return testbed.module({
 		local high_at_8 = spaghetti.rshiftk(inputs.both_halves:bor(0x100):bsub(0xFF), 8)
 		local high_at_0 = spaghetti.rshiftk(high_at_8:bor(0x30000000):bsub(0xFF), 8)
 		local high_half = high_at_0:bor(0x10000000):band(0x1000FFFF)
-		local low_half = inputs.both_halves:bor(0x10000000):band(0x1000FFFF)
+		local low_half  = inputs.both_halves:bor(0x10000000):band(0x1000FFFF)
 		return {
 			high_half = high_half,
 			low_half  = low_half,

@@ -24,6 +24,7 @@ local function build(core_count, height_order)
 	assert(width_order + height_order <= 16, "too many address bits")
 	local width = bitx.lshift(1, width_order)
 	local height = bitx.lshift(1, height_order)
+	local ram_mask = bitx.bor(0x20000000, width * height - 1)
 	local regs = bitx.lshift(1, regs_order)
 	local height_order_up = width_order
 	if height_order_up % 2 == 1 then
@@ -670,7 +671,7 @@ local function build(core_count, height_order)
 		plot.merge_parts(x_reader, y + 2, parts, rread)
 		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
-		part({ type = pt.INSL, x = x_reader + 53, y = y_reader })
+		part({ type = pt.INSL, x = x_reader + 52, y = y_reader })
 		part({ type = pt.DTEC, x = x_reader + 38, y = y_reader })
 		part({ type = pt.BRAY, x = x_reader + 37, y = y_reader })
 		part({ type = pt.FILT, x = x_reader + 36, y = y_reader })
@@ -697,21 +698,20 @@ local function build(core_count, height_order)
 
 	-- cores
 	local vertical_inputs = {}
-	local function vertical_input(index, repeater, initial)
+	local function vertical_input(index, repeater, y_source)
 		table.insert(vertical_inputs, {
 			index    = index,
 			repeater = repeater,
-			initial  = initial,
+			y_source = y_source,
 		})
 	end
-	vertical_input(10,  true, 0x1000000F)
-	vertical_input(14,  true, 0x1000FFFF)
-	vertical_input(16,  true, 0x1000000B)
-	vertical_input(29, false, 0x1000FFFF)
-	vertical_input(54,  true, 0x1000FFFF)
-	vertical_input(62, false, 0x1000001F)
-	vertical_input( 7, false, 0x2BADC0DE)
-	local x_sync_bit = x_storage_slot(83)
+	vertical_input(10,  true, 0)
+	vertical_input(14,  true, 0)
+	vertical_input(16,  true, 0)
+	vertical_input(29, false, 3)
+	vertical_input(54,  true, 3)
+	vertical_input(62, false, 0)
+	vertical_input( 7, false, 0)
 	per_core(function(i, y)
 		for _, info in ipairs(vertical_inputs) do
 			if info.repeater then
@@ -720,16 +720,13 @@ local function build(core_count, height_order)
 				part({ type = pt.FILT, x = x, y = y + 1 })
 			end
 		end
-		ldtc(x_sync_bit, y + 1, x_sync_bit, y - 1) -- sync bit
-		part({ type = pt.FILT, x = x_sync_bit, y = y - 1, ctype = 0x10000 + (i == core_count and 1 or 0) })
-		part({ type = pt.FILT, x = x_sync_bit, y = y + 2 })
 		plot.merge_parts(x_core, y + 3, parts, core)
 	end)
 	for _, info in ipairs(vertical_inputs) do
 		local x = x_storage_slot(info.index)
 		local y = y_call_sites - 3
 		part({ type = pt.FILT, x = x, y = y })
-		ldtc(x, y + 1, x, y + core_pitch * core_count)
+		ldtc(x, y + 1, x, y + core_pitch * core_count + info.y_source)
 	end
 
 	-- register writers
@@ -854,7 +851,7 @@ local function build(core_count, height_order)
 		local x2 = width + 6
 		local y1 = y_filt_block - height
 		local y2 = y_call_sites + core_count * core_pitch + 4
-		local x_buttons = 80
+		local x_buttons = 76
 		local function button(p, x)
 			for yy = 0, 3 do
 				for xx = 0, 7 do
@@ -864,18 +861,18 @@ local function build(core_count, height_order)
 				end
 			end
 		end
-		local x_button_start = x_buttons
-		local x_button_stop  = x_buttons + 11
+		local x_button_start = x_buttons - 14
+		local x_button_stop  = x_buttons -  3
 		local x_running      = x_buttons + 22
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_start)
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_stop )
 		button({ type = pt.LCRY, dcolour = 0xFF00FF00 }, x_running     )
 
 		do
-			local x_source = x_storage_slot(10)
-			local x_target = 105
-			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 7
-			ldtc(x_source, y_indicator - 1, x_source, y_indicator - 4)
+			local x_source = x_storage_slot(10) - 3
+			local x_target = x_running + 8
+			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 9
+			ldtc(x_source, y_indicator - 1, x_source, y_call_sites + core_count * core_pitch - 3)
 			part({ type = pt.FILT, x = x_source    , y = y_indicator })
 			part({ type = pt.STOR, x = x_source - 1, y = y_indicator })
 			part({ type = pt.FILT, x = x_source - 2, y = y_indicator, tmp = 1, ctype = 0x00000008 })
@@ -894,36 +891,72 @@ local function build(core_count, height_order)
 			part({ type = pt.INSL, x = x_target    , y = y_indicator })
 			part({ type = pt.INSL, x = x_target + 1, y = y_indicator })
 		end
+
+		local patch_filt_list = {}
+		local function patch_filt(x, y, ctype)
+			patch_filt_list[xy_key(x, y)] = ctype
+		end
+
+		local x_ram_mask = x_storage_slot(29)
+		local x_sync_bit = x_storage_slot(54)
 		do
 			local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
-			local x_source = 100
-			part({ type = pt.FILT, x = x_source, y = y_sync_bit, ctype = 0x00010001 })
-			ldtc(x_sync_bit - 1, y_sync_bit, x_source, y_sync_bit)
 
-			part({ type = pt.FILT, x = x_source, y = y_sync_bit + 8, ctype = 0x00010001 })
-			ldtc(x_source, y_sync_bit + 1, x_source, y_sync_bit + 8)
+			per_core(function(i, y)
+				if i == core_count then
+					dray(x_sync_bit - 5, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
+				else
+					dray(x_sync_bit, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
+				end
+				local value = i == core_count and 0x00010001 or 0x00010000
+				patch_filt(x_sync_bit, y + 3, value)
+			end)
 
-			aray(x_source - 4, y_sync_bit + 6, -1, 0, pt.METL)
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 6, ctype = 0x00010001 })
-			part({ type = pt.BRAY, x = x_source - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
-			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 7, ctype = 0x00010005 })
-			part({ type = pt.INSL, x = x_source - 1, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_source - 3, y = y_sync_bit + 8, ctype = 0x00010003 })
-			part({ type = pt.DTEC, x = x_source - 1, y = y_sync_bit + 8, tmp2 = 2 })
+			local x_dtec = x_sync_bit - 5
+			aray(x_dtec - 3, y_sync_bit + 6, -1, 0, pt.METL)
+			local y_source = y_call_sites + core_count * core_pitch
+			ldtc(x_sync_bit, y_source - 1, x_sync_bit, y_source - 3)
+			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
+			part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010001 })
+			part({ type = pt.INSL, x = x_dtec    , y = y_sync_bit + 6 })
+			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010005 })
+			part({ type = pt.INSL, x = x_dtec - 0, y = y_sync_bit + 7 })
+			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010003 })
+			part({ type = pt.DTEC, x = x_dtec    , y = y_sync_bit + 8, tmp2 = 2 })
+			part({ type = pt.FILT, x = x_dtec + 1, y = y_sync_bit + 8, ctype = 0x00010001 })
+
+			part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 7, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 8, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_sync_bit -  1, y = y_sync_bit + 8, ctype = 0x00010000 })
+			part({ type = pt.FILT, x = x_sync_bit - 23, y = y_sync_bit + 8, ctype = 0x00010000 })
+			ldtc(x_sync_bit - 2, y_sync_bit + 8, x_sync_bit - 4, y_sync_bit + 8)
 
 			local function connect_button(x, y)
-				for xx = x, x_source - 4 do
-					part({ type = pt.STOR, x = xx, y = y })
+				for xx = x, x_dtec - 3 do
+					if not ( xx == x_ram_mask or
+					        (xx == x_sync_bit and y == y_sync_bit + 8)) then
+						part({ type = pt.STOR, x = xx, y = y })
+					end
 				end
 				part({ type = pt.ARAY, x = x - 1, y = y })
 				part({ type = pt.NSCN, x = x - 2, y = y })
-				for yy = y + 2, y_sync_bit + 10 do
-					part({ type = pt.INST, x = x - 1, y = yy })
-				end
 			end
-			connect_button(x_button_start, y_sync_bit + 7)
-			connect_button(x_button_stop, y_sync_bit + 8)
+			connect_button(x_button_start + 3, y_sync_bit + 7)
+			connect_button(x_button_stop  + 3, y_sync_bit + 8)
+		end
+		-- ram mask
+		do
+			local y_source = y_call_sites + core_count * core_pitch
+			ldtc(x_ram_mask, y_source - 1, x_ram_mask, y_source - 3)
+			part({ type = pt.FILT, x = x_ram_mask    , y = y_source    , ctype = ram_mask })
+			part({ type = pt.FILT, x = x_ram_mask    , y = y_source + 1, ctype = ram_mask })
+			part({ type = pt.FILT, x = x_ram_mask - 1, y = y_source + 1, ctype = ram_mask })
+			part({ type = pt.FILT, x = x_ram_mask - 4, y = y_source + 1, ctype = ram_mask })
+			ldtc(x_ram_mask - 2, y_source + 1, x_ram_mask - 4, y_source + 1)
+			per_core(function(i, y)
+				dray(x_ram_mask, y_source + 2, x_ram_mask, y + 3, 1, pt.PSCN)
+				patch_filt(x_ram_mask, y + 3, ram_mask)
+			end)
 		end
 
 		local parts_by_pos = {}
@@ -932,11 +965,6 @@ local function build(core_count, height_order)
 			if not part.dcolour then
 				part.dcolour = 0xFF3F3F3F
 			end
-		end
-		for _, info in ipairs(vertical_inputs) do
-			local x = x_storage_slot(info.index)
-			local part = assert(parts_by_pos[xy_key(x, y_call_sites + core_pitch * core_count - 3)])
-			part.ctype = info.initial
 		end
 		local function add_dmnd(x, y)
 			local key = xy_key(x, y)
@@ -965,21 +993,21 @@ local function build(core_count, height_order)
 			add_dmnd(x2 + 1, y)
 		end
 
-		local function filt_initial(x, y, value)
-			parts_by_pos[xy_key(x, y)].ctype = value
-		end
 		local y_top    = y_call_sites - 3
 		local y_bottom = y_call_sites + core_count * core_pitch - 3
-		filt_initial(x_storage_slot(10)    ,  y_bottom, 0x10000001) -- state -- TODO: halt by default
-		filt_initial(x_storage_slot(29)    ,  y_bottom, 0x10000000) -- curr_instr
-		filt_initial(x_storage_slot(48)    ,  y_bottom, 0x10000000) -- curr_imm
-		filt_initial(x_storage_slot(14)    ,  y_bottom, 0x10000000) -- pc
-		filt_initial(x_storage_slot(16)    ,  y_bottom, 0x10000000) -- flags
-		filt_initial(x_storage_slot( 7)    ,  y_bottom, 0x10000000) -- wreg_data
-		filt_initial(x_storage_slot(62)    ,  y_bottom, 0x10000000) -- wreg_addr
-		filt_initial(x_storage_slot(86)    , y_top + 0, 0x10000000) -- ram_addr*
-		filt_initial(x_storage_slot(64) + 2, y_top + 1, 0x10000000) -- ram_data*
-		filt_initial(x_storage_slot(64) + 3, y_top + 2, 0x10000000) -- ram_data*
+		patch_filt(x_storage_slot(10)    ,     y_bottom, 0x10000001) -- state -- TODO: halt by default
+		patch_filt(x_storage_slot(29)    , y_bottom + 3, 0x10000000) -- curr_instr
+		patch_filt(x_storage_slot(54)    , y_bottom + 3, 0x10000000) -- curr_imm
+		patch_filt(x_storage_slot(14)    ,     y_bottom, 0x10000000) -- pc
+		patch_filt(x_storage_slot(16)    ,     y_bottom, 0x10000000) -- flags
+		patch_filt(x_storage_slot( 7)    ,     y_bottom, 0x10000000) -- wreg_data
+		patch_filt(x_storage_slot(62)    ,     y_bottom, 0x10000000) -- wreg_addr
+		patch_filt(x_storage_slot(86)    ,    y_top + 0, 0x10040000) -- ram_addr*
+		patch_filt(x_storage_slot(64) + 2,    y_top + 1, 0x10000000) -- ram_data*
+		patch_filt(x_storage_slot(64) + 3,    y_top + 2, 0x10000000) -- ram_data*
+		for key, ctype in pairs(patch_filt_list) do
+			parts_by_pos[key].ctype = ctype
+		end
 
 		-- reclaim voids
 		per_core(function(i, y)

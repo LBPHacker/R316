@@ -43,7 +43,10 @@ return testbed.module({
 				shifted = spaghetti.rshiftk(shifted, i)
 			end
 			local select_mask = spaghetti.lshift(0x3FFFFFFF, shifted:bor(0x00010000):band(0x00010001))
-			return spaghetti.bxor(0x20000000, v0):bxor(v1):band(select_mask):bxor(v0)
+			return spaghetti.bxor(0x20000000, v0)
+				:bxor(v1)
+				:band(select_mask)
+				:bxor(v0)
 		end
 		local sel_01 = select_op_bit(inputs.res_mov, inputs.res_jmp, 0):assert(0x30000000, 0x0000FFFF)
 		local sel_23 = select_op_bit(inputs.res_ld , inputs.res_exh, 0):assert(0x30000000, 0x0000FFFF)

@@ -24,9 +24,11 @@ return testbed.module({
 		{ name = "pri"     , index =  1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 		{ name = "pri_high", index =  3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 		{ name = "sec"     , index =  5, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "flags"   , index =  7, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x1000000B },
-		{ name = "instr"   , index =  9, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x30000000 },
-		{ name = "pc_incr" , index = 11, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		-- { name = "ram_high", index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 }, -- TODO: enable
+		{ name = "ram_low" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "flags"   , index =  9, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x1000000B },
+		{ name = "instr"   , index = 11, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x30000000 },
+		{ name = "pc_incr" , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 	},
 	outputs = {
 		{ name = "res"     , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
@@ -55,14 +57,14 @@ return testbed.module({
 			res_or  = bitwise_outputs.res_or,  -- TODO: res_high = inputs.pri_high
 			res_shl = shifter_outputs.res_shl, -- TODO: res_high = inputs.pri_high
 			res_shr = shifter_outputs.res_shr, -- TODO: res_high = inputs.pri_high
-			res_ld  = adder_outputs.res_add,   -- TODO: res_high = inputs.instr
-			res_exh = inputs.pri,              -- TODO: res_high = inputs.sec
 			res_mov = inputs.sec,              -- TODO: res_high = inputs.pri_high
-			res_jmp = inputs.pc_incr,          -- TODO: res_high = 0
+			res_ld  = adder_outputs.res_add,   -- TODO: res_high = inputs.pri_high
 			res_st  = adder_outputs.res_add,   -- TODO: res_high = inputs.pri_high
-			res_hlt = inputs.sec,              -- TODO: res_high = inputs.pri_high
 			res_add = adder_outputs.res_add,   -- TODO: res_high = inputs.pri_high
-			instr   = inputs.instr,            -- TODO: res_high = inputs.pri_high
+			res_jmp = inputs.pc_incr,          -- TODO: res_high = inputs.pri_high
+			res_exh = inputs.pri_high,         -- TODO: res_high = special: inputs.sec
+			res_hlt = inputs.ram_low,          -- TODO: res_high = special: inputs.ram_high
+			instr   = inputs.instr,
 		})
 		local flags = mux_outputs.sign_zero:bor(adder_outputs.overflow_carry):assert(0x10050000, 0x0000000F)
 		return {
@@ -76,6 +78,8 @@ return testbed.module({
 			pri      = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 			pri_high = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 			sec      = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			-- ram_high = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)), -- TODO: enable
+			ram_low  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 			flags    = bitx.bor(0x10000000, math.random(0x00000000, 0x0000000B)),
 			instr    = bitx.bor(0x30000000, math.random(0x00000000, 0x0001FFFF)),
 			pc_incr  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
@@ -112,13 +116,13 @@ return testbed.module({
 			res_or  = bitwise_outputs.res_or,
 			res_shl = shifter_outputs.res_shl,
 			res_shr = shifter_outputs.res_shr,
-			res_ld  = adder_outputs.res_add,
-			res_exh = inputs.pri,
 			res_mov = inputs.sec,
-			res_jmp = inputs.pc_incr,
+			res_ld  = adder_outputs.res_add,
 			res_st  = adder_outputs.res_add,
-			res_hlt = inputs.sec,
 			res_add = adder_outputs.res_add,
+			res_exh = inputs.pri_high,
+			res_jmp = inputs.pc_incr,
+			res_hlt = inputs.ram_low,
 			instr   = inputs.instr,
 		})
 		if not mux_outputs then
@@ -127,7 +131,7 @@ return testbed.module({
 		local flags_out = bitx.bor(mux_outputs.sign_zero, adder_outputs.overflow_carry)
 		return {
 			res      = mux_outputs.muxed,
-			res_high = inputs.pri_high,
+			res_high = inputs.pri_high, -- TODO: see above
 			flags    = flags_out,
 		}
 	end,

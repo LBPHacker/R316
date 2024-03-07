@@ -1,20 +1,22 @@
 local strict = require("spaghetti.strict")
 strict.wrap_env()
 
-local spaghetti     = require("spaghetti")
-local bitx          = require("spaghetti.bitx")
-local testbed       = require("r3.testbed")
-local alu           = require("r3.core2.alu")
-local condition     = require("r3.core2.condition")
-local flags_sel     = require("r3.core2.flags_sel")
-local high_half     = require("r3.core2.high_half")
-local instr_sel     = require("r3.core2.instr_sel")
-local pc_incr       = require("r3.core2.pc_incr")
-local pc_sel        = require("r3.core2.pc_sel")
-local sec_sel       = require("r3.core2.sec_sel")
-local state_next    = require("r3.core2.state_next")
-local wreg_addr_sel = require("r3.core2.wreg_addr_sel")
-local util          = require("r3.core2.util")
+local spaghetti      = require("spaghetti")
+local bitx           = require("spaghetti.bitx")
+local testbed        = require("r3.testbed")
+local alu            = require("r3.core2.alu")
+local condition      = require("r3.core2.condition")
+local flags_sel      = require("r3.core2.flags_sel")
+local high_half      = require("r3.core2.high_half")
+local instr_sel      = require("r3.core2.instr_sel")
+local pc_incr        = require("r3.core2.pc_incr")
+local pc_sel         = require("r3.core2.pc_sel")
+local sec_sel        = require("r3.core2.sec_sel")
+local state_next     = require("r3.core2.state_next")
+local wreg_addr_sel  = require("r3.core2.wreg_addr_sel")
+local curr_instr_sel = require("r3.core2.curr_instr_sel")
+local ram_addr_sel   = require("r3.core2.ram_addr_sel")
+local util           = require("r3.core2.util")
 
 return testbed.module({
 	opt_params = {
@@ -38,12 +40,13 @@ return testbed.module({
 		{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
 		{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
 		{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000B },
+		{ name = "ram_mask"  , index = 29, keepalive = 0x20000000, payload = 0x0000FFFF,                    initial = 0x20000000 },
 		{ name = "curr_instr", index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
 		{ name = "curr_imm"  , index = 48, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
 		{ name = "pri_reg"   , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "ram"       , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec_reg"   , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "sync_bit"  , index = 83, keepalive = 0x00010000, payload = 0x00000007,                    initial = 0x00010001 },
+		{ name = "sync_bit"  , index = 54, keepalive = 0x00010000, payload = 0x00000007,                    initial = 0x00010001 },
 		{ name = "io_state"  , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
 	},
 	outputs = {
@@ -55,7 +58,7 @@ return testbed.module({
 		{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
 		{ name = "curr_imm"  , index = 54, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 		{ name = "wreg_addr" , index = 62, keepalive = 0x10000000, payload = 0x0000001F                    },
-		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: control bits
+		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x000FFFFF                    },
 	},
 	func = function(inputs)
 		local high_half_pri_outputs = high_half.instantiate({
@@ -64,12 +67,12 @@ return testbed.module({
 		local high_half_sec_outputs = high_half.instantiate({
 			both_halves = inputs.sec_reg,
 		})
-		local high_half_instr_outputs = high_half.instantiate({
+		local high_half_ram_outputs = high_half.instantiate({
 			both_halves = inputs.ram,
 		})
 		local instr_sel_outputs = instr_sel.instantiate({
-			ram_instr  = high_half_instr_outputs.high_half,
-			ram_imm    = high_half_instr_outputs.low_half,
+			ram_instr  = high_half_ram_outputs.high_half,
+			ram_imm    = high_half_ram_outputs.low_half,
 			curr_instr = inputs.curr_instr,
 			curr_imm   = inputs.curr_imm,
 		})
@@ -95,6 +98,8 @@ return testbed.module({
 			pri      = high_half_pri_outputs.low_half,
 			pri_high = high_half_pri_outputs.high_half,
 			sec      = sec_sel_outputs.sec,
+			ram_high = high_half_ram_outputs.high_half, -- TODO: enable
+			ram_low  = high_half_ram_outputs.low_half,
 			flags    = inputs.flags,
 			instr    = instr_sel_outputs.instr,
 			pc_incr  = pc_incr_outputs.pc,
@@ -114,15 +119,30 @@ return testbed.module({
 		local wreg_addr_sel_outputs = wreg_addr_sel.instantiate({
 			instr = instr_sel_outputs.instr,
 		})
+		local curr_instr_sel_outputs = curr_instr_sel.instantiate({
+			ram_high = high_half_ram_outputs.high_half,
+			ram_low  = high_half_ram_outputs.low_half,
+			state    = inputs.state,
+			instr    = instr_sel_outputs.instr,
+			st_addr  = alu_outputs.res,
+		})
+		local ram_addr_sel_outputs = ram_addr_sel.instantiate({
+			state    = inputs.state,
+			instr    = instr_sel_outputs.instr,
+			pc       = pc_sel_outputs.pc,
+			ld_addr  = alu_outputs.res,
+			st_addr  = inputs.curr_imm,
+			ram_mask = inputs.ram_mask,
+		})
 		return {
 			state      = state_next_outputs.state,
-			curr_instr = instr_sel_outputs.instr:bxor(0x20000000), -- TODO: curr_instr_sel
-			curr_imm   = instr_sel_outputs.imm:bxor(0x20000000), -- TODO: curr_instr_sel
+			curr_instr = curr_instr_sel_outputs.curr_instr,
+			curr_imm   = curr_instr_sel_outputs.curr_imm,
 			pc         = pc_sel_outputs.pc,
 			flags      = flags_sel_outputs.flags,
-			ram_addr   = pc_sel_outputs.pc, -- TODO: ram_addr_sel
+			ram_addr   = ram_addr_sel_outputs.ram_addr,
 			wreg_addr  = wreg_addr_sel_outputs.wreg_addr,
-			wreg_data  = alu_outputs.res:bor(inputs.io_state), -- TODO: unbullshit
+			wreg_data  = alu_outputs.res:bor(inputs.io_state), -- TODO: unbullshit io_state, high half
 		}
 	end,
 	fuzz_inputs = function()

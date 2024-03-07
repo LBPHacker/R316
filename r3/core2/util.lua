@@ -14,6 +14,19 @@ local function any_state()
 	return valid_states[math.random(#valid_states)]
 end
 
+local function any_state_instr()
+	local state, instr
+	while true do
+		state = any_state()
+		instr = math.random(0x00000000, 0x0001FFFF)
+		local op = bitx.band(instr, 0x000F)
+		if not ((op == 2 or op == 10) and (state == 2 or state == 4)) then -- op is never ld or st in read_2 and write_2
+			break
+		end
+	end
+	return state, instr
+end
+
 local function any_sync_bit()
 	return math.random(0x00000000, 0x00000007)
 end
@@ -34,7 +47,8 @@ local function op_is_not_k(instr, k)
 end
 
 return {
-	op_is_not_k  = op_is_not_k,
-	any_state    = any_state,
-	any_sync_bit = any_sync_bit,
+	op_is_not_k     = op_is_not_k,
+	any_state       = any_state,
+	any_state_instr = any_state_instr,
+	any_sync_bit    = any_sync_bit,
 }

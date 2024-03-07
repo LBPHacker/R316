@@ -24,10 +24,10 @@ return testbed.module({
 		{ name = "wreg_addr", index = 1, keepalive = 0x10000000, payload = 0x0000001F },
 	},
 	func = function(inputs)
-		local addr = spaghetti.rshiftk(inputs.instr, 9):bor(0x10000000):band(0x1000001F)
-		local instr_not_st = util.op_is_not_k(inputs.instr, 10)
+		local addr           = spaghetti.rshiftk(inputs.instr, 9):bor(0x10000000):band(0x1000001F)
+		local instr_not_st   = util.op_is_not_k(inputs.instr, 10)
 		local st_addr_0_mask = spaghetti.constant(0x3FFFFFFF):lshift(instr_not_st:bor(0x20)):assert(0x3FFFFFE0, 0x0000001F)
-		local wreg_addr = addr:band(st_addr_0_mask)
+		local wreg_addr      = addr:band(st_addr_0_mask)
 		return {
 			wreg_addr = wreg_addr,
 		}
