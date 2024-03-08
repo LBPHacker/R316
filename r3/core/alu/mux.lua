@@ -4,6 +4,7 @@ strict.wrap_env()
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
 local testbed   = require("r3.testbed")
+local util      = require("r3.core.util")
 
 return testbed.module({
 	opt_params = {
@@ -14,27 +15,31 @@ return testbed.module({
 		round_length  = 10000,
 	},
 	stacks        = 1,
-	storage_slots = 30,
+	storage_slots = 40,
 	work_slots    = 20,
 	inputs = {
-		{ name = "res_xor", index =  1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_clr", index =  3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_and", index =  5, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_or" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_shl", index =  9, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_shr", index = 11, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_ld" , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_exh", index = 15, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_mov", index = 17, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_jmp", index = 19, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_st" , index = 21, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_hlt", index = 23, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_add", index = 25, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "instr"  , index = 27, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x10000000 },
+		{ name = "res_xor" , index =  1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_clr" , index =  3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_and" , index =  5, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_or"  , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_shl" , index =  9, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_shr" , index = 11, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_ld"  , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_exh" , index = 15, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_mov" , index = 17, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_jmp" , index = 19, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_st"  , index = 21, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_hlt" , index = 23, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_add" , index = 25, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "pri_high", index = 27, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "sec"     , index = 29, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "ram_high", index = 31, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "instr"   , index = 33, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x10000000 },
 	},
 	outputs = {
-		{ name = "muxed"    , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
-		{ name = "sign_zero", index = 3, keepalive = 0x00050000, payload = 0x0000000C },
+		{ name = "muxed"     , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "muxed_high", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "sign_zero" , index = 5, keepalive = 0x00050000, payload = 0x0000000C },
 	},
 	func = function(inputs)
 		local sel_01, sel_23, sel_89, sel_AB, sel_CD, sel_EF = spaghetti.select(
@@ -66,27 +71,35 @@ return testbed.module({
 		                     :bor(0x00010000):band(0x00010001):assert(0x00010000, 0x00000001)
 		local sign      = spaghetti.rshiftk(muxed, 12):bsub(7):assert(0x00010000, 0x00000008)
 		local sign_zero = spaghetti.lshiftk(zero, 2):bor(sign):assert(0x00050000, 0x0000000C)
+		local instr_not_exh  = util.op_is_not_k(inputs.instr,  3)
+		local instr_not_hlt  = util.op_is_not_k(inputs.instr, 11)
+		local muxed_high_hlt = spaghetti.select(instr_not_hlt:band(1):zeroable(), inputs.pri_high, inputs.ram_high)
+		local muxed_high     = spaghetti.select(instr_not_exh:band(1):zeroable(), muxed_high_hlt, inputs.sec)
 		return {
-			muxed     = muxed,
-			sign_zero = sign_zero,
+			muxed      = muxed,
+			muxed_high = muxed_high,
+			sign_zero  = sign_zero,
 		}
 	end,
 	fuzz_inputs = function()
 		return {
-			res_xor = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_clr = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_and = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_or  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_shl = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_shr = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_ld  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_exh = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_mov = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_jmp = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_st  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_hlt = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			res_add = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
-			instr   = bitx.bor(0x30000000, math.random(0x00000000, 0x0001FFFF)),
+			res_xor  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_clr  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_and  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_or   = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_shl  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_shr  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_ld   = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_exh  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_mov  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_jmp  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_st   = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_hlt  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			res_add  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			pri_high = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			sec      = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			ram_high = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
+			instr    = bitx.bor(0x30000000, math.random(0x00000000, 0x0001FFFF)),
 		}
 	end,
 	fuzz_outputs = function(inputs)
@@ -102,9 +115,16 @@ return testbed.module({
 			muxed == 0                    and 0x0004 or 0x0000,
 			bitx.band(muxed, 0x8000) ~= 0 and 0x0008 or 0x0000
 		)
+		local muxed_high = bitx.band(inputs.pri_high, 0xFFFF)
+		if op == 3 then
+			muxed_high = bitx.band(inputs.sec, 0xFFFF)
+		elseif op == 11 then
+			muxed_high = bitx.band(inputs.ram_high, 0xFFFF)
+		end
 		return {
-			muxed     = bitx.bor(0x10000000, muxed),
-			sign_zero = bitx.bor(0x00050000, sign_zero),
+			muxed      = bitx.bor(0x10000000, muxed),
+			muxed_high = bitx.bor(0x10000000, muxed_high),
+			sign_zero  = bitx.bor(0x00050000, sign_zero),
 		}
 	end,
 })

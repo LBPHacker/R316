@@ -13,7 +13,6 @@ local function modulef(info)
 	if info.fuzz_inputs then
 		math.randomseed(os.time())
 		function fuzz(fuzz_expect, ctype_at, params)
-			-- TODO: test inputs/outputs against keepalive/payload specification
 			if fuzz_expect then
 				for _, output_info in ipairs(info.outputs or {}) do
 					local expect_value = fuzz_expect[output_info.name]

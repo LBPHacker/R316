@@ -7,7 +7,8 @@ local testbed        = require("r3.testbed")
 local alu            = require("r3.core.alu")
 local condition      = require("r3.core.condition")
 local flags_sel      = require("r3.core.flags_sel")
-local high_half      = require("r3.core.high_half")
+local unstack_high   = require("r3.core.unstack_high")
+local stack_high     = require("r3.core.stack_high")
 local instr_sel      = require("r3.core.instr_sel")
 local pc_incr        = require("r3.core.pc_incr")
 local pc_sel         = require("r3.core.pc_sel")
@@ -28,7 +29,7 @@ return testbed.module({
 		-- thread_count  = 8, -- good
 		-- temp_initial  = 1,
 		-- temp_final    = 0.8,
-		-- temp_loss     = 1e-7,
+		-- temp_loss     = 1e-8,
 		-- round_length  = 40000,
 	},
 	stacks        = 1,
@@ -50,8 +51,7 @@ return testbed.module({
 		{ name = "io_state"  , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
 	},
 	outputs = {
-		-- { name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
-		{ name = "wreg_data" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF                    }, -- TODO: accept any value
+		{ name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F                    },
 		{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF                    },
 		{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F                    },
@@ -61,19 +61,19 @@ return testbed.module({
 		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x000FFFFF                    },
 	},
 	func = function(inputs)
-		local high_half_pri_outputs = high_half.instantiate({
+		local unstack_high_pri_outputs = unstack_high.instantiate({
 			both_halves = inputs.pri_reg,
 		})
-		local high_half_sec_outputs = high_half.instantiate({
+		local unstack_high_sec_outputs = unstack_high.instantiate({
 			both_halves = inputs.sec_reg,
 		})
-		local high_half_ram_outputs = high_half.instantiate({
+		local unstack_high_ram_outputs = unstack_high.instantiate({
 			both_halves = inputs.ram,
 		})
 		local instr_sel_outputs = instr_sel.instantiate({
 			state      = inputs.state,
-			ram_instr  = high_half_ram_outputs.high_half,
-			ram_imm    = high_half_ram_outputs.low_half,
+			ram_instr  = unstack_high_ram_outputs.high_half,
+			ram_imm    = unstack_high_ram_outputs.low_half,
 			curr_instr = inputs.curr_instr,
 			curr_imm   = inputs.curr_imm,
 		})
@@ -88,7 +88,7 @@ return testbed.module({
 		local sec_sel_outputs = sec_sel.instantiate({
 			instr   = instr_sel_outputs.instr,
 			imm     = instr_sel_outputs.imm,
-			sec_reg = high_half_sec_outputs.low_half,
+			sec_reg = unstack_high_sec_outputs.low_half,
 		})
 		local state_next_outputs = state_next.instantiate({
 			state    = inputs.state,
@@ -96,11 +96,11 @@ return testbed.module({
 			sync_bit = inputs.sync_bit,
 		})
 		local alu_outputs = alu.instantiate({
-			pri      = high_half_pri_outputs.low_half,
-			pri_high = high_half_pri_outputs.high_half,
+			pri      = unstack_high_pri_outputs.low_half,
+			pri_high = unstack_high_pri_outputs.high_half,
 			sec      = sec_sel_outputs.sec,
-			ram_high = high_half_ram_outputs.high_half, -- TODO: enable
-			ram_low  = high_half_ram_outputs.low_half,
+			ram_high = unstack_high_ram_outputs.high_half,
+			ram_low  = unstack_high_ram_outputs.low_half,
 			flags    = inputs.flags,
 			instr    = instr_sel_outputs.instr,
 			pc_incr  = pc_incr_outputs.pc,
@@ -121,8 +121,8 @@ return testbed.module({
 			instr = instr_sel_outputs.instr,
 		})
 		local curr_instr_sel_outputs = curr_instr_sel.instantiate({
-			ram_high = high_half_ram_outputs.high_half,
-			ram_low  = high_half_ram_outputs.low_half,
+			ram_high = unstack_high_ram_outputs.high_half,
+			ram_low  = unstack_high_ram_outputs.low_half,
 			state    = inputs.state,
 			instr    = instr_sel_outputs.instr,
 			st_addr  = alu_outputs.res,
@@ -135,15 +135,29 @@ return testbed.module({
 			st_addr  = inputs.curr_imm,
 			ram_mask = inputs.ram_mask,
 		})
+		local stack_high_outputs = stack_high.instantiate({
+			high_half = alu_outputs.res_high,
+			low_half  = alu_outputs.res,
+		})
+		local state, curr_instr, curr_imm, pc, flags, ram_addr, wreg_addr = spaghetti.select(
+			inputs.io_state:band(1):zeroable(),
+			inputs.state     , state_next_outputs.state,
+			inputs.curr_instr, curr_instr_sel_outputs.curr_instr,
+			inputs.curr_imm  , curr_instr_sel_outputs.curr_imm,
+			inputs.pc        , pc_sel_outputs.pc,
+			inputs.flags     , flags_sel_outputs.flags,
+			0x10000000       , ram_addr_sel_outputs.ram_addr,
+			0x10000000       , wreg_addr_sel_outputs.wreg_addr
+		)
 		return {
-			state      = state_next_outputs.state,
-			curr_instr = curr_instr_sel_outputs.curr_instr,
-			curr_imm   = curr_instr_sel_outputs.curr_imm,
-			pc         = pc_sel_outputs.pc,
-			flags      = flags_sel_outputs.flags,
-			ram_addr   = ram_addr_sel_outputs.ram_addr,
-			wreg_addr  = wreg_addr_sel_outputs.wreg_addr,
-			wreg_data  = alu_outputs.res:bor(inputs.io_state), -- TODO: unbullshit io_state, high half
+			state      = state,
+			curr_instr = curr_instr,
+			curr_imm   = curr_imm,
+			pc         = pc,
+			flags      = flags,
+			ram_addr   = ram_addr,
+			wreg_addr  = wreg_addr,
+			wreg_data  = stack_high_outputs.both_halves,
 		}
 	end,
 	fuzz_inputs = function()
