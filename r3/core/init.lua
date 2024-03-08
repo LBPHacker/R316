@@ -21,16 +21,13 @@ local util           = require("r3.core.util")
 
 return testbed.module({
 	opt_params = {
-		thread_count  = 1, -- fast
-		temp_initial  = 1,
-		temp_final    = 0.5,
-		temp_loss     = 1e-6,
-		round_length  = 10000,
-		-- thread_count  = 8, -- good
-		-- temp_initial  = 1,
-		-- temp_final    = 0.8,
-		-- temp_loss     = 1e-8,
-		-- round_length  = 40000,
+		thread_count        = 8,
+		round_length        = 10000,
+		rounds_per_exchange = 4,
+		schedule = {
+			durations    = { 100000, 200000, 600000,        },
+			temperatures = {     10,      2,      1,    0.5 },
+		},
 	},
 	stacks        = 1,
 	storage_slots = 86,

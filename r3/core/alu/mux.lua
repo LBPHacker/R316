@@ -43,7 +43,7 @@ return testbed.module({
 	},
 	func = function(inputs)
 		local sel_01, sel_23, sel_89, sel_AB, sel_CD, sel_EF = spaghetti.select(
-			spaghetti.rshiftk(inputs.instr, 0):band(1):zeroable(),
+			inputs.instr:band(1):zeroable(),
 			inputs.res_jmp, inputs.res_mov,
 			inputs.res_exh, inputs.res_ld ,
 			inputs.res_shr, inputs.res_shl,
@@ -52,19 +52,19 @@ return testbed.module({
 			inputs.res_clr, inputs.res_xor
 		)
 		local sel_03, sel_8B, sel_CF = spaghetti.select(
-			spaghetti.rshiftk(inputs.instr, 1):band(1):zeroable(),
+			inputs.instr:band(2):zeroable(),
 			sel_23, sel_01,
 			sel_AB, sel_89,
 			sel_EF, sel_CD
 		)
 		local sel_47 = inputs.res_add
 		local sel_07, sel_8F = spaghetti.select(
-			spaghetti.rshiftk(inputs.instr, 2):band(1):zeroable(),
+			inputs.instr:band(4):zeroable(),
 			sel_47, sel_03,
 			sel_CF, sel_8B
 		)
 		local muxed = spaghetti.select(
-			spaghetti.rshiftk(inputs.instr, 3):band(1):zeroable(),
+			inputs.instr:band(8):zeroable(),
 			sel_8F, sel_07
 		)
 		local zero      = spaghetti.rshift(0x10000000, muxed):never_zero()
