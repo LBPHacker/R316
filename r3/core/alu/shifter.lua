@@ -25,25 +25,20 @@ return testbed.module({
 		{ name = "res_shr", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
 	},
 	func = function(inputs)
-		local left  = inputs.pri
-		local right = inputs.pri
-		local amount = inputs.sec
-		local function apply_shifts(i)
+		local shift_total = spaghetti.constant(0x8000)
+		for i = 0, 3 do
 			local i22 = bitx.lshift(1, bitx.lshift(1, i))
-			local shift = spaghetti.rshiftk(amount, i):bxor(0x00010001):band(0x00010001):bor(i22)
-			shift:assert(bitx.bor(0x10000, i22), 1) -- lsb is one of: 1 << (1 << i), 0
-			right = right:rshift(shift):never_zero()
-			left  = left :lshift(shift):never_zero()
+			local shift = spaghetti.rshiftk(inputs.sec, i):bsub(0xFFFE):bor(i22)
+			shift_total = shift_total:rshift(shift):never_zero()
 		end
-		left = left:bor(0x00010000)
-		apply_shifts(3)
-		left = left:bor(0x00010000)
-		right = right:bor(0x10000000):band(0x1000FFFF)
-		apply_shifts(0)
-		apply_shifts(1)
-		apply_shifts(2)
-		right = right:bor(0x10000000):band(0x1000FFFF)
-		left  = left :bor(0x10000000):band(0x1000FFFF)
+		local keepalive_shifted = spaghetti.constant(0x10000000):rshift(shift_total):never_zero()
+		local right = inputs.pri:rshift(shift_total):never_zero()
+		                        :bxor(0x30000000)
+		                        :bxor(keepalive_shifted)
+		                        :bxor(0x20000000):force(0x10000000, 0x0000FFFF)
+		local left = inputs.pri:bor(keepalive_shifted)
+		                       :lshift(shift_total):never_zero()
+		                       :band(0x1000FFFF):force(0x10000000, 0x0000FFFF)
 		return {
 			res_shl = left,
 			res_shr = right,
