@@ -44,7 +44,7 @@ return testbed.module({
 		{ name = "pri_reg"   , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "ram"       , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec_reg"   , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "sync_bit"  , index = 54, keepalive = 0x00010000, payload = 0x00000007,                    initial = 0x00010001 },
+		{ name = "sync_bit"  , index = 54, keepalive = 0x00010000, payload = 0x00000019,                    initial = 0x00010001 },
 		{ name = "io_state"  , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
 	},
 	outputs = {
@@ -168,7 +168,7 @@ return testbed.module({
 			curr_imm   = bitx.bor(0x10000000, math.random(0x00000000, 0x0000FFFF)),
 			pc         = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 			flags      = bitx.bor(0x10000000, math.random(0x0000, 0x000B)),
-			sync_bit   = bitx.bor(0x00010000, math.random(0x0000, 0x0007)),
+			sync_bit   = bitx.bor(0x10000000, util.any_sync_bit()),
 		}
 	end,
 	fuzz_outputs = function(inputs)

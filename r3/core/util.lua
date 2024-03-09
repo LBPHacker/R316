@@ -28,7 +28,9 @@ local function any_state_instr()
 end
 
 local function any_sync_bit()
-	return math.random(0x00000000, 0x00000007)
+	return bitx.bor(bitx.lshift(math.random(0, 1), 3),
+	                bitx.lshift(math.random(0, 1), 4),
+	                            math.random(0, 1)    )
 end
 
 local function op_is_not_k(instr, k)

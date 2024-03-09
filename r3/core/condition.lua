@@ -19,7 +19,7 @@ return testbed.module({
 	work_slots    = 12,
 	inputs = {
 		{ name = "flags"   , index = 1, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000000 },
-		{ name = "sync_bit", index = 3, keepalive = 0x00010000, payload = 0x00000007, initial = 0x00010000 },
+		{ name = "sync_bit", index = 3, keepalive = 0x00010000, payload = 0x00000019, initial = 0x00010000 },
 		{ name = "instr"   , index = 5, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x30000000 },
 	},
 	outputs = {
