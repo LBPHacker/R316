@@ -30,17 +30,11 @@ return testbed.module({
 		{ name = "imm"  , index = 3, keepalive = 0x30000000, payload = 0x0000FFFF },
 	},
 	func = function(inputs)
-		local use_curr = spaghetti.rshiftk(inputs.curr_instr, 16):bor(0x00010000):band(0x00010001)
-		local sel_mask = spaghetti.constant(0x3FFFFFFF):lshift(use_curr):assert(0x3FFF0000, 0x0000FFFF)
-		local sel_instr_diff = inputs.ram_instr:bxor(0x20000000):bxor(inputs.curr_instr):assert(0x20000000, 0x0001FFFF)
-		local sel_imm_diff   = inputs.ram_imm  :bxor(0x20000000):bxor(inputs.curr_imm  ):assert(0x20000000, 0x0000FFFF)
-		local sel_instr      = sel_instr_diff:band(sel_mask):bxor(inputs.ram_instr)     :assert(0x30000000, 0x0001FFFF)
-		local sel_imm        = sel_imm_diff  :band(sel_mask):bxor(inputs.ram_imm  )     :assert(0x30000000, 0x0000FFFF)
-		local halt_shift     = spaghetti.rshiftk(inputs.state, 3):bsub(0xFFFE):bor(0x10000):bxor(1)
-		local sel_instr_hlt  = spaghetti.constant(0x3FFFFFFF):lshift(halt_shift):band(sel_instr)
+		local sel_instr, sel_imm = spaghetti.select(inputs.curr_instr:band(0x00010000):zeroable(), inputs.curr_instr, inputs.ram_instr, inputs.curr_imm, inputs.ram_imm)
+		local sel_instr_hlt = spaghetti.select(inputs.state:band(8):zeroable(), 0x10000000, sel_instr)
 		return {
-			instr = sel_instr_hlt,
-			imm   = sel_imm,
+			instr = sel_instr_hlt:bor(0x20000000), -- TODO: change from 30000000 to 10000000 everywhere
+			imm   = sel_imm:bor(0x20000000),
 		}
 	end,
 	fuzz_inputs = function()
@@ -56,7 +50,8 @@ return testbed.module({
 		local use_curr = bitx.band(inputs.curr_instr, 0x10000) ~= 0
 		local instr = use_curr and inputs.curr_instr or inputs.ram_instr
 		if bitx.band(inputs.state, 8) ~= 0 then
-			instr = bitx.band(instr, 0xFFFF0000)
+			-- instr = bitx.band(instr, 0xFFFF0000)
+			instr = 0x10000000
 		end
 		return {
 			instr = bitx.bor(0x20000000, instr),

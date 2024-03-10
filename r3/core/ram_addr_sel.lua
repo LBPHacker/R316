@@ -31,16 +31,14 @@ return testbed.module({
 	},
 	func = function(inputs)
 		local instr_not_ld        = util.op_is_not_k(inputs.instr, 2)
-		local rewrite_ld_sel_mask = spaghetti.constant(0x3FFFFFFF):lshift(instr_not_ld:bor(0x000010000))
-		local write_2             = spaghetti.rshiftk(inputs.state, 2):bsub(0xFFFE)              :assert(0x04000000, 0x00000001)
-		local rewrite_st_sel_mask = spaghetti.constant(0x3FFFFFFF):lshift(write_2:bor(0x00010000):assert(0x04010000, 0x00000001))
-		local addr_with_ld        = inputs.ld_addr:bxor(inputs.pc:bor(0x00010000)):band(rewrite_ld_sel_mask):bxor(inputs.ld_addr):assert(0x10010000, 0x0000FFFF)
-		local addr_with_ld_st     = addr_with_ld:bxor(inputs.st_addr):band(rewrite_st_sel_mask):bxor(addr_with_ld)               :assert(0x10000000, 0x0000FFFF)
+		local addr_with_ld    = spaghetti.select(instr_not_ld:band(1):zeroable(), inputs.pc, inputs.ld_addr)
+		local addr_with_ld_st, write_2 = spaghetti.select(inputs.state:band(4):zeroable(), inputs.st_addr, addr_with_ld, 1, 4)
+		write_2:never_zero()
 		local external_bits  = addr_with_ld_st:bsub(inputs.ram_mask):bor(0x00010000):assert(0x10010000, 0x0000FFFF)
 		local external_shift = spaghetti.constant(0x1000FFFF):rshift(external_bits):never_zero()
 		local external       = external_shift:bor(2):assert(0x00000002, 0x1FFFFFFD)
 		local control_rw = spaghetti.constant(2):rshift(external):never_zero()
-		local control    = control_rw:lshift(write_2:bor(4)):never_zero()
+		local control    = control_rw:lshift(write_2):never_zero()
 		local control_16 = spaghetti.lshiftk(control, 16):never_zero()
 		return {
 			ram_addr = addr_with_ld_st:bor(control_16),

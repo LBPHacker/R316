@@ -34,18 +34,16 @@ return testbed.module({
 		local instr_not_st = util.op_is_not_k(inputs.instr, 10)
 		local curr_instr_valid = spaghetti.rshiftk(inputs.state, 2):bor(instr_not_ld:band(instr_not_st):bxor(1)):assert(0x3E000000, 0x00010003)
 		local ld_instr         = inputs.instr:bxor(9)                           :assert(0x30000000, 0x0001FFFF) -- turns 2 (ld) into 11 (hlt)
-		local st_instr         = spaghetti.rshiftk(inputs.instr, 5):bsub(0xFE0F):assert(0x01800000, 0x000001F0)
+		local st_instr         = spaghetti.rshiftk(inputs.instr, 5):bsub(0xFE0F):bor(0x10000000):assert(0x11800000, 0x000001F0)
 		local st_imm           = inputs.st_addr:bor(0x00010000)
-		local ld_sel_mask      = spaghetti.constant(0x3FFFFFFF):lshift(instr_not_ld:bor(0x00010000))
-		local st_sel_mask      = spaghetti.constant(0x3FFFFFFF):lshift(instr_not_st:bor(0x00010000))
-		local curr_instr_ld    = ld_instr:bxor(inputs.ram_high):band(ld_sel_mask):bxor(ld_instr):assert(0x10000000, 0x0001FFFF)
-		local curr_instr_ld_st = st_instr:bxor(curr_instr_ld  ):band(st_sel_mask):bxor(st_instr):assert(0x10000000, 0x0001FFFF)
+		local curr_instr_ld    = spaghetti.select(instr_not_ld:band(1):zeroable(), inputs.ram_high, ld_instr):assert(0x10000000, 0x2001FFFF)
+		local curr_instr_ld_st, curr_imm = spaghetti.select(instr_not_st:band(1):zeroable(), curr_instr_ld  , st_instr, inputs.ram_low, st_imm)
+		curr_instr_ld_st:assert(0x10000000, 0x2181FFFF)
 		local curr_instr_valid_sane = spaghetti.lshiftk(curr_instr_valid:bsub(0xFFFE):bor(0x1000), 16):assert(0x10000000, 0x00010000)
-		local curr_instr            = curr_instr_ld_st:band(0x1000FFFF):bor(curr_instr_valid_sane)
-		local curr_imm              = st_imm:bxor(inputs.ram_low):band(st_sel_mask):bxor(st_imm)
+		local curr_instr       = curr_instr_ld_st:band(0x1000FFFF):bor(curr_instr_valid_sane)
 		return {
 			curr_instr = curr_instr,
-			curr_imm   = curr_imm,
+			curr_imm   = curr_imm:bsub(0x00010000),
 		}
 	end,
 	fuzz_inputs = function()

@@ -32,13 +32,9 @@ return testbed.module({
 		local state_1 = spaghetti.rshiftk(inputs.state, 1)
 		local state_2 = spaghetti.rshiftk(state_1     , 1)
 		local state_3 = spaghetti.rshiftk(state_2     , 1)
-		local keep_pc = state_1:bor(state_2):bor(state_3):bor(0x00010000):band(0x00010001)
-		local sel_1_diff = inputs.pc_incr:bxor(0x20000000):bxor(inputs.pc_jump)   :assert(0x20000000, 0x0000FFFF)
-		local sel_1_mask = spaghetti.constant(0x3FFFFFFF):lshift(inputs.condition):assert(0x3FFF0000, 0x0000FFFF)
-		local sel_1      = sel_1_diff:band(sel_1_mask):bxor(inputs.pc_incr)       :assert(0x30000000, 0x0000FFFF)
-		local sel_2_diff = sel_1:bxor(inputs.pc)                                  :assert(0x20000000, 0x0000FFFF)
-		local sel_2_mask = spaghetti.constant(0x3FFFFFFF):lshift(keep_pc)         :assert(0x3FFF0000, 0x0000FFFF)
-		local sel_2      = sel_2_diff:band(sel_2_mask):bxor(sel_1)                :assert(0x10000000, 0x0000FFFF)
+		local keep_pc = state_1:bor(state_2):bor(state_3)
+		local sel_1 = spaghetti.select(inputs.condition:band(1):zeroable(), inputs.pc_jump, inputs.pc_incr)
+		local sel_2 = spaghetti.select(keep_pc:band(1):zeroable(), inputs.pc, sel_1)
 		return {
 			pc = sel_2,
 		}
