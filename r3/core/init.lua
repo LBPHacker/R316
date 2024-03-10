@@ -24,10 +24,10 @@ return testbed.module({
 	opt_params = {
 		thread_count        = 8,
 		round_length        = 10000,
-		rounds_per_exchange = 4,
+		rounds_per_exchange = 10,
 		schedule = {
-			durations    = { 100000, 200000, 600000,        },
-			temperatures = {     10,      2,      1,    0.5 },
+			durations    = { 1000000, 2000000, 6000000,        },
+			temperatures = {      10,       2,       1,    0.5 },
 		},
 	},
 	stacks        = 1,
