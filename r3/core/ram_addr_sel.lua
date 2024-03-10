@@ -7,6 +7,7 @@ local testbed   = require("r3.testbed")
 local util      = require("r3.core.util")
 
 return testbed.module({
+	tag = "core.ram_addr_sel",
 	opt_params = {
 		thread_count  = 1,
 		temp_initial  = 1,

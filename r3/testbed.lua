@@ -1,11 +1,14 @@
 local strict = require("spaghetti.strict")
 strict.wrap_env()
 
-local spaghetti = require("spaghetti")
-local bitx      = require("spaghetti.bitx")
-local plot      = require("spaghetti.plot")
+local spaghetti   = require("spaghetti")
+local bitx        = require("spaghetti.bitx")
+local plot        = require("spaghetti.plot")
+local ordered_map = require("spaghetti.ordered_map")
+local build       = require("spaghetti.build")
 
 local in_tpt = rawget(_G, "tpt") and true
+local audited_pairs = pairs
 
 local function modulef(info)
 	local fuzz
@@ -69,6 +72,27 @@ local function modulef(info)
 			return output_values
 		end
 	end
+
+	local function add_tags(named_outputs, named_inputs)
+		local boundary = {}
+		for _, expr in audited_pairs(named_inputs) do
+			boundary[expr] = true
+		end
+		local initial = ordered_map.make_ordered_map()
+		for _, expr in audited_pairs(named_outputs) do
+			initial:add(expr)
+		end
+		build.hierarchy_up(initial, function(expr)
+			if boundary[expr] then
+				return false
+			end
+			if not expr.tag_ then
+				expr:tag(info.tag or false)
+			end
+			return true
+		end)
+	end
+
 	local function instantiate(named_inputs, params)
 		for _, input_info in ipairs(info.inputs or {}) do
 			local input = named_inputs[input_info.name]
@@ -80,6 +104,7 @@ local function modulef(info)
 			end
 		end
 		local named_outputs = info.func(named_inputs, params)
+		add_tags(named_outputs, named_inputs)
 		for _, output_info in ipairs(info.outputs or {}) do
 			local output = named_outputs[output_info.name]
 			if not (output_info.keepalive == false and output_info.payload == false) then
@@ -93,6 +118,7 @@ local function modulef(info)
 		end
 		return named_outputs
 	end
+
 	local function design(params)
 		local probes = true
 		if params and params.probes ~= nil then
@@ -162,6 +188,7 @@ local function modulef(info)
 			opt_params  = info.opt_params,
 		}
 	end
+
 	return {
 		design       = design,
 		instantiate  = instantiate,

@@ -10,6 +10,7 @@ local shifter   = require("r3.core.alu.shifter")
 local mux       = require("r3.core.alu.mux")
 
 return testbed.module({
+	tag = "core.alu",
 	opt_params = {
 		thread_count  = 1,
 		temp_initial  = 1,

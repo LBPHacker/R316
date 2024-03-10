@@ -6,6 +6,7 @@ local bitx      = require("spaghetti.bitx")
 local testbed   = require("r3.testbed")
 
 return testbed.module({
+	tag = "core.sec_sel",
 	opt_params = {
 		thread_count  = 1,
 		temp_initial  = 1,

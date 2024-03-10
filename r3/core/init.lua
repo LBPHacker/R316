@@ -20,6 +20,7 @@ local ram_addr_sel   = require("r3.core.ram_addr_sel")
 local util           = require("r3.core.util")
 
 return testbed.module({
+	tag = "core",
 	opt_params = {
 		thread_count        = 8,
 		round_length        = 10000,
