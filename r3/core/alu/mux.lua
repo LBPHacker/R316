@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("spaghetti.testbed")
 local util      = require("r3.core.util")
 
 return testbed.module({
@@ -14,33 +14,38 @@ return testbed.module({
 		temp_final    = 0.5,
 		temp_loss     = 1e-6,
 		round_length  = 10000,
+		seed          = { 0xDEADBEEF, 0xCAFEBABE },
 	},
 	stacks        = 1,
-	storage_slots = 40,
-	work_slots    = 20,
+	unclobbered = {  4,  6,  8, 10, 12,
+	                14, 16, 18, 20, 22,
+	                24, 26, 28, 30, 32,
+	                34, 36, 37, 38, 39, -43, -44 },
+	compute_operands = {  -3,  -5,  -7,  -9, -11, -13, -15, -17, -19, -21, -23, -25, -27, -29, -31, -33, -35, -37, -39, -41,  },
+	compute_results  = {  -4,  -6,  -8, -10, -12, -14, -16, -18, -20, -22, -24, -26, -28, -30, -32, -34, -36, -38, -40, -42,  },
 	inputs = {
-		{ name = "res_xor" , index =  1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_clr" , index =  3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_and" , index =  5, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_or"  , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_shl" , index =  9, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_shr" , index = 11, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_ld"  , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_exh" , index = 15, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_mov" , index = 17, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_jmp" , index = 19, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_st"  , index = 21, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_hlt" , index = 23, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "res_add" , index = 25, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "pri_high", index = 27, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "sec"     , index = 29, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "ram_high", index = 31, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "instr"   , index = 33, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x10000000 },
+		{ name = "res_xor" , index =  3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_clr" , index =  5, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_and" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_or"  , index =  9, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_shl" , index = 11, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_shr" , index = 13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_ld"  , index = 15, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_exh" , index = 17, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_mov" , index = 19, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_jmp" , index = 21, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_st"  , index = 23, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_hlt" , index = 25, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "res_add" , index = 27, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "pri_high", index = 29, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "sec"     , index = 31, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "ram_high", index = 33, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "instr"   , index = 35, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x10000000 },
 	},
 	outputs = {
-		{ name = "muxed"     , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
-		{ name = "muxed_high", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
-		{ name = "sign_zero" , index = 5, keepalive = 0x00050000, payload = 0x0000000C },
+		{ name = "muxed"     , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "muxed_high", index = 5, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "sign_zero" , index = 7, keepalive = 0x00050000, payload = 0x0000000C },
 	},
 	func = function(inputs)
 		local sel_01, sel_23, sel_89, sel_AB, sel_CD, sel_EF = spaghetti.select(

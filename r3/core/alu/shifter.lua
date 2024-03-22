@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("spaghetti.testbed")
 
 return testbed.module({
 	tag = "core.alu.shifter",
@@ -13,17 +13,20 @@ return testbed.module({
 		temp_final    = 0.5,
 		temp_loss     = 1e-6,
 		round_length  = 10000,
+		seed          = { 0xDEADBEEF, 0xCAFEBABE },
 	},
 	stacks        = 1,
-	storage_slots = 30,
-	work_slots    = 12,
+	unclobbered = {  11, 12,  13,  14,  15,  16,  17, 22, 23, 24, 25, 26, 27,
+	                -12, -14, -15, -16, -17, -22, -23, -24, -25, -26, -27 },
+	compute_operands = { 3, 5, 7,  9, 18, 20, -3, -5, -8, -10, -18, -20 },
+	compute_results  = { 4, 6, 8, 10, 19, 21, -4, -6, -9, -11, -19, -21 },
 	inputs = {
-		{ name = "pri", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "sec", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "pri", index = -7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "sec", index = -13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 	},
 	outputs = {
-		{ name = "res_shl", index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
-		{ name = "res_shr", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "res_shl", index = 11, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "res_shr", index = 13, keepalive = 0x10000000, payload = 0x0000FFFF },
 	},
 	func = function(inputs)
 		local shift_total = spaghetti.constant(0x8000)

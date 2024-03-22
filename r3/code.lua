@@ -2,7 +2,7 @@ local strict = require("spaghetti.strict")
 strict.wrap_env()
 
 local bitx    = require("spaghetti.bitx")
-local testbed = require("r3.testbed")
+local testbed = require("spaghetti.testbed")
 
 local function build(ram_size)
 	local image = {

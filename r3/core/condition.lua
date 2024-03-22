@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("spaghetti.testbed")
 local util      = require("r3.core.util")
 
 return testbed.module({
@@ -12,7 +12,7 @@ return testbed.module({
 		thread_count  = 1,
 		temp_initial  = 1,
 		temp_final    = 0.5,
-		temp_loss     = 1e-7,
+		temp_loss     = 1e-6,
 		round_length  = 10000,
 	},
 	stacks        = 1,

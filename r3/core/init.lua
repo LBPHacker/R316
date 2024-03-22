@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti      = require("spaghetti")
 local bitx           = require("spaghetti.bitx")
-local testbed        = require("r3.testbed")
+local testbed        = require("spaghetti.testbed")
 local alu            = require("r3.core.alu")
 local condition      = require("r3.core.condition")
 local flags_sel      = require("r3.core.flags_sel")

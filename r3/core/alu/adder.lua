@@ -3,7 +3,7 @@ strict.wrap_env()
 
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
-local testbed   = require("r3.testbed")
+local testbed   = require("spaghetti.testbed")
 
 return testbed.module({
 	tag = "core.alu.adder",
@@ -12,20 +12,23 @@ return testbed.module({
 		temp_initial  = 1,
 		temp_final    = 0.5,
 		temp_loss     = 1e-6,
-		round_length  = 10000,
+		seed          = { 0xDEADBEEF, 0xCAFEBABE },
 	},
 	stacks        = 1,
-	storage_slots = 30,
-	work_slots    = 12,
+	probe_length  = 3,
+	unclobbered = {  11, 12,  13,  14,  15,  16,  17, 22, 23, 24, 25, 26, 27,
+	                -12, -14, -15, -16, -17, -22, -23, -24, -25, -26, -27 },
+	compute_operands = { 3, 7,  9, 18, 20, -3, -5, -8, -10, -18, -20, -28, -30, -32, -34, -36 },
+	compute_results  = { 4, 8, 10, 19, 21, -4, -6, -9, -11, -19, -21, -29, -31, -33, -35, -37 },
 	inputs = {
-		{ name = "pri"  , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "sec"  , index = 3, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-		{ name = "flags", index = 5, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x1000000B },
-		{ name = "instr", index = 7, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x30000000 },
+		{ name = "pri"  , index =   6, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "sec"  , index = -13, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
+		{ name = "flags", index =   5, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x1000000B },
+		{ name = "instr", index =  -7, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x30000000 },
 	},
 	outputs = {
-		{ name = "res_add"       , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
-		{ name = "overflow_carry", index = 3, keepalive = 0x10000000, payload = 0x00000003 },
+		{ name = "res_add"       , index = 11, keepalive = 0x10000000, payload = 0x0000FFFF },
+		{ name = "overflow_carry", index = 13, keepalive = 0x10000000, payload = 0x00000003 },
 	},
 	func = function(inputs)
 		local lhs_ka = inputs.pri:bor(0x3FFF0000):assert(0x3FFF0000, 0x0000FFFF)
