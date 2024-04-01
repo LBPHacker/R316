@@ -903,12 +903,12 @@ local function build(core_count, height_order, machine_id)
 			end
 		end
 		local x_button_reset = x_buttons - 25
-		local x_button_start = x_buttons - 14
-		local x_button_stop  = x_buttons -  3
+		local x_button_stop  = x_buttons - 14
+		local x_button_start = x_buttons -  3
 		local x_running      = x_buttons + 22
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_reset)
-		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_start)
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_stop )
+		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_start)
 		button({ type = pt.LCRY, dcolour = 0xFF00FF00 }, x_running     )
 
 		do
@@ -973,9 +973,9 @@ local function build(core_count, height_order, machine_id)
 			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010001 })
 			part({ type = pt.INSL, x = x_dtec    , y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010009 })
+			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010011 })
 			part({ type = pt.INSL, x = x_dtec - 0, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010011 })
+			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010009 })
 			part({ type = pt.DTEC, x = x_dtec    , y = y_sync_bit + 8, tmp2 = 2 })
 			part({ type = pt.FILT, x = x_dtec + 1, y = y_sync_bit + 8, ctype = 0x00010001 })
 
@@ -995,8 +995,8 @@ local function build(core_count, height_order, machine_id)
 				part({ type = pt.ARAY, x = x - 1, y = y })
 				part({ type = pt.NSCN, x = x - 2, y = y })
 			end
-			connect_button(x_button_start + 5, y_sync_bit + 7)
-			connect_button(x_button_stop  + 5, y_sync_bit + 8)
+			connect_button(x_button_stop  + 5, y_sync_bit + 7)
+			connect_button(x_button_start + 5, y_sync_bit + 8)
 		end
 		-- ram mask
 		do
