@@ -255,6 +255,9 @@ local function advance_state(state, sync_bit, io_state_in, io_data_in)
 	end
 	next_state.cinstr_high = bitx.bor(0x10000000, cinstr_mask, next_state.cinstr_high)
 	next_state.cinstr_low = bitx.bor(0x10000000, next_state.cinstr_low)
+	if next_state.state == 0x10000001 and bitx.band(sync_bit, 0x10) ~= 0 then
+		next_state.state = 0x10000008
+	end
 	if bitx.band(io_state_in, 1) ~= 0 then
 		next_state.memory      = state.memory
 		next_state.registers   = state.registers
@@ -348,8 +351,8 @@ local function any32()
 	return lo + hi * 0x10000
 end
 
-local function start()
-	sim_value(sim.partID(cx + 55, cy - 6), 0x10009)
+local function start(sync_bit)
+	sim_value(sim.partID(cx + 55, cy - 6), sync_bit)
 end
 
 local function do_input()
@@ -472,6 +475,10 @@ local aftersim = xpcall_wrap(function()
 			expect_io_data_out = expected.mem_data
 		end
 		sync_bit = 0x10001
+		if math.random() < 0.001 then
+			sync_bit = bitx.bor(sync_bit, 0x10)
+		end
+		start(sync_bit)
 		if ok then
 			ok, err = compare_states(expected, state)
 		end
@@ -488,8 +495,8 @@ local aftersim = xpcall_wrap(function()
 			start_delay = start_delay - 1
 			if start_delay == 0 then
 				start_delay = nil
-				start()
-				sync_bit = 0x10009
+				sync_bit = bitx.bor(sync_bit, 8)
+				start(sync_bit)
 			end
 		end
 		do_input()
@@ -539,7 +546,7 @@ local tick = xpcall_wrap(function()
 			for index = 1, 31 do
 				sim_value(register_id(index), any32())
 			end
-			start()
+			start(0x10009)
 			sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
 			sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
 			do_input()
