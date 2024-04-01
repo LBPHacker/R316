@@ -1,5 +1,7 @@
 local frame = require("r3.frame")
-local plot = require("spaghetti.plot")
+local plot  = require("spaghetti.plot")
+
+local pt = plot.pt
 
 local bitx = setmetatable({}, { __index = function(tbl, key)
 	local real_value = bit[key]
@@ -55,7 +57,7 @@ local function keyify(arr)
 	return tbl
 end
 
-local function advance_state(state, sync_bit)
+local function advance_state(state, sync_bit, io_state_in, io_data_in)
 	local next_state = {
 		memory    = {},
 		registers = {},
@@ -71,6 +73,9 @@ local function advance_state(state, sync_bit)
 	local memory_read = state.memory[bitx.band(state.mem_addr, space_available - 1)]
 	if bitx.band(state.mem_addr, 0x10000) ~= 0 then
 		memory_read = 0xFFFFFFFF
+	end
+	if bitx.band(io_state_in, 8) ~= 0 then
+		memory_read = io_data_in
 	end
 	next_state.cinstr_high = bitx.rshift(memory_read, 16)
 	next_state.cinstr_low = bitx.band(memory_read, 0xFFFF)
@@ -194,11 +199,9 @@ local function advance_state(state, sync_bit)
 	if state.state == 0x10000002 then
 		next_state.pc = bitx.bor(0x10000000, pc)
 		next_state.state = 0x10000001
-		local addr = state.mem_addr
-		local res = state.memory[bitx.band(addr, space_available - 1)]
-		-- print(("0x10000002 %08X %08X"):format(addr, res))
+		-- print(("0x10000002 %08X %08X"):format(state.mem_addr, memory_read))
 		if dest ~= 0 then
-			next_state.registers[dest] = res
+			next_state.registers[dest] = memory_read
 		end
 		next_state.mem_addr = bitx.bor(0x10000000, pc)
 	elseif state.state == 0x10000004 then
@@ -209,6 +212,7 @@ local function advance_state(state, sync_bit)
 		next_state.mem_addr = bitx.bor(0x10000000, imm)
 		bus_mode = 0x10000
 	elseif state.state == 0x10000008 then
+		-- print("0x10000008")
 		next_state.pc = bitx.bor(0x10000000, pc)
 		next_state.state = state.state
 		if bitx.band(sync_bit, 8) ~= 0 then
@@ -251,6 +255,16 @@ local function advance_state(state, sync_bit)
 	end
 	next_state.cinstr_high = bitx.bor(0x10000000, cinstr_mask, next_state.cinstr_high)
 	next_state.cinstr_low = bitx.bor(0x10000000, next_state.cinstr_low)
+	if bitx.band(io_state_in, 1) ~= 0 then
+		next_state.memory      = state.memory
+		next_state.registers   = state.registers
+		next_state.pc          = state.pc
+		next_state.flags       = state.flags
+		next_state.state       = state.state
+		next_state.mem_addr    = 0x10000000
+		next_state.cinstr_high = state.cinstr_high
+		next_state.cinstr_low  = state.cinstr_low
+	end
 	return next_state
 end
 
@@ -300,6 +314,22 @@ local function state_id()
 	return sim.partID(cx + 11, cy - 6)
 end
 
+local function io_addr_out_id(index)
+	return sim.partID(cx + 95, cy - 12 - 6 * core_count + 6 * index)
+end
+
+local function io_data_out_id(index)
+	return sim.partID(cx + 95, cy - 11 - 6 * core_count + 6 * index)
+end
+
+local function io_state_in_id(index)
+	return sim.partID(cx + 100, cy - 10 - 6 * core_count + 6 * index)
+end
+
+local function io_data_in_id(index)
+	return sim.partID(cx + 100, cy - 9 - 6 * core_count + 6 * index)
+end
+
 local function sim_value(id, value)
 	if value then
 		sim.partProperty(id, "ctype", value % 0x100000000)
@@ -312,8 +342,22 @@ local function sim_value(id, value)
 	return value
 end
 
+local function any32()
+	local lo = math.random(0x0000, 0xFFFF)
+	local hi = math.random(0x0000, 0xFFFF)
+	return lo + hi * 0x10000
+end
+
 local function start()
 	sim_value(sim.partID(cx + 55, cy - 6), 0x10009)
+end
+
+local function do_input()
+	for i = 1, core_count do
+		sim_value(io_state_in_id(i), bitx.bor(0x10000000, math.random(0x0, 0xF)))
+		sim_value(io_data_in_id(i), any32())
+		-- print(("do_input %i %08X %08X"):format(i, sim_value(io_state_in_id(i)), sim_value(io_data_in_id(i))))
+	end
 end
 
 local function get_state()
@@ -333,6 +377,7 @@ local function get_state()
 	local mem_data = sim_value(mem_data_id())
 	local mem_addr = sim_value(mem_addr_id())
 	if bitx.band(mem_addr, 0x10000) ~= 0 then
+		-- print(("write2 %08X %08X"):format(mem_addr, mem_data))
 		memory[bitx.band(mem_addr, space_available - 1)] = mem_data
 	end
 	return {
@@ -388,17 +433,11 @@ if rawget(_G, key) then
 	_G[key].unregister()
 end
 
-local function any32()
-	local lo = math.random(0x0000, 0xFFFF)
-	local hi = math.random(0x0000, 0xFFFF)
-	return lo + hi * 0x10000
-end
-
 local round_length = 0
 local round_pos = 0
 local tx, ty = 80, 220
 local broken
-local last_state
+local last_state, expect_io_addr_out, expect_io_data_out
 local randomize = true
 local spawn_delay = 0
 local start_delay
@@ -414,11 +453,28 @@ local aftersim = xpcall_wrap(function()
 	local state = get_state()
 	if last_state then
 		local expected = last_state
+		local ok = true
+		local err
 		for i = 1, core_count do
-			expected = advance_state(expected, i == core_count and sync_bit or 0x10000)
+			local io_addr_out = sim_value(io_addr_out_id(i))
+			if ok and expect_io_addr_out and io_addr_out ~= expect_io_addr_out then
+				ok, err = nil, ("io_addr_out[%i] expected to be %08X, actually %08X"):format(i, expect_io_addr_out, io_addr_out)
+			end
+			local io_data_out = sim_value(io_data_out_id(i))
+			if ok and expect_io_data_out and io_data_out ~= expect_io_data_out then
+				ok, err = nil, ("io_data_out[%i] expected to be %08X, actually %08X"):format(i, expect_io_data_out, io_data_out)
+			end
+			local io_state_in = sim_value(io_state_in_id(i))
+			local io_data_in = sim_value(io_data_in_id(i))
+			local i_sync_bit = i == core_count and sync_bit or 0x10000
+			expected = advance_state(expected, i_sync_bit, io_state_in, io_data_in)
+			expect_io_addr_out = expected.mem_addr
+			expect_io_data_out = expected.mem_data
 		end
 		sync_bit = 0x10001
-		local ok, err = compare_states(expected, state)
+		if ok then
+			ok, err = compare_states(expected, state)
+		end
 		if not ok then
 			broken = err
 			sim.paused(true)
@@ -436,6 +492,7 @@ local aftersim = xpcall_wrap(function()
 				sync_bit = 0x10009
 			end
 		end
+		do_input()
 	end
 	last_state = state
 	round_pos = round_pos + 1
@@ -452,12 +509,29 @@ local tick = xpcall_wrap(function()
 	else
 		if randomize then
 			last_state = nil
+			expect_io_addr_out = nil
+			expect_io_data_out = nil
 			randomize = nil
 			sim.clearSim()
 			local x, y = 100, 100
 			local core_count = 10
 			local height_order = 4
-			plot.create_parts(x, y, frame.build(core_count, height_order))
+			local io_probes = {}
+			for i = 0, core_count - 1 do
+				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 15 })
+				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 16 })
+				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 17 })
+				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 18 })
+				table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 17 })
+				table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 18 })
+				table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 17 })
+				table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 18 })
+				table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 17 })
+				table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 18 })
+				table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
+				table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
+			end
+			plot.create_parts(x, y, plot.merge_parts(0, 0, frame.build(core_count, height_order), io_probes))
 			detect()
 			for index = 0, space_available - 1 do
 				sim_value(memory_id(index), any32())
@@ -468,6 +542,7 @@ local tick = xpcall_wrap(function()
 			start()
 			sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
 			sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
+			do_input()
 			round_length = math.random(0x10, 0x100)
 			spawn_delay = 1
 		end
@@ -485,4 +560,7 @@ _G[key] = {
 	unregister = unregister,
 }
 
+-- print("=========")
 sim.paused(false)
+-- TODO: test stop controls
+-- TODO: add and test reset controls

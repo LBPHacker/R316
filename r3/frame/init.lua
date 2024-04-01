@@ -373,6 +373,7 @@ local function build(core_count, height_order, machine_id)
 		dray(x_io - 3, y + 1, x_ram_inject, y + 1, 1, pt.PSCN)
 
 		part({ type = pt.DTEC, x = x_ram_inject, y = y + 2 })
+		part({ type = pt.CONV, x = x_ram_inject, y = y + 2, tmp = pt.BRAY, ctype = pt.INSL }) -- hide bray so it doesn't interfere with dtecs
 		local x_fix_core_left13 = x_io - 3
 		ldtc(x_ram_inject, y + 3, x_fix_core_left13, y + 3)
 		part({ type = pt.FILT, x = x_fix_core_left13, y = y + 3, ctype = 0x10000003 })
