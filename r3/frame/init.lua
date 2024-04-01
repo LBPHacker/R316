@@ -322,9 +322,12 @@ local function build(core_count, height_order, machine_id)
 	end
 
 	-- line of filt to be dray'd into the filt block above
-	for y = -2, width - 1 do
-		part({ type = pt.FILT, x = y, y = y_ldtc_dray_bank + 2 })
+	for x = -2, width - 1 do
+		part({ type = pt.FILT, x = x, y = y_ldtc_dray_bank + 2 })
 	end
+
+	-- memory read value in write cycles
+	part({ type = pt.FILT, x = width + 1, y = y_ldtc_dray_bank + 4, ctype = 0xFFFFFFFF })
 
 	local x_core = 40
 	local function x_storage_slot(k)
@@ -966,7 +969,7 @@ local function build(core_count, height_order, machine_id)
 			part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 8, ctype = 0x00010000 })
 			part({ type = pt.FILT, x = x_sync_bit -  1, y = y_sync_bit + 8, ctype = 0x00010000 })
 			part({ type = pt.FILT, x = x_sync_bit - 23, y = y_sync_bit + 8, ctype = 0x00010000 })
-			ldtc(x_sync_bit - 2, y_sync_bit + 8, x_sync_bit - 4, y_sync_bit + 8)
+			ldtc(x_sync_bit - 2, y_sync_bit + 8, x_sync_bit - 23, y_sync_bit + 8)
 
 			local function connect_button(x, y)
 				for xx = x, x_dtec - 3 do

@@ -24,7 +24,6 @@ return testbed.module({
 	},
 	outputs = {
 		{ name = "both_halves", index = 1, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
-		{ name = "high_half_16", index = 3, keepalive = 0x00000001, payload = 0xFFFF0000 },
 	},
 	func = function(inputs)
 		local high_8 = spaghetti.select(inputs.high_half:band(0x8000):zeroable(), 0x80000001, 1)
@@ -36,7 +35,6 @@ return testbed.module({
 		local both_halves     = high_half_16:bxor(force_keepalive):bxor(low_half):never_zero()
 		return {
 			both_halves = both_halves,
-			high_half_16 = high_half_16:bxor(force_keepalive),
 		}
 	end,
 	fuzz_inputs = function()
@@ -55,7 +53,6 @@ return testbed.module({
 		end
 		return {
 			both_halves = both_halves,
-			high_half_16 = false,
 		}
 	end,
 })
