@@ -902,9 +902,11 @@ local function build(core_count, height_order, machine_id)
 				end
 			end
 		end
+		local x_button_reset = x_buttons - 25
 		local x_button_start = x_buttons - 14
 		local x_button_stop  = x_buttons -  3
 		local x_running      = x_buttons + 22
+		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_reset)
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_start)
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_stop )
 		button({ type = pt.LCRY, dcolour = 0xFF00FF00 }, x_running     )
@@ -912,7 +914,7 @@ local function build(core_count, height_order, machine_id)
 		do
 			local x_source = x_storage_slot(10)
 			local x_target = x_running + 3
-			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 7
+			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 6
 			ldtc(x_source, y_indicator - 1, x_source, y_call_sites + core_count * core_pitch - 3)
 			part({ type = pt.FILT, x = x_source    , y = y_indicator })
 			part({ type = pt.STOR, x = x_source - 1, y = y_indicator })
@@ -925,12 +927,23 @@ local function build(core_count, height_order, machine_id)
 			sprk.life = 3
 			dray(x_source - 5, y_indicator, x_target, y_indicator, 2, pt.PSCN)
 			cray(x_source - 5, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.PSCN)
+			part({ type = pt.LCRY, x = x_target + 1, y = y_indicator + 1, dcolour = 0xFF000000 })
 
-			cray(x_source + 4, y_indicator, x_source - 3, y_indicator, pt.PSCN, 1, pt.PSCN)
-			cray(x_source + 7, y_indicator, x_source - 3, y_indicator, pt.NSCN, 1, pt.METL)
+			cray(x_source +  7, y_indicator, x_source - 3, y_indicator, pt.PSCN, 1, pt.PSCN)
+			cray(x_source + 10, y_indicator, x_source - 3, y_indicator, pt.NSCN, 1, pt.METL)
 
 			part({ type = pt.INSL, x = x_target    , y = y_indicator })
 			part({ type = pt.INSL, x = x_target + 1, y = y_indicator })
+		end
+
+		do
+			local x_reset = x_storage_slot(14)
+			local y_reset = y_call_sites + (core_count - 1) * core_pitch + 6
+			part({ type = pt.FILT, x = x_reset    , y = y_reset - 1, ctype = 0x10000000 })
+			part({ type = pt.DRAY, x = x_reset    , y = y_reset    , tmp = 1, tmp2 = 1 })
+			part({ type = pt.PSCN, x = x_reset    , y = y_reset + 1 })
+			part({ type = pt.METL, x = x_reset + 1, y = y_reset + 1 })
+			part({ type = pt.NSCN, x = x_reset + 2, y = y_reset + 2 })
 		end
 
 		local patch_filt_list = {}
@@ -982,8 +995,8 @@ local function build(core_count, height_order, machine_id)
 				part({ type = pt.ARAY, x = x - 1, y = y })
 				part({ type = pt.NSCN, x = x - 2, y = y })
 			end
-			connect_button(x_button_start + 3, y_sync_bit + 7)
-			connect_button(x_button_stop  + 3, y_sync_bit + 8)
+			connect_button(x_button_start + 5, y_sync_bit + 7)
+			connect_button(x_button_stop  + 5, y_sync_bit + 8)
 		end
 		-- ram mask
 		do

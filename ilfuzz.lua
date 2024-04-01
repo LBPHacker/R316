@@ -569,5 +569,3 @@ _G[key] = {
 
 -- print("=========")
 sim.paused(false)
--- TODO: test stop controls
--- TODO: add and test reset controls
