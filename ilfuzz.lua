@@ -73,15 +73,18 @@ local function advance_state(state, sync_bit)
 		memory_read = 0xFFFFFFFF
 	end
 	next_state.cinstr_high = bitx.rshift(memory_read, 16)
-	-- print(("  %08X"):format(next_state.cinstr_high))
 	next_state.cinstr_low = bitx.band(memory_read, 0xFFFF)
-	local op = memory_read
+	local early_op = memory_read
 	if bitx.band(state.cinstr_high, 0x10000) ~= 0 then
-		op = bitx.bor(bitx.lshift(bitx.band(state.cinstr_high, 0xFFFF), 16), bitx.band(state.cinstr_low, 0xFFFF))
+		early_op = bitx.bor(bitx.lshift(bitx.band(state.cinstr_high, 0xFFFF), 16), bitx.band(state.cinstr_low, 0xFFFF))
+	end
+	local prir = bitx.band(bitx.rshift(early_op, 20), 0x1F)
+	local secr = bitx.band(            early_op     , 0x1F)
+	local op = early_op
+	if state.state == 0x10000008 then
+		op = bitx.band(op, 0xFFFF)
 	end
 	local dest = bitx.band(bitx.rshift(op, 25), 0x1F)
-	local prir = bitx.band(bitx.rshift(op, 20), 0x1F)
-	local secr = bitx.band(            op     , 0x1F)
 	local pri   =           prir == 0 and 0x20000000 or state.registers[prir]
 	local sec16 = bitx.band(secr == 0 and 0x20000000 or state.registers[secr], 0xFFFF)
 	local imm = bitx.band(op, 0xFFFF)
@@ -90,10 +93,107 @@ local function advance_state(state, sync_bit)
 	end
 	local cinstr_mask = 0
 	local bus_mode = 0x40000
+	local pri16 = bitx.band(pri, 0xFFFF)
+	local prihi = bitx.band(pri, 0xFFFF0000)
+	local carry_in = bitx.band(state.flags, 1)
+	if bitx.band(op, 0x00010000) == 0 then
+		carry_in = 0
+	end
+	local sum, ssum
+	local function to_signed(value)
+		if value >= 0x8000 then
+			value = value - 0x10000
+		end
+		return value
+	end
+	local ssec16 = to_signed(sec16)
+	local spri16 = to_signed(pri16)
+	if bitx.band(op, 0x00020000) == 0 then
+		 sum =  sec16 - ( pri16 + carry_in)
+		ssum = ssec16 - (spri16 + carry_in)
+	else
+		 sum =  sec16 + ( pri16 + carry_in)
+		ssum = ssec16 + (spri16 + carry_in)
+	end
+	local carry_out    = ( sum <  0x0000 or  sum > 0xFFFF) and 1 or 0
+	local overflow_out = (ssum < -0x8000 or ssum > 0x7FFF) and 2 or 0
+	local res16
+	if bitx.band(op, 0x000F0000) == 0x00000000 then
+		res16 = sec16
+	elseif bitx.band(op, 0x000F0000) == 0x00010000 then
+		res16 = next_pc
+		local take
+		local carry    = bitx.band(state.flags, 1) ~= 0
+		local overflow = bitx.band(state.flags, 2) ~= 0
+		local zero     = bitx.band(state.flags, 4) ~= 0
+		local sign     = bitx.band(state.flags, 8) ~= 0
+		if bitx.band(prir, 7) == 7 then
+			take = carry
+		elseif bitx.band(prir, 7) == 6 then
+			take = overflow
+		elseif bitx.band(prir, 7) == 5 then
+			take = zero
+		elseif bitx.band(prir, 7) == 4 then
+			take = sign
+		elseif bitx.band(prir, 7) == 3 then
+			take = (sign ~= overflow) or zero
+		elseif bitx.band(prir, 7) == 2 then
+			take = sign ~= overflow
+		elseif bitx.band(prir, 7) == 1 then
+			take = carry or zero
+		elseif bitx.band(prir, 7) == 0 then
+			take = true
+		end
+		if bitx.band(prir, 8) ~= 0 then
+			take = not take
+		end
+		if bitx.band(prir, 0x10) == 0 then
+			take = take and bitx.band(sync_bit, 1) ~= 0
+		end
+		if take then
+			next_pc = sec16
+		end
+	elseif bitx.band(op, 0x000F0000) == 0x00020000 then
+		res16 = bitx.band(sum, 0xFFFF)
+		cinstr_mask = 0x10000
+	elseif bitx.band(op, 0x000F0000) == 0x00030000 then
+		res16 = bitx.rshift(prihi, 16)
+		prihi = bitx.lshift(sec16, 16)
+	elseif bitx.band(op, 0x000C0000) == 0x00040000 then
+		res16 = bitx.band(sum, 0xFFFF)
+	elseif bitx.band(op, 0x000F0000) == 0x00080000 then
+		res16 = bitx.band(bitx.lshift(pri16, bitx.band(sec16, 0xF)), 0xFFFF)
+	elseif bitx.band(op, 0x000F0000) == 0x00090000 then
+		res16 = bitx.band(bitx.rshift(pri16, bitx.band(sec16, 0xF)), 0xFFFF)
+	elseif bitx.band(op, 0x000F0000) == 0x000A0000 then
+		res16 = bitx.band(sum, 0xFFFF)
+		cinstr_mask = 0x10000
+	elseif bitx.band(op, 0x000F0000) == 0x000B0000 then
+		res16 = bitx.band(memory_read, 0xFFFF)
+		prihi = bitx.rshift(memory_read, 0xFFFF0000)
+	elseif bitx.band(op, 0x000F0000) == 0x000C0000 then
+		res16 = bitx.band(pri16, sec16)
+	elseif bitx.band(op, 0x000F0000) == 0x000D0000 then
+		res16 = bitx.bor(pri16, sec16)
+	elseif bitx.band(op, 0x000F0000) == 0x000E0000 then
+		res16 = bitx.bxor(pri16, sec16)
+	elseif bitx.band(op, 0x000F0000) == 0x000F0000 then
+		res16 = bitx.band(bitx.bxor(0xFFFF, pri16), sec16)
+	end
+	local new_flags = carry_out + overflow_out
+	if bitx.band(res16, 0x8000) ~= 0 then
+		new_flags = new_flags + 8
+	end
+	if res16 == 0 then
+		new_flags = new_flags + 4
+	end
+	local res = bitx.bor(prihi, res16)
+	if bitx.band(res, 0x3FFFFFFF) == 0 then
+		res = bitx.bxor(res, 0x20000000)
+	end
 	if state.state == 0x10000002 then
 		next_state.pc = bitx.bor(0x10000000, pc)
 		next_state.state = 0x10000001
-		next_state.flags = state.flags
 		local addr = state.mem_addr
 		local res = state.memory[bitx.band(addr, space_available - 1)]
 		-- print(("0x10000002 %08X %08X"):format(addr, res))
@@ -105,128 +205,28 @@ local function advance_state(state, sync_bit)
 		-- print(("0x10000004 %08X %08X"):format(imm, pri))
 		next_state.pc = bitx.bor(0x10000000, pc)
 		next_state.state = 0x10000001
-		next_state.flags = state.flags
 		cinstr_mask = 0x10000
 		next_state.mem_addr = bitx.bor(0x10000000, imm)
 		bus_mode = 0x10000
 	elseif state.state == 0x10000008 then
 		next_state.pc = bitx.bor(0x10000000, pc)
 		next_state.state = state.state
-		next_state.flags = state.flags
 		if bitx.band(sync_bit, 8) ~= 0 then
 			next_state.state = 0x10000001
 		end
 		next_state.mem_addr = bitx.bor(0x10000000, pc)
 	else
 		-- print(("%04X %08X"):format(pc, op))
-		local pri16 = bitx.band(pri, 0xFFFF)
-		local prihi = bitx.band(pri, 0xFFFF0000)
-		local carry_in = bitx.band(state.flags, 1)
-		if bitx.band(op, 0x00010000) == 0 then
-			carry_in = 0
-		end
-		local sum, ssum
-		local function to_signed(value)
-			if value >= 0x8000 then
-				value = value - 0x10000
-			end
-			return value
-		end
-		local ssec16 = to_signed(sec16)
-		local spri16 = to_signed(pri16)
-		if bitx.band(op, 0x00020000) == 0 then
-			 sum =  sec16 - ( pri16 + carry_in)
-			ssum = ssec16 - (spri16 + carry_in)
-		else
-			 sum =  sec16 + ( pri16 + carry_in)
-			ssum = ssec16 + (spri16 + carry_in)
-		end
 		next_state.state = state.state
-		local carry_out    = ( sum <  0x0000 or  sum > 0xFFFF) and 1 or 0
-		local overflow_out = (ssum < -0x8000 or ssum > 0x7FFF) and 2 or 0
-		local res16
-		if bitx.band(op, 0x000F0000) == 0x00000000 then
-			res16 = sec16
-		elseif bitx.band(op, 0x000F0000) == 0x00010000 then
-			res16 = next_pc
-			local take
-			local carry    = bitx.band(state.flags, 1) ~= 0
-			local overflow = bitx.band(state.flags, 2) ~= 0
-			local zero     = bitx.band(state.flags, 4) ~= 0
-			local sign     = bitx.band(state.flags, 8) ~= 0
-			if bitx.band(prir, 7) == 7 then
-				take = carry
-			elseif bitx.band(prir, 7) == 6 then
-				take = overflow
-			elseif bitx.band(prir, 7) == 5 then
-				take = zero
-			elseif bitx.band(prir, 7) == 4 then
-				take = sign
-			elseif bitx.band(prir, 7) == 3 then
-				take = (sign ~= overflow) or zero
-			elseif bitx.band(prir, 7) == 2 then
-				take = sign ~= overflow
-			elseif bitx.band(prir, 7) == 1 then
-				take = carry or zero
-			elseif bitx.band(prir, 7) == 0 then
-				take = true
-			end
-			if bitx.band(prir, 8) ~= 0 then
-				take = not take
-			end
-			if bitx.band(prir, 0x10) == 0 then
-				take = take and bitx.band(sync_bit, 1) ~= 0
-			end
-			if take then
-				next_pc = sec16
-			end
-		elseif bitx.band(op, 0x000F0000) == 0x00020000 then
-			res16 = bitx.band(sum, 0xFFFF)
+		if bitx.band(op, 0x000F0000) == 0x00020000 then
 			next_state.state = 0x10000002
-			cinstr_mask = 0x10000
 			next_state.cinstr_high = bitx.bor(bitx.band(bitx.rshift(op, 16), 0xFFF0), 0x000B)
-		elseif bitx.band(op, 0x000F0000) == 0x00030000 then
-			res16 = bitx.rshift(prihi, 16)
-			prihi = bitx.lshift(sec16, 16)
-		elseif bitx.band(op, 0x000C0000) == 0x00040000 then
-			res16 = bitx.band(sum, 0xFFFF)
-		elseif bitx.band(op, 0x000F0000) == 0x00080000 then
-			res16 = bitx.band(bitx.lshift(pri16, bitx.band(sec16, 0xF)), 0xFFFF)
-		elseif bitx.band(op, 0x000F0000) == 0x00090000 then
-			res16 = bitx.band(bitx.rshift(pri16, bitx.band(sec16, 0xF)), 0xFFFF)
 		elseif bitx.band(op, 0x000F0000) == 0x000A0000 then
-			res16 = bitx.band(sum, 0xFFFF)
 			next_state.state = 0x10000004
-			cinstr_mask = 0x10000
 			next_state.cinstr_high = bitx.lshift(dest, 4)
 			next_state.cinstr_low = res16
 		elseif bitx.band(op, 0x000F0000) == 0x000B0000 then
-			res16 = bitx.band(memory_read, 0xFFFF)
-			prihi = bitx.rshift(memory_read, 0xFFFF0000)
 			next_state.state = 0x10000008
-		elseif bitx.band(op, 0x000F0000) == 0x000C0000 then
-			res16 = bitx.band(pri16, sec16)
-		elseif bitx.band(op, 0x000F0000) == 0x000D0000 then
-			res16 = bitx.bor(pri16, sec16)
-		elseif bitx.band(op, 0x000F0000) == 0x000E0000 then
-			res16 = bitx.bxor(pri16, sec16)
-		elseif bitx.band(op, 0x000F0000) == 0x000F0000 then
-			res16 = bitx.band(bitx.bxor(0xFFFF, pri16), sec16)
-		end
-		local new_flags = carry_out + overflow_out
-		if bitx.band(res16, 0x8000) ~= 0 then
-			new_flags = new_flags + 8
-		end
-		if res16 == 0 then
-			new_flags = new_flags + 4
-		end
-		next_state.flags = state.flags
-		if bitx.band(op, 0x80000000) ~= 0 then
-			next_state.flags = bitx.bor(0x10000000, new_flags)
-		end
-		local res = bitx.bor(prihi, res16)
-		if bitx.band(res, 0x3FFFFFFF) == 0 then
-			res = bitx.bxor(res, 0x20000000)
 		end
 		if dest ~= 0 and bitx.band(op, 0x000F0000) ~= 0x000A0000 then
 			next_state.registers[dest] = res
@@ -236,6 +236,10 @@ local function advance_state(state, sync_bit)
 		if bitx.band(op, 0x000F0000) == 0x00020000 then
 			next_state.mem_addr = bitx.bor(0x10000000, res16)
 		end
+	end
+	next_state.flags = state.flags
+	if bitx.band(op, 0x80000000) ~= 0 then
+		next_state.flags = bitx.bor(0x10000000, new_flags)
 	end
 	if bitx.band(next_state.mem_addr, bitx.bxor(space_available - 1, 0xFFFF)) ~= 0 then
 		bus_mode = bitx.lshift(bus_mode, 1)
@@ -303,7 +307,7 @@ local function sim_value(id, value)
 	end
 	value = sim.partProperty(id, "ctype") % 0x100000000
 	if bitx.band(value, 0x3FFFFFFF) == 0 then
-		value = 0x0000001F
+		value = bitx.lshift(0x0000001F, math.random(0, 25))
 	end
 	return value
 end
@@ -442,9 +446,6 @@ local aftersim = xpcall_wrap(function()
 		sync_bit = 0x10001
 	end
 end)
-local ops = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
-local no_dest = keyify({ 10 })
-local no_flags = keyify({ 0, 1, 2, 10, 11 })
 local tick = xpcall_wrap(function()
 	if broken then
 		gfx.drawText(tx, ty, broken)
@@ -459,15 +460,7 @@ local tick = xpcall_wrap(function()
 			plot.create_parts(x, y, frame.build(core_count, height_order))
 			detect()
 			for index = 0, space_available - 1 do
-				local value = any32()
-				value = bitx.band(value, 0xFFF0FFFF) + ops[math.random(#ops)] * 0x10000
-				if no_dest[bitx.rshift(bitx.band(value, 0x000F0000), 16)] then
-					value = bitx.band(value, 0xC1FFFFFF)
-				end
-				if no_flags[bitx.rshift(bitx.band(value, 0x000F0000), 16)] then
-					value = bitx.band(value, 0x7FFFFFFF)
-				end
-				sim_value(memory_id(index), value)
+				sim_value(memory_id(index), any32())
 			end
 			for index = 1, 31 do
 				sim_value(register_id(index), any32())
