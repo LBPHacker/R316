@@ -10,26 +10,23 @@ outer:
 	mov r4, primes
 inner:
 	ld r5, r4 ; read: mov r5, [r4]
-	or r0, r5 ; read: test r5, r5
+	test r5, r5
 	jz is_prime
 	ld r6, r4, 1
-	sub r0, r6, r2 ; annoying: sub's operands are reversed: this subtracts r6 from r2
-	               ; read: cmp r2, r6
+	cmp r2, r6
 	jb is_prime
 	mov r8, r2
 	shl r5, 8
 	mov r7, 9
 shift:
 	mov r6, r8
-	sub r6, r5, r6 ; annoying: sub's operands are reversed: this subtracts r5 from r6
-	               ; read: sub r6, r5
+	sub r6, r5
 	jz is_composite
 	jc shift_failed
 	mov r8, r6
 shift_failed:
 	shr r5, 1
-	add r7, 0xFFFF ; annoying: sub reg - imm is not a thing, only imm - reg
-	               ; you have to do add reg + (-imm) which is really just (-imm) + reg
+	sub r7, 1
 	jnz shift
 	add r4, 2
 	jmp inner
@@ -44,8 +41,7 @@ is_composite:
 	add r3, r2
 	add r3, 1
 	add r2, 1
-	sub r0, r2, r3 ; annoying: sub's operands are reversed: this subtracts r2 from r3
-	               ; read: cmp r3, r2
+	cmp r3, r2
 	jb die
 	jmp outer
 die:
