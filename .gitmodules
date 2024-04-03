@@ -1,0 +1,4 @@
+[submodule "spaghetti"]
+	path = spaghetti
+	url = https://github.com/LBPHacker/spaghetti.git
+	branch = v2
