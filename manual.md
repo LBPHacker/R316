@@ -220,13 +220,14 @@ Adds `P` to `S` treating the carry flag as carry in, and stores the result in `D
 ### `sub`: subtract
 
 ```asm
-sub  D, S, P
-sub  D, S    ; expands to sub D, S, D
-subs D, S, P ; leaves flags unchanged
+sub  D, P, S
+sub  D, Sreg ; expands to sub D, D, Sreg
+sub  D, Simm ; expands to add D, D, -Simm
+subs D, P, S ; leaves flags unchanged
 cmp  S, P    ; expands to sub r0, S, P
 ```
 
-Subtracts `P` from `S`, and stores the result in `D`. Note that `S`, the secondary operand, which is the only operand that may be an immediate value, is the first source operand to this instruction, meaning that the following:
+Subtracts `S` from `P`, and stores the result in `D`. Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`. Accordingly, the following:
 
 ```asm
 sub r3, 8
@@ -243,12 +244,13 @@ add r3, r5, -8
 ### `sbb`: subtract with borrow
 
 ```asm
-sbb  D, S, P
-sbb  D, S    ; expands to sub D, S, D
-sbbs D, S, P ; leaves flags unchanged
+sbb  D, P, S
+sbb  D, Sreg ; expands to sub D, D, Sreg
+sbb  D, Simm ; expands to adc D, D, -Simm
+sbbs D, P, S ; leaves flags unchanged
 ```
 
-Subtracts `P` from `S` treating the carry flag as borrow in, and stores the result in `D`. Note that `S`, the secondary operand, which is the only operand that may be an immediate value, is the first source operand to this instruction, meaning that the following:
+Subtracts `S` from `P` treating the carry flag as borrow in, and stores the result in `D`. Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`. Accordingly, the following:
 
 ```asm
 sbb r3, 8
@@ -316,12 +318,13 @@ Executes a bitwise XOR operation on `P` and `S`, and stores the result in `D`.
 ### `clr`: bitwise AND NOT a.k.a. clear
 
 ```asm
-clr  D, S, P
-clr  D, S    ; expands to clr D, S, D
-clrs D, S, P ; leaves flags unchanged
+clr  D, P, S
+clr  D, Sreg ; expands to clr D, D, Sreg
+clr  D, Simm ; expands to and D, D, ~Simm
+clrs D, P, S ; leaves flags unchanged
 ```
 
-Executes a bitwise AND operation on **an inverted copy of `P`** and `S`, and stores the result in `D`. Note that `S`, the secondary operand, which is the only operand that may be an immediate value, is the first source operand to this instruction, meaning that the following:
+Executes a bitwise AND operation on `P` and **an inverted copy of `S`**, and stores the result in `D`. Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`. Accordingly, the following:
 
 ```asm
 clr r3, 0x0008
