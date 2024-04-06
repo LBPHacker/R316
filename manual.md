@@ -366,7 +366,7 @@ ld D, P, S
 ld D, S ; expands to ld D, r0, S
 ```
 
-Executes a memory read access on the address `P`+`S`, and store the value being read in `D`.
+Executes a memory read access on the address `P`+`S`, and stores the value being read in `D`.
 
 ### `st`: store
 
