@@ -1,5 +1,5 @@
-local frame = require("r3.frame")
-local plot  = require("spaghetti.plot")
+local r3   = require("r3")
+local plot = require("spaghetti.plot")
 
 local pt = plot.pt
 
@@ -538,7 +538,7 @@ local tick = xpcall_wrap(function()
 				table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
 				table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
 			end
-			plot.create_parts(x, y, plot.merge_parts(0, 0, frame.build(core_count, height_order), io_probes))
+			plot.create_parts(x, y, plot.merge_parts(0, 0, r3.build(core_count, height_order), io_probes))
 			detect()
 			for index = 0, space_available - 1 do
 				sim_value(memory_id(index), any32())

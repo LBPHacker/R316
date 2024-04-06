@@ -1,16 +1,11 @@
 local strict = require("spaghetti.strict")
 strict.wrap_env()
 
-local bitx = require("spaghetti.bitx")
-local plot = require("spaghetti.plot")
-
+local bitx  = require("spaghetti.bitx")
+local plot  = require("spaghetti.plot")
 local rread = require("r3.rread.generated")
 local core  = require("r3.core.generated")
-
-local function sig_magn(x)
-	local magn = math.abs(x)
-	return x == 0 and 0 or (x / magn), magn
-end
+local util  = require("r3.util")
 
 local function build(core_count, height_order, machine_id)
 	machine_id = machine_id or 1337
@@ -50,171 +45,21 @@ local function build(core_count, height_order, machine_id)
 
 	local pt = plot.pt
 	local parts = {}
-	local function mutate(p, m)
-		local q = {}
-		for key, value in pairs(p) do
-			q[key] = value
-		end
-		for key, value in pairs(m) do
-			q[key] = value
-		end
-		return q
-	end
-	local function piston_extend(k)
-		if k == math.huge then
-			return 10000
-		end
-		return 273.15 + (k or 0) * 10
-	end
-	local function part(p)
-		local m = {}
-		if p.type == pt.PSTN then
-			if not p.temp then
-				m.temp = piston_extend(p.extend)
-			end
-			if not p.ctype then
-				m.ctype = pt.INSL
-			end
-			if not p.tmp2 then
-				m.tmp2 = 1000
-			end
-		end
-		if p.type == pt.LSNS then
-			if not p.tmp2 then
-				m.tmp2 = 1
-			end
-		end
-		if p.type == pt.DTEC then
-			if not p.tmp2 then
-				m.tmp2 = 1
-			end
-		end
-		if p.type == pt.ARAY then
-			if not p.life then
-				m.life = 1
-			end
-		end
-		if p.type == pt.BRAY then
-			if not p.life then
-				m.life = 1
-			end
-		end
-		local q = mutate(p, m)
-		table.insert(parts, q)
-		return q
-	end
-	local function spark(p)
-		return part(mutate(p, {
-			ctype = p.type,
-			type = pt.SPRK,
-			life = p.life or 4,
-		}))
-	end
-	local function xy_key(x, y)
-		return y * sim.XRES + x
-	end
-	local solid_spark
-	do
-		local map = {}
-		function solid_spark(x, y, x_off, y_off, conductor)
-			local key = xy_key(x + x_off, y + y_off)
-			if map[key] then
-				if not (map[key].x == x and map[key].y == y and map[key].conductor == conductor) then
-					error("spark conflict", 2)
-				end
-			else
-				part ({ type = pt.CONV  , x = x        , y = y        , tmp = pt.SPRK, ctype = conductor, z = 10000000 })
-				part ({ type = pt.CONV  , x = x        , y = y        , tmp = conductor, ctype = pt.SPRK, z = 10000001 })
-				spark({ type = conductor, x = x + x_off, y = y + y_off })
-				map[key] = {
-					x = x,
-					y = y,
-					conductor = conductor,
-				}
-			end
-		end
-	end
-	local lsns_taboo
-	do
-		local dmnds = {}
-		function lsns_taboo(x, y)
-			local key = xy_key(x, y)
-			if not dmnds[key] then
-				dmnds[key] = true
-				part({ type = pt.DMND, x = x, y = y })
-			end
-		end
-	end
-	local lsns_spark
-	do
-		local lmap = {}
-		local function lsns(p)
-			local key = xy_key(p.x, p.y)
-			if not lmap[key] then
-				lmap[key] = true
-				part(mutate(p, { type = pt.LSNS, tmp = 3 }))
-			end
-		end
-		local fmap = {}
-		local function filt(p, life)
-			local key = xy_key(p.x, p.y)
-			if not fmap[key] then
-				fmap[key] = life
-				part(mutate(p, { type = pt.FILT, ctype = 0x10000000 + life }))
-			else
-				if fmap[key] ~= life then
-					error("lsns spark conflict", 3)
-				end
-			end
-		end
-		function lsns_spark(p, x_l_off, y_l_off, x_f_off, y_f_off)
-			assert(p and x_l_off and y_l_off and x_f_off and y_f_off)
-			spark(p)
-			lsns({ x = p.x + x_l_off, y = p.y + y_l_off })
-			filt({ x = p.x + x_f_off, y = p.y + y_f_off }, p.life)
-		end
-	end
-	local function dray(x, y, x_to, y_to, count, conductor, z)
-		assert(x and y and x_to and y_to and count and conductor)
-		local dx_sig, dx_magn = sig_magn(x_to - x)
-		local dy_sig, dy_magn = sig_magn(y_to - y)
-		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
-			error("bad offset", 2)
-		end
-		local magn = math.max(dx_magn, dy_magn)
-		local q = part({ type = pt.DRAY, x = x, y = y, tmp = count, tmp2 = magn - count - 1, z = z })
-		solid_spark(x, y, -dx_sig, -dy_sig, conductor)
-		return q
-	end
-	local function ldtc(x, y, x_to, y_to, z)
-		assert(x and y and x_to and y_to)
-		local dx_sig, dx_magn = sig_magn(x_to - x)
-		local dy_sig, dy_magn = sig_magn(y_to - y)
-		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
-			error("bad offset", 2)
-		end
-		local magn = math.max(dx_magn, dy_magn)
-		local q = part({ type = pt.LDTC, x = x, y = y, life = magn - 1, z = z })
-		return q
-	end
-	local function cray(x, y, x_to, y_to, ptype, count, conductor, z)
-		assert(x and y and x_to and y_to and ptype and count and conductor)
-		local dx_sig, dx_magn = sig_magn(x_to - x)
-		local dy_sig, dy_magn = sig_magn(y_to - y)
-		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
-			error("bad offset", 2)
-		end
-		local magn = math.max(dx_magn, dy_magn)
-		local q = part({ type = pt.CRAY, x = x, y = y, ctype = ptype, tmp = count, tmp2 = magn - 1, z = z })
-		solid_spark(x, y, -dx_sig, -dy_sig, conductor)
-		return q
-	end
-	local function aray(x, y, x_off, y_off, conductor, z, life)
-		assert(x and y and x_off and y_off and conductor)
-		local q = part({ type = pt.ARAY, x = x, y = y, z = z, life = life })
-		solid_spark(x, y, x_off, y_off, conductor)
-		return q
-	end
+	local ucontext = util.make_context(parts)
+	local sig_magn      = ucontext.sig_magn
+	local mutate        = ucontext.mutate
+	local piston_extend = ucontext.piston_extend
+	local part          = ucontext.part
+	local spark         = ucontext.spark
+	local xy_key        = ucontext.xy_key
+	local solid_spark   = ucontext.solid_spark
+	local lsns_taboo    = ucontext.lsns_taboo
+	local lsns_spark    = ucontext.lsns_spark
+	local dray          = ucontext.dray
+	local ldtc          = ucontext.ldtc
+	local cray          = ucontext.cray
+	local aray          = ucontext.aray
+
 	local apom_order_pre = {}
 	local part_injected, part_injected_patch
 	do
@@ -887,11 +732,18 @@ local function build(core_count, height_order, machine_id)
 		push(checksum)
 	end
 
-	do -- frame
-		local x1 = -15 - height_order_up - width_order_up
-		local x2 = width + 6
-		local y1 = y_filt_block - height
-		local y2 = y_call_sites + core_count * core_pitch + 4
+	local patch_filt_list = {}
+	local function patch_filt(x, y, ctype)
+		patch_filt_list[xy_key(x, y)] = ctype
+	end
+
+	local x_ram_mask = x_storage_slot(29)
+	local x_sync_bit = x_storage_slot(54)
+	local x1 = -15 - height_order_up - width_order_up
+	local x2 = width + 6
+	local y1 = y_filt_block - height
+	local y2 = y_call_sites + core_count * core_pitch + 4
+	do
 		local x_buttons = 76
 		local function button(p, x)
 			for yy = 0, 3 do
@@ -911,142 +763,99 @@ local function build(core_count, height_order, machine_id)
 		button({ type = pt.INST, dcolour = 0xFF7F7F7F }, x_button_start)
 		button({ type = pt.LCRY, dcolour = 0xFF00FF00 }, x_running     )
 
-		do
-			local x_source = x_storage_slot(10)
-			local x_target = x_running + 3
-			local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 6
-			ldtc(x_source, y_indicator - 1, x_source, y_call_sites + core_count * core_pitch - 3)
-			part({ type = pt.FILT, x = x_source    , y = y_indicator })
-			part({ type = pt.STOR, x = x_source - 1, y = y_indicator })
-			part({ type = pt.FILT, x = x_source - 2, y = y_indicator, tmp = 1, ctype = 0x00000008 })
-			part({ type = pt.NSCN, x = x_source - 3, y = y_indicator })
-			part({ type = pt.INSL, x = x_source - 4, y = y_indicator })
-			aray(x_source + 1, y_indicator, 1, 0, pt.METL)
+		local x_source = x_storage_slot(10)
+		local x_target = x_running + 3
+		local y_indicator = y_call_sites + (core_count - 1) * core_pitch + 6
+		ldtc(x_source, y_indicator - 1, x_source, y_call_sites + core_count * core_pitch - 3)
+		part({ type = pt.FILT, x = x_source    , y = y_indicator })
+		part({ type = pt.STOR, x = x_source - 1, y = y_indicator })
+		part({ type = pt.FILT, x = x_source - 2, y = y_indicator, tmp = 1, ctype = 0x00000008 })
+		part({ type = pt.NSCN, x = x_source - 3, y = y_indicator })
+		part({ type = pt.INSL, x = x_source - 4, y = y_indicator })
+		aray(x_source + 1, y_indicator, 1, 0, pt.METL)
 
-			local sprk = cray(x_source - 8, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.INWR)
-			sprk.life = 3
-			dray(x_source - 5, y_indicator, x_target, y_indicator, 2, pt.PSCN)
-			cray(x_source - 5, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.PSCN)
-			part({ type = pt.LCRY, x = x_target + 1, y = y_indicator + 1, dcolour = 0xFF000000 })
+		local sprk = cray(x_source - 8, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.INWR)
+		sprk.life = 3
+		dray(x_source - 5, y_indicator, x_target, y_indicator, 2, pt.PSCN)
+		cray(x_source - 5, y_indicator, x_source - 3, y_indicator, pt.SPRK, 1, pt.PSCN)
+		part({ type = pt.LCRY, x = x_target + 1, y = y_indicator + 1, dcolour = 0xFF000000 })
 
-			cray(x_source +  7, y_indicator, x_source - 3, y_indicator, pt.PSCN, 1, pt.PSCN)
-			cray(x_source + 10, y_indicator, x_source - 3, y_indicator, pt.NSCN, 1, pt.METL)
+		cray(x_source +  7, y_indicator, x_source - 3, y_indicator, pt.PSCN, 1, pt.PSCN)
+		cray(x_source + 10, y_indicator, x_source - 3, y_indicator, pt.NSCN, 1, pt.METL)
 
-			part({ type = pt.INSL, x = x_target    , y = y_indicator })
-			part({ type = pt.INSL, x = x_target + 1, y = y_indicator })
-		end
+		part({ type = pt.INSL, x = x_target    , y = y_indicator })
+		part({ type = pt.INSL, x = x_target + 1, y = y_indicator })
 
-		do
-			local x_reset = x_storage_slot(14)
-			local y_reset = y_call_sites + (core_count - 1) * core_pitch + 6
-			part({ type = pt.FILT, x = x_reset    , y = y_reset - 1, ctype = 0x10000000 })
-			part({ type = pt.DRAY, x = x_reset    , y = y_reset    , tmp = 1, tmp2 = 1 })
-			part({ type = pt.PSCN, x = x_reset    , y = y_reset + 1 })
-			part({ type = pt.METL, x = x_reset + 1, y = y_reset + 1 })
-			part({ type = pt.NSCN, x = x_reset + 2, y = y_reset + 2 })
-		end
+		local x_reset = x_storage_slot(14)
+		local y_reset = y_call_sites + (core_count - 1) * core_pitch + 6
+		part({ type = pt.FILT, x = x_reset    , y = y_reset - 1, ctype = 0x10000000 })
+		part({ type = pt.DRAY, x = x_reset    , y = y_reset    , tmp = 1, tmp2 = 1 })
+		part({ type = pt.PSCN, x = x_reset    , y = y_reset + 1 })
+		part({ type = pt.METL, x = x_reset + 1, y = y_reset + 1 })
+		part({ type = pt.NSCN, x = x_reset + 2, y = y_reset + 2 })
 
-		local patch_filt_list = {}
-		local function patch_filt(x, y, ctype)
-			patch_filt_list[xy_key(x, y)] = ctype
-		end
+		local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
 
-		local x_ram_mask = x_storage_slot(29)
-		local x_sync_bit = x_storage_slot(54)
-		do
-			local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
-
-			per_core(function(i, y)
-				if i == core_count then
-					dray(x_sync_bit - 5, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
-				else
-					dray(x_sync_bit, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
-				end
-				local value = i == core_count and 0x00010001 or 0x00010000
-				patch_filt(x_sync_bit, y + 3, value)
-			end)
-
-			local x_dtec = x_sync_bit - 5
-			aray(x_dtec - 3, y_sync_bit + 6, -1, 0, pt.METL)
-			local y_source = y_call_sites + core_count * core_pitch
-			ldtc(x_sync_bit, y_source - 1, x_sync_bit, y_source - 3)
-			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
-			part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010001 })
-			part({ type = pt.INSL, x = x_dtec    , y = y_sync_bit + 6 })
-			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010011 })
-			part({ type = pt.INSL, x = x_dtec - 0, y = y_sync_bit + 7 })
-			part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010009 })
-			part({ type = pt.DTEC, x = x_dtec    , y = y_sync_bit + 8, tmp2 = 2 })
-			part({ type = pt.FILT, x = x_dtec + 1, y = y_sync_bit + 8, ctype = 0x00010001 })
-
-			part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 7, ctype = 0x00010000 })
-			part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 8, ctype = 0x00010000 })
-			part({ type = pt.FILT, x = x_sync_bit -  1, y = y_sync_bit + 8, ctype = 0x00010000 })
-			part({ type = pt.FILT, x = x_sync_bit - 23, y = y_sync_bit + 8, ctype = 0x00010000 })
-			ldtc(x_sync_bit - 2, y_sync_bit + 8, x_sync_bit - 23, y_sync_bit + 8)
-
-			local function connect_button(x, y)
-				for xx = x, x_dtec - 3 do
-					if not ( xx == x_ram_mask or
-					        (xx == x_sync_bit and y == y_sync_bit + 8)) then
-						part({ type = pt.STOR, x = xx, y = y })
-					end
-				end
-				part({ type = pt.ARAY, x = x - 1, y = y })
-				part({ type = pt.NSCN, x = x - 2, y = y })
-			end
-			connect_button(x_button_stop  + 5, y_sync_bit + 7)
-			connect_button(x_button_start + 5, y_sync_bit + 8)
-		end
-		-- ram mask
-		do
-			local y_source = y_call_sites + core_count * core_pitch
-			ldtc(x_ram_mask, y_source - 1, x_ram_mask, y_source - 3)
-			part({ type = pt.FILT, x = x_ram_mask    , y = y_source    , ctype = ram_mask })
-			part({ type = pt.FILT, x = x_ram_mask    , y = y_source + 1, ctype = ram_mask })
-			part({ type = pt.FILT, x = x_ram_mask - 1, y = y_source + 1, ctype = ram_mask })
-			part({ type = pt.FILT, x = x_ram_mask - 4, y = y_source + 1, ctype = ram_mask })
-			ldtc(x_ram_mask - 2, y_source + 1, x_ram_mask - 4, y_source + 1)
-			per_core(function(i, y)
-				dray(x_ram_mask, y_source + 2, x_ram_mask, y + 3, 1, pt.PSCN)
-				patch_filt(x_ram_mask, y + 3, ram_mask)
-			end)
-		end
-
-		local parts_by_pos = {}
-		for _, part in ipairs(parts) do
-			parts_by_pos[xy_key(part.x, part.y)] = part
-			if not part.dcolour then
-				part.dcolour = 0xFF3F3F3F
-			end
-		end
-		local function add_dmnd(x, y)
-			local key = xy_key(x, y)
-			local q = parts_by_pos[key]
-			if q then
-				if q.type == pt.FILT  then
-					q.dcolour = 0xFF00FFFF
-				end
-				if q.type == pt.LDTC then
-					q.dcolour = 0xFF007F7F
-				end
+		per_core(function(i, y)
+			if i == core_count then
+				dray(x_sync_bit - 5, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
 			else
-				parts_by_pos[key] = part({ type = pt.DMND, x = x, y = y, dcolour = 0xFFFFFFFF })
+				dray(x_sync_bit, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
 			end
-		end
-		for x = x1, x2 do
-			add_dmnd(x, y1)
-			add_dmnd(x, y1 - 1)
-			add_dmnd(x, y2)
-			add_dmnd(x, y2 + 1)
-		end
-		for y = y1, y2 do
-			add_dmnd(x1, y)
-			add_dmnd(x1 - 1, y)
-			add_dmnd(x2, y)
-			add_dmnd(x2 + 1, y)
-		end
+			local value = i == core_count and 0x00010001 or 0x00010000
+			patch_filt(x_sync_bit, y + 3, value)
+		end)
 
+		local x_dtec = x_sync_bit - 5
+		aray(x_dtec - 3, y_sync_bit + 6, -1, 0, pt.METL)
+		local y_source = y_call_sites + core_count * core_pitch
+		ldtc(x_sync_bit, y_source - 1, x_sync_bit, y_source - 3)
+		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
+		part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010001 })
+		part({ type = pt.INSL, x = x_dtec    , y = y_sync_bit + 6 })
+		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010011 })
+		part({ type = pt.INSL, x = x_dtec - 0, y = y_sync_bit + 7 })
+		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010009 })
+		part({ type = pt.DTEC, x = x_dtec    , y = y_sync_bit + 8, tmp2 = 2 })
+		part({ type = pt.FILT, x = x_dtec + 1, y = y_sync_bit + 8, ctype = 0x00010001 })
+
+		part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 7, ctype = 0x00010000 })
+		part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 8, ctype = 0x00010000 })
+		part({ type = pt.FILT, x = x_sync_bit -  1, y = y_sync_bit + 8, ctype = 0x00010000 })
+		part({ type = pt.FILT, x = x_sync_bit - 23, y = y_sync_bit + 8, ctype = 0x00010000 })
+		ldtc(x_sync_bit - 2, y_sync_bit + 8, x_sync_bit - 23, y_sync_bit + 8)
+
+		local function connect_button(x, y)
+			for xx = x, x_dtec - 3 do
+				if not ( xx == x_ram_mask or
+				        (xx == x_sync_bit and y == y_sync_bit + 8)) then
+					part({ type = pt.STOR, x = xx, y = y })
+				end
+			end
+			part({ type = pt.ARAY, x = x - 1, y = y })
+			part({ type = pt.NSCN, x = x - 2, y = y })
+		end
+		connect_button(x_button_stop  + 5, y_sync_bit + 7)
+		connect_button(x_button_start + 5, y_sync_bit + 8)
+	end
+
+	do -- ram mask
+		local y_source = y_call_sites + core_count * core_pitch
+		ldtc(x_ram_mask, y_source - 1, x_ram_mask, y_source - 3)
+		part({ type = pt.FILT, x = x_ram_mask    , y = y_source    , ctype = ram_mask })
+		part({ type = pt.FILT, x = x_ram_mask    , y = y_source + 1, ctype = ram_mask })
+		part({ type = pt.FILT, x = x_ram_mask - 1, y = y_source + 1, ctype = ram_mask })
+		part({ type = pt.FILT, x = x_ram_mask - 4, y = y_source + 1, ctype = ram_mask })
+		ldtc(x_ram_mask - 2, y_source + 1, x_ram_mask - 4, y_source + 1)
+		per_core(function(i, y)
+			dray(x_ram_mask, y_source + 2, x_ram_mask, y + 3, 1, pt.PSCN)
+			patch_filt(x_ram_mask, y + 3, ram_mask)
+		end)
+	end
+
+	local parts_by_pos = ucontext.frame(x1, y1, x2, y2)
+
+	do
 		local y_top    = y_call_sites - 3
 		local y_bottom = y_call_sites + core_count * core_pitch - 3
 		patch_filt(x_storage_slot(10)    ,     y_bottom, 0x10000008) -- state -- TODO: halt by default
