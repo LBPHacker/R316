@@ -802,7 +802,7 @@ local function build(core_count, height_order, machine_id)
 			else
 				dray(x_sync_bit, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
 			end
-			local value = i == core_count and 0x00010001 or 0x00010000
+			local value = i == core_count and 0x00010000 or 0x00010001
 			patch_filt(x_sync_bit, y + 3, value)
 		end)
 
@@ -810,19 +810,19 @@ local function build(core_count, height_order, machine_id)
 		aray(x_dtec - 3, y_sync_bit + 6, -1, 0, pt.METL)
 		local y_source = y_call_sites + core_count * core_pitch
 		ldtc(x_sync_bit, y_source - 1, x_sync_bit, y_source - 3)
-		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010001 })
-		part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010001 })
+		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010000 })
+		part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010000 })
 		part({ type = pt.INSL, x = x_dtec    , y = y_sync_bit + 6 })
-		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010011 })
+		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010010 })
 		part({ type = pt.INSL, x = x_dtec - 0, y = y_sync_bit + 7 })
-		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010009 })
+		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 8, ctype = 0x00010008 })
 		part({ type = pt.DTEC, x = x_dtec    , y = y_sync_bit + 8, tmp2 = 2 })
-		part({ type = pt.FILT, x = x_dtec + 1, y = y_sync_bit + 8, ctype = 0x00010001 })
+		part({ type = pt.FILT, x = x_dtec + 1, y = y_sync_bit + 8, ctype = 0x00010000 })
 
-		part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 7, ctype = 0x00010000 })
-		part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 8, ctype = 0x00010000 })
-		part({ type = pt.FILT, x = x_sync_bit -  1, y = y_sync_bit + 8, ctype = 0x00010000 })
-		part({ type = pt.FILT, x = x_sync_bit - 23, y = y_sync_bit + 8, ctype = 0x00010000 })
+		part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 7, ctype = 0x00010001 })
+		part({ type = pt.FILT, x = x_sync_bit     , y = y_sync_bit + 8, ctype = 0x00010001 })
+		part({ type = pt.FILT, x = x_sync_bit -  1, y = y_sync_bit + 8, ctype = 0x00010001 })
+		part({ type = pt.FILT, x = x_sync_bit - 23, y = y_sync_bit + 8, ctype = 0x00010001 })
 		ldtc(x_sync_bit - 2, y_sync_bit + 8, x_sync_bit - 23, y_sync_bit + 8)
 
 		local function connect_button(x, y)

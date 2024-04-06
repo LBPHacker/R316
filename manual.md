@@ -431,4 +431,4 @@ jnge D, S ; jump if not greater (signed) or equal (same as jl)
 jnb  D, S ; jump if not below (unsigned, same as jnc)
 ```
 
-All of the above also have a variant that only jumps if the conditions associated with the variants above hold *and* the instruction is being executed by the last (bottommost) execution unit. These are *synchronizing* conditional jumps, named so because they make it possible to easily synchronize with external hardware. These have the same mnemonics as the ordinary variant, but with an extra `y` after the `j`. The exception is `jy`, which is synchronizing `jmp`.
+All of the above also have a variant that only jumps if the conditions associated with the variants above hold *and* the instruction is being executed by any execution unit other than the last (bottommost) one. These are *synchronizing* conditional jumps, named so because they make it possible to easily synchronize with external hardware. These have the same mnemonics as the ordinary variant, but with an extra `y` after the `j`. The exception is `jy`, which is synchronizing `jmp`.

@@ -444,7 +444,7 @@ local last_state, expect_io_addr_out, expect_io_data_out
 local randomize = true
 local spawn_delay = 0
 local start_delay
-local sync_bit = 0x10001
+local sync_bit = 0x10000
 local aftersim = xpcall_wrap(function()
 	if spawn_delay > 0 then
 		spawn_delay = spawn_delay - 1
@@ -469,12 +469,12 @@ local aftersim = xpcall_wrap(function()
 			end
 			local io_state_in = sim_value(io_state_in_id(i))
 			local io_data_in = sim_value(io_data_in_id(i))
-			local i_sync_bit = i == core_count and sync_bit or 0x10000
+			local i_sync_bit = i == core_count and sync_bit or 0x10001
 			expected = advance_state(expected, i_sync_bit, io_state_in, io_data_in)
 			expect_io_addr_out = expected.mem_addr
 			expect_io_data_out = expected.mem_data
 		end
-		sync_bit = 0x10001
+		sync_bit = 0x10000
 		if math.random() < 0.001 then
 			sync_bit = bitx.bor(sync_bit, 0x10)
 		end
@@ -507,7 +507,7 @@ local aftersim = xpcall_wrap(function()
 		round_pos = 0
 		randomize = true
 		start_delay = nil
-		sync_bit = 0x10001
+		sync_bit = 0x10000
 	end
 end)
 local tick = xpcall_wrap(function()
@@ -546,7 +546,7 @@ local tick = xpcall_wrap(function()
 			for index = 1, 31 do
 				sim_value(register_id(index), any32())
 			end
-			start(0x10009)
+			start(0x10008)
 			sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
 			sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
 			do_input()
