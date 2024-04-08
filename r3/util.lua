@@ -156,7 +156,7 @@ local function make_context(parts)
 		return q
 	end
 
-	local function ldtc(x, y, x_to, y_to, z)
+	local function ldtc(x, y, x_to, y_to, z, tmp)
 		assert(x and y and x_to and y_to)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
@@ -164,7 +164,7 @@ local function make_context(parts)
 			error("bad offset", 2)
 		end
 		local magn = math.max(dx_magn, dy_magn)
-		local q = part({ type = pt.LDTC, x = x, y = y, life = magn - 1, z = z })
+		local q = part({ type = pt.LDTC, x = x, y = y, life = magn - 1, z = z, tmp = tmp })
 		return q
 	end
 
