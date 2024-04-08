@@ -194,23 +194,30 @@ local function build(core_count, height_order, machine_id)
 		filt_line_to(x_io, y - 3)
 		filt_line_to(x_io, y - 2)
 		filt_line_to(x_io - 4, y)
-		local qs_io_state = filt_line_to(x_io - 7, y - 1)
+		local qs_io_state = filt_line_to(x_io - 9, y - 1)
 		local x_default_io = x_io - 13
 		part({ type = pt.FILT, x = x_default_io, y = y - 1, ctype = 0x10000000 }) -- default io state
-		ldtc(x_io - 8, y - 1, x_default_io, y - 1)
+		ldtc(x_io - 10, y - 1, x_default_io, y - 1)
 		ldtc(x_io - 1, y - 3, x_io - 4, y - 3)
-		ldtc(x_io - 1, y - 2, x_ram_data_up + 2, y - 2)
-		part({ type = pt.FILT, x = x_ram_data_up + 2, y = y + 4 })
+		ldtc(x_io - 1, y - 2, x_ram_data_up, y - 2)
+		part({ type = pt.FILT, x = x_ram_data_up, y = y + 4 })
+		part({ type = pt.DMND, x = x_ram_data_up + 2, y = y })
+		part({ type = pt.STOR, x = x_ram_data_up, y = y + 2, z = 20000000 })
+		aray(x_ram_data_up - 2, y + 4, -1, 1, pt.METL)
+		part({ type = pt.DTEC, x = x_ram_data_up - 1, y = y + 4, tmp2 = 3 })
 
-		local x_io_state = x_storage_slot(86)
+		local x_io_state = x_storage_slot(84)
 		ldtc(x_io_state, y + 1, x_io_state, y - 1)
 		part({ type = pt.FILT, x = x_io_state, y = y + 2 })
+		local x_ram_addr = x_storage_slot(86)
+		ldtc(x_ram_addr, y + 1, x_ram_addr, y - 3)
+		part({ type = pt.FILT, x = x_ram_addr, y = y + 2 })
 		part({ type = pt.FILT, x = x_io - 4, y = y - 2, ctype = 0x00000008 })
-		qs_io_state[4].tmp = 1
+		qs_io_state[6].tmp = 1
 		if i ~= 1 then
 			cray(98, y - 4, x_io - 4, y - 4, pt.METL, 1, pt.PSCN)
 			cray(98, y - 4, x_io - 4, y - 4, pt.METL, 1, pt.PSCN)
-			local sprk = cray(114, y - 4, x_io - 4, y - 4, pt.SPRK, 1, pt.INWR)
+			local sprk = cray(115, y - 4, x_io - 4, y - 4, pt.SPRK, 1, pt.INWR)
 			sprk.life = 3
 			part({ type = pt.SPRK, x = x_io - 4, y = y - 4, life = 3, ctype = pt.METL })
 		end
@@ -315,8 +322,8 @@ local function build(core_count, height_order, machine_id)
 		per_core(function(i, y)
 			part({ type = pt.FILT, x = x, y = y - 1 })
 			dray(x, y, x, y_ldtc_dray_bank + 2, 1, pt.PSCN)
-			part({ type = pt.FILT, x = x_ram_data_up + 3, y = y + 5, tmp2 = 2 })
-			dray(x_ram_data_up + 4, y - 1, x, y - 1, 1, pt.PSCN)
+			part({ type = pt.FILT, x = x_ram_data_up, y = y + 5, tmp2 = 2 })
+			dray(x_ram_data_up + 1, y - 1, x, y - 1, 1, pt.PSCN)
 		end)
 	end
 
@@ -519,9 +526,9 @@ local function build(core_count, height_order, machine_id)
 			end
 			dray(x, y + core_pitch * core_count + 1, x, y, count, pt.PSCN)
 		end
-		repeater(x_ram_data_up + 2, y_call_sites - 2, 1)
-		repeater(x_ram_data_up + 3, y_call_sites - 1, 1)
+		repeater(x_ram_data_up, y_call_sites - 1, 2)
 		repeater(x_storage_slot(86), y_call_sites - 3, 1)
+		repeater(x_storage_slot(68), y_call_sites, 1)
 	end
 
 	-- register readers
@@ -537,8 +544,10 @@ local function build(core_count, height_order, machine_id)
 		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
 		part({ type = pt.INSL, x = x_reader + 52, y = y_reader })
-		part({ type = pt.DTEC, x = x_reader + 38, y = y_reader })
-		part({ type = pt.BRAY, x = x_reader + 37, y = y_reader })
+		part({ type = pt.LDTC, x = x_reader + 35, y = y_reader - 1, life = 1 }) -- get ram_data from previous core
+		part({ type = pt.STOR, x = x_reader + 37, y = y_reader })
+		part({ type = pt.DTEC, x = x_reader + 39, y = y_reader })
+		cray(x_reader + 39, y_reader, x_reader + 35, y_reader, pt.SPRK, 1, pt.PSCN)
 		part({ type = pt.FILT, x = x_reader + 36, y = y_reader })
 		dray(x_get_ctype - 1, y + 2, x_reader + 36, y + 2, 1, pt.PSCN)
 		local function reader(stage_1_offset, storage_slot)
@@ -555,10 +564,12 @@ local function build(core_count, height_order, machine_id)
 			part({ type = pt.DTEC, x = x_stage_1 + 3, y = y_reader, tmp2 = 2 })
 			solid_spark(x_stage_1 + 3, y_reader, -1, 0, pt.METL)
 			part({ type = pt.FILT, x = x_stage_1 + 4, y = y_reader })
-			part({ type = pt.BRAY, x = x_stage_1 + 5, y = y_reader })
 		end
 		reader(30, 1)
 		reader(46, 2)
+		part({ type = pt.BRAY, x = x_reader + 51, y = y_reader })
+		part({ type = pt.BRAY, x = x_reader + 38, y = y_reader })
+		part({ type = pt.BRAY, x = x_reader + 34, y = y_reader - 1 })
 	end)
 
 	-- cores
@@ -575,7 +586,6 @@ local function build(core_count, height_order, machine_id)
 	vertical_input(16,  true, 0)
 	vertical_input(29, false, 3)
 	vertical_input(54,  true, 3)
-	vertical_input(62, false, 0)
 	vertical_input( 7, false, 0)
 	per_core(function(i, y)
 		for _, info in ipairs(vertical_inputs) do
@@ -618,16 +628,22 @@ local function build(core_count, height_order, machine_id)
 
 		local x_filt13 = x_filt_bank + 7
 		part({ type = pt.FILT, x = x_filt13, y = y_stack, ctype = 0x10000003 })
-		ldtc(x_filt_bank, y_stack - 1, x_filt_bank - 2, y_stack - 3)
-		part({ type = pt.FILT, x = x_filt_bank + 1, y = y_stack })
+		ldtc(x_filt_bank + 3, y_stack + 5, x_filt_bank + 1, y_stack + 3)
+		part({ type = pt.FILT, x = x_filt_bank + 4, y = y_stack + 6 })
 		local filt_offsets = {}
 		local add_bit
 		do
 			local seen = 0
 			function add_bit(k)
 				local x_seen = seen
+				if k == 0 then
+					x_seen = 6
+				end
+				if k == 1 then
+					x_seen = 7
+				end
 				if k == 2 then
-					x_seen = 6 -- so it doesn't get clobbered by the core's pri_reg input
+					x_seen = 8 -- so it doesn't get clobbered by the core's pri_reg input
 				end
 				part({ type = pt.FILT, x = x_filt_bank + x_seen + 2, y = y_stack, ctype = bitx.lshift(1, k) })
 				filt_offsets[k] = x_seen
@@ -698,7 +714,7 @@ local function build(core_count, height_order, machine_id)
 		local x_bank_dray_donor = x_retract - 3
 		cray(x_bank_dray_donor, y_stack - 1, x_bank_dray_donor, y_stack, pt.SPRK, 1, pt.PSCN) -- float bank dray's id before its update
 		cray(x_stack - 12 - 2 * regs, y_stack, x_bank_dray_donor, y_stack, pt.PSTN, 1, pt.PSCN) -- spawn a dummy piston in its place
-		cray(x_bank_dray_donor + 10, y_stack, x_bank_dray_donor, y_stack, pt.SPRK, 1, pt.PSCN) -- remove dummy piston from its place
+		cray(x_bank_dray_donor + 8, y_stack, x_bank_dray_donor, y_stack, pt.SPRK, 1, pt.PSCN) -- remove dummy piston from its place
 		cray(x_bank_dray_donor, y_stack + 1, x_bank_dray_donor, y_stack, pt.PSTN, 1, pt.PSCN) -- restore bank dray's id after its update
 		dray(x_bank_dray_donor + 3, y_stack - 1, x_bank_dray, y_stack - 1, 1, pt.PSCN) -- restore bank dray's id before its update
 		part({ type = pt.DRAY, x = x_bank_dray_donor + 2, y = y_stack - 1, tmp = 1, tmp2 = 1 }) -- bank dray template
@@ -858,16 +874,16 @@ local function build(core_count, height_order, machine_id)
 	do
 		local y_top    = y_call_sites - 3
 		local y_bottom = y_call_sites + core_count * core_pitch - 3
-		patch_filt(x_storage_slot(10)    ,     y_bottom, 0x10000008) -- state -- TODO: halt by default
+		patch_filt(x_storage_slot(10)    ,     y_bottom, 0x10000008) -- state
 		patch_filt(x_storage_slot(29)    , y_bottom + 3, 0x10000000) -- curr_instr
 		patch_filt(x_storage_slot(54)    , y_bottom + 3, 0x10000000) -- curr_imm
 		patch_filt(x_storage_slot(14)    ,     y_bottom, 0x10000000) -- pc
 		patch_filt(x_storage_slot(16)    ,     y_bottom, 0x10000000) -- flags
 		patch_filt(x_storage_slot( 7)    ,     y_bottom, 0x10000000) -- wreg_data
-		patch_filt(x_storage_slot(62)    ,     y_bottom, 0x10000000) -- wreg_addr
+		patch_filt(x_storage_slot(65) + 3,    y_top + 3, 0x10000000) -- wreg_addr
 		patch_filt(x_storage_slot(86)    ,    y_top + 0, 0x10040000) -- ram_addr*
-		patch_filt(x_storage_slot(64) + 2,    y_top + 1, 0x10000000) -- ram_data*
-		patch_filt(x_storage_slot(64) + 3,    y_top + 2, 0x10000000) -- ram_data*
+		patch_filt(x_storage_slot(64)    ,    y_top + 1, 0x10000000) -- ram_data*
+		patch_filt(x_storage_slot(64)    ,    y_top + 2, 0x10000000) -- ram_data*
 		for key, ctype in pairs(patch_filt_list) do
 			parts_by_pos[key].ctype = ctype
 		end

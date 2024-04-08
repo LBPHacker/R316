@@ -16,7 +16,7 @@ return testbed.module({
 		round_length  = 10000,
 	},
 	stacks        = 1,
-	storage_slots = 30,
+	storage_slots = 40,
 	work_slots    = 20,
 	inputs = {
 		{ name = "state"          , index =  1, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000001 },
@@ -32,6 +32,9 @@ return testbed.module({
 		{ name = "next_curr_imm"  , index = 21, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 		{ name = "next_ram_addr"  , index = 23, keepalive = 0x10000000, payload = 0x000FFFFF, initial = 0x10000000 },
 		{ name = "next_wreg_addr" , index = 25, keepalive = 0x10000000, payload = 0x0000001F, initial = 0x10000000 },
+		{ name = "next_ram_data"  , index = 27, keepalive = 0x00000000, payload = 0xFFFFFFFF, initial = 0x10000000, never_zero = true },
+		{ name = "ram_addr"       , index = 29, keepalive = 0x10000000, payload = 0x000FFFFF, initial = 0x10000000 },
+		{ name = "ram_data"       , index = 31, keepalive = 0x00000000, payload = 0xFFFFFFFF, initial = 0x10000000, never_zero = true },
 	},
 	outputs = {
 		{ name = "state"     , index =  1, keepalive = 0x10000000, payload = 0x0000000F },
@@ -41,18 +44,21 @@ return testbed.module({
 		{ name = "curr_imm"  , index =  9, keepalive = 0x10000000, payload = 0x0000FFFF },
 		{ name = "ram_addr"  , index = 11, keepalive = 0x10000000, payload = 0x000FFFFF },
 		{ name = "wreg_addr" , index = 13, keepalive = 0x10000000, payload = 0x0000001F },
+		{ name = "ram_data"  , index = 15, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 	},
 	func = function(inputs)
-		local state, curr_instr, curr_imm, pc, flags, ram_addr, wreg_addr = spaghetti.select(
+		local state, curr_instr, curr_imm, pc, flags, ram_addr, ram_data, wreg_addr = spaghetti.select(
 			inputs.io_state:band(1):zeroable(),
 			inputs.state     , inputs.next_state,
 			inputs.curr_instr, inputs.next_curr_instr,
 			inputs.curr_imm  , inputs.next_curr_imm,
 			inputs.pc        , inputs.next_pc,
 			inputs.flags     , inputs.next_flags,
-			0x10000000       , inputs.next_ram_addr,
+			inputs.ram_addr  , inputs.next_ram_addr,
+			inputs.ram_data  , inputs.next_ram_data,
 			0x10000000       , inputs.next_wreg_addr
 		)
+		ram_data:never_zero()
 		return {
 			state      = state,
 			curr_instr = curr_instr,
@@ -60,6 +66,7 @@ return testbed.module({
 			pc         = pc,
 			flags      = flags,
 			ram_addr   = ram_addr,
+			ram_data   = ram_data,
 			wreg_addr  = wreg_addr,
 		}
 	end,
@@ -78,6 +85,9 @@ return testbed.module({
 			next_curr_imm   = bitx.bor(0x10000000, math.random(0x00000000, 0x0000FFFF)),
 			next_ram_addr   = bitx.bor(0x10000000, math.random(0x00000000, 0x000FFFFF)),
 			next_wreg_addr  = bitx.bor(0x10000000, math.random(0x00000000, 0x0000001F)),
+			ram_addr        = bitx.bor(0x10000000, math.random(0x00000000, 0x000FFFFF)),
+			ram_data        = testbed.any(),
+			next_ram_data   = testbed.any(),
 		}
 	end,
 	fuzz_outputs = function(inputs)
@@ -88,7 +98,8 @@ return testbed.module({
 			curr_imm   = keep_old and inputs.curr_imm   or inputs.next_curr_imm,
 			pc         = keep_old and inputs.pc         or inputs.next_pc,
 			flags      = keep_old and inputs.flags      or inputs.next_flags,
-			ram_addr   = keep_old and 0x10000000        or inputs.next_ram_addr,
+			ram_data   = keep_old and inputs.ram_data   or inputs.next_ram_data,
+			ram_addr   = keep_old and inputs.ram_addr   or inputs.next_ram_addr,
 			wreg_addr  = keep_old and 0x10000000        or inputs.next_wreg_addr
 		}
 	end,

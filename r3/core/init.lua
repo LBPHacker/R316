@@ -104,6 +104,8 @@ local function flow(inputs, instantiate)
 		state           = inputs.state,
 		curr_instr      = inputs.curr_instr,
 		curr_imm        = inputs.curr_imm,
+		ram_addr        = inputs.ram_addr,
+		ram_data        = inputs.ram_data,
 		pc              = inputs.pc,
 		flags           = inputs.flags,
 		next_state      = state_next_outputs.state,
@@ -112,6 +114,7 @@ local function flow(inputs, instantiate)
 		next_pc         = pc_sel_outputs.pc,
 		next_flags      = flags_sel_outputs.flags,
 		next_ram_addr   = ram_addr_sel_outputs.ram_addr,
+		next_ram_data   = inputs.pri_reg,
 		next_wreg_addr  = wreg_addr_sel_outputs.wreg_addr,
 	})
 	return {
@@ -121,6 +124,7 @@ local function flow(inputs, instantiate)
 		pc         = io_state_sel_outputs.pc,
 		flags      = io_state_sel_outputs.flags,
 		ram_addr   = io_state_sel_outputs.ram_addr,
+		ram_data   = io_state_sel_outputs.ram_data,
 		wreg_addr  = io_state_sel_outputs.wreg_addr,
 		wreg_data  = stack_high_outputs.both_halves,
 	}
@@ -142,7 +146,7 @@ return testbed.module({
 	storage_slots = 86,
 	work_slots    = 31,
 	voids         = {                                                                    76, 77, 78         },
-	clobbers      = { 1, 30, 31, 32, 57, 58, 59, 60, 61, 62, 63, 65, 68, 70, 73, 74, 75,             79, 81 },
+	clobbers      = { 1, 30, 31, 32, 57, 58, 59, 60, 61, 62, 63, 65, 69, 71, 73, 74, 75,             79, 81 },
 	inputs = {
 		{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
 		{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
@@ -151,10 +155,12 @@ return testbed.module({
 		{ name = "curr_instr", index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
 		{ name = "curr_imm"  , index = 48, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
 		{ name = "pri_reg"   , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-		{ name = "ram"       , index = 69, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "ram_data"  , index = 68, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+		{ name = "ram"       , index = 70, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sec_reg"   , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
 		{ name = "sync_bit"  , index = 54, keepalive = 0x00010000, payload = 0x00000019,                    initial = 0x00010001 },
-		{ name = "io_state"  , index = 86, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
+		{ name = "io_state"  , index = 84, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
+		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x000FFFFF,                    initial = 0x10000000 },
 	},
 	outputs = {
 		{ name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
@@ -163,7 +169,8 @@ return testbed.module({
 		{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F                    },
 		{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
 		{ name = "curr_imm"  , index = 54, keepalive = 0x10000000, payload = 0x0000FFFF                    },
-		{ name = "wreg_addr" , index = 62, keepalive = 0x10000000, payload = 0x0000001F                    },
+		{ name = "ram_data"  , index = 63, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
+		{ name = "wreg_addr" , index = 65, keepalive = 0x10000000, payload = 0x0000001F                    },
 		{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x000FFFFF                    },
 	},
 	func = function(inputs)
@@ -176,6 +183,8 @@ return testbed.module({
 			pri_reg    = testbed.any(),
 			sec_reg    = testbed.any(),
 			ram        = testbed.any(),
+			ram_data   = testbed.any(),
+			ram_addr   = bitx.bor(0x10000000, math.random(0x00000000, 0x000FFFFF)),
 			io_state   = bitx.bor(0x10000000, math.random(0x0000, 0x000F)),
 			state      = bitx.bor(0x10000000, util.any_state()),
 			curr_instr = bitx.bor(0x10000000, math.random(0x00000000, 0x0001FFFF)),

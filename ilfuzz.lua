@@ -264,7 +264,8 @@ local function advance_state(state, sync_bit, io_state_in, io_data_in)
 		next_state.pc          = state.pc
 		next_state.flags       = state.flags
 		next_state.state       = state.state
-		next_state.mem_addr    = 0x10000000
+		next_state.mem_addr    = state.mem_addr
+		next_state.mem_data    = state.mem_data
 		next_state.cinstr_high = state.cinstr_high
 		next_state.cinstr_low  = state.cinstr_low
 	end
@@ -302,11 +303,11 @@ local function wreg_data_id()
 end
 
 local function wreg_addr_id()
-	return sim.partID(cx + 63, cy - 6)
+	return sim.partID(cx + 69, cy - 3)
 end
 
 local function mem_data_id()
-	return sim.partID(cx + 67, cy - 5 - 6 * core_count)
+	return sim.partID(cx + 65, cy - 5 - 6 * core_count)
 end
 
 local function mem_addr_id()
@@ -542,6 +543,11 @@ local tick = xpcall_wrap(function()
 			detect()
 			for index = 0, space_available - 1 do
 				sim_value(memory_id(index), any32())
+				-- local value = any32()
+				-- value = bitx.band(value, 0xFFF0FFFF)
+				-- local allowed = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+				-- value = bitx.bor(value, bitx.lshift(allowed[math.random(#allowed)], 16))
+				-- sim_value(memory_id(index), value)
 			end
 			for index = 1, 31 do
 				sim_value(register_id(index), any32())
