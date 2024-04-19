@@ -342,9 +342,10 @@ and r3, r5, 0xFFF7
 
 ```asm
 mov D, P, S
-mov D, Treg ; expands to mov D, Treg, Treg
-mov D, Timm ; expands to mov D, r0, Timm
-nop         ; expands to mov r0, r0, r1
+mov D, Treg  ; expands to mov D, Treg, Treg
+mov D, Timm  ; expands to mov D, r0, Timm
+nop          ; expands to mov r0, r0, r1
+movf D, P, S ; updates flags
 ```
 
 Stores `S` in `D`. Note that, as explained above, the 16 MSBs of the result come from `P`.
