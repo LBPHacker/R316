@@ -2,8 +2,10 @@ local strict = require("spaghetti.strict")
 strict.wrap_env()
 
 local plot = require("spaghetti.plot")
+local bitx = require("spaghetti.bitx")
+local misc = require("spaghetti.misc")
 
-local function make_context(parts)
+local function make_context(parts, debug_stacks)
 	local pt = plot.pt
 
 	local function sig_magn(x)
@@ -31,6 +33,9 @@ local function make_context(parts)
 
 	local function part(p)
 		local m = {}
+		if debug_stacks then
+			m.user_stack = misc.user_stack()
+		end
 		if p.type == pt.PSTN then
 			if not p.temp then
 				m.temp = piston_extend(p.extend)
@@ -143,17 +148,46 @@ local function make_context(parts)
 		end
 	end
 
-	local function dray(x, y, x_to, y_to, count, conductor, z)
-		assert(x and y and x_to and y_to and count and conductor)
+	local function dray(x, y, x_to, y_to, count, conductor, z, no_auto_z)
+		assert(x and y and x_to and y_to and count)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
 		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
 			error("bad offset", 2)
 		end
 		local magn = math.max(dx_magn, dy_magn)
-		local q = part({ type = pt.DRAY, x = x, y = y, tmp = count, tmp2 = magn - count - 1, z = z })
-		solid_spark(x, y, -dx_sig, -dy_sig, conductor)
+		local dist = magn - count - 1
+		if dist < 0 then
+			error("bad distance", 2)
+		end
+		local q = part({ type = pt.DRAY, x = x, y = y, tmp = count, tmp2 = dist, z = z })
+		if conductor ~= false then
+			assert(conductor)
+			solid_spark(x, y, -dx_sig, -dy_sig, conductor, no_auto_z)
+		end
 		return q
+	end
+
+	local function dray_log(x, y, x_to, y_to, count, conductor)
+		assert(x and y and x_to and y_to and count)
+		if conductor ~= false then
+			assert(conductor)
+		end
+		local dx_sig, dx_magn = sig_magn(x_to - x)
+		local dy_sig, dy_magn = sig_magn(y_to - y)
+		local order = 0
+		local dist = math.max(dx_magn, dy_magn)
+		local step = dist - 1
+		while count > 0 do
+			local max_take = bitx.lshift(step, order)
+			local take = math.min(max_take, count)
+			local x_to = x + dx_sig * dist
+			local y_to = y + dy_sig * dist
+			dray(x, y, x_to, y_to, take, conductor)
+			count = count - take
+			dist = dist + take
+			order = order + 1
+		end
 	end
 
 	local function ldtc(x, y, x_to, y_to, z, tmp)
@@ -168,17 +202,45 @@ local function make_context(parts)
 		return q
 	end
 
-	local function cray(x, y, x_to, y_to, ptype, count, conductor, z)
-		assert(x and y and x_to and y_to and ptype and count and conductor)
+	local function cray(x, y, x_to, y_to, ptype, count, conductor, z, life)
+		assert(x and y and x_to and y_to and ptype and count)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
 		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
 			error("bad offset", 2)
 		end
 		local magn = math.max(dx_magn, dy_magn)
-		local q = part({ type = pt.CRAY, x = x, y = y, ctype = ptype, tmp = count, tmp2 = magn - 1, z = z })
-		solid_spark(x, y, -dx_sig, -dy_sig, conductor)
+		local q = part({ type = pt.CRAY, x = x, y = y, ctype = ptype, tmp = count, tmp2 = magn - 1, z = z, life = life })
+		if conductor ~= false then
+			assert(conductor)
+			solid_spark(x, y, -dx_sig, -dy_sig, conductor)
+		end
 		return q
+	end
+
+	local function pos_sort(pos)
+		table.sort(pos, function(a, b)
+			if a.y ~= b.y then return a.y < b.y end
+			if a.x ~= b.x then return a.x < b.x end
+			return false
+		end)
+		return pos
+	end
+
+	local function spark_row(x, y, x_to, y_to, conductor, count, life)
+		assert(x and y and x_to and y_to and count and life)
+		local dx_sig, dx_magn = sig_magn(x_to - x)
+		local dy_sig, dy_magn = sig_magn(y_to - y)
+		if not (dx_magn == dy_magn or dx_magn == 0 or dy_magn == 0) then
+			error("bad offset", 2)
+		end
+		local pos = pos_sort({
+			{ x = x - 3 * dx_sig, y = y - 3 * dy_sig },
+			{ x = x             , y = y              },
+		})
+		cray(pos[1].x, pos[1].y, x_to, y_to, conductor, count, pt.PSCN)
+		cray(pos[1].x, pos[1].y, x_to, y_to, conductor, count, pt.PSCN)
+		cray(pos[2].x, pos[2].y, x_to, y_to, pt.SPRK, count, pt.INWR, nil, life)
 	end
 
 	local function aray(x, y, x_off, y_off, conductor, z, life)
@@ -244,13 +306,24 @@ local function make_context(parts)
 		lsns_taboo    = lsns_taboo,
 		lsns_spark    = lsns_spark,
 		dray          = dray,
+		dray_log      = dray_log,
 		ldtc          = ldtc,
 		cray          = cray,
 		aray          = aray,
+		spark_row     = spark_row,
 		frame         = frame,
 	}
 end
 
+local function wrap_build(build)
+	return function(...)
+		return misc.user_wrap(function(...)
+			return build(...)
+		end, ...)
+	end
+end
+
 return {
 	make_context = make_context,
+	wrap_build   = wrap_build,
 }

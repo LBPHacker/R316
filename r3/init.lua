@@ -540,7 +540,7 @@ local function build(core_count, height_order, machine_id)
 		part({ type = pt.FILT, x = x_reader_storage, y = y + 1 }) -- conduit for the above
 		ldtc(x_reader_storage + 18, y, x_reader_storage - core_pitch + 21, y - core_pitch + 3)
 		part({ type = pt.FILT, x = x_reader_storage + 17, y = y + 1 }) -- conduit for the above
-		plot.merge_parts(x_reader, y + 2, parts, rread)
+		plot.merge_parts(x_reader, y + 2, parts, rread.get_parts())
 		dray(x_get_ctype - 1, y + 2, x_reader_storage + 2, y + 2, 1, pt.PSCN)
 
 		part({ type = pt.INSL, x = x_reader + 52, y = y_reader })
@@ -595,7 +595,7 @@ local function build(core_count, height_order, machine_id)
 				part({ type = pt.FILT, x = x, y = y + 1 })
 			end
 		end
-		plot.merge_parts(x_core - 2, y + 3, parts, core)
+		plot.merge_parts(x_core - 2, y + 3, parts, core.get_parts())
 	end)
 	for _, info in ipairs(vertical_inputs) do
 		local x = x_storage_slot(info.index)

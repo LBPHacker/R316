@@ -59,9 +59,9 @@ Bit layout:
 
 | bits | function |
 |-|-|
-| 31 to 30 | 0, unused |
-| 29 | 1, sentinel |
-| 28 to 20 | 0, unused |
+| 31 to 29 | 0, unused |
+| 28 | 1, sentinel |
+| 27 to 20 | 0, unused |
 | 19 | external read |
 | 18 | internal read |
 | 17 | external write |
@@ -90,9 +90,9 @@ Bit layout:
 
 | bits | function |
 |-|-|
-| 31 to 30 | must be 0, unused |
-| 29 | must be 1, sentinel |
-| 28 to 4 | must be 0, unused |
+| 31 to 29 | must be 0, unused |
+| 28 | must be 1, sentinel |
+| 27 to 4 | must be 0, unused |
 | 3 | indicates that the data input is valid |
 | 2 to 1 | must be 0, unused |
 | 0 | engages a wait cycle |
