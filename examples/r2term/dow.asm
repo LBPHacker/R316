@@ -167,8 +167,6 @@ refresh_input:
 
 
 ; * Do calculation and output answer.
-; * TODO: range-check the input; it works for valid inputs but produces nonsense
-;         for invalid ones
 ; * r29 in: return address
 ; * Clobbers: r1 to r5
 refresh_output:
@@ -196,6 +194,28 @@ refresh_output:
     add r5, r1
     ld r1, { input 15 + }
     add r5, r1
+.range_check:
+    cmp 12, r4                ; * Check whether the month value is in range.
+    jb .invalid
+    cmp 1, r4
+    ja .invalid
+    ld r1, r4, { .months_days 1 - }
+    test r1, r1               ; * Month is not February: no adjustment needed.
+    jns ..no_feb_adjust
+    test r3, 3                ; * Year not a multiple of 4: not a leap year.
+    jnz ..no_feb_adjust
+    test r3, r3               ; * Year is not the end of a century: a leap year.
+    jnz ..feb_adjust
+    test r2, 3                ; * Century not a multiple of 4: not a leap year.
+    jnz ..no_feb_adjust
+..feb_adjust:
+    add r1, 1
+..no_feb_adjust:
+    and r1, 0x7FFF            ; * Mask off February bit.
+    cmp r1, r5                ; * Check whether the day value is in range.
+    jb .invalid
+    cmp 1, r5
+    ja .invalid
     cmp 3, r4
     jna .no_decr_year34
     add r3, 0xFFFF
@@ -203,6 +223,7 @@ refresh_output:
     add r2, 0xFFFF
 .no_decr_year12:
 .no_decr_year34:
+.total:
     shl r1, r2, 2             ; * Standard day of the week formula.
     add r3, r1
     shl r1, r2, 5
@@ -236,6 +257,7 @@ refresh_output:
     reduce 14
     reduce 7
 %unmacro reduce
+.print:
     mov r1, 0x1084            ; * Load position.
     jmp r31, send_char        ; * Send to terminal.
     shl r1, r3, 1
@@ -245,6 +267,9 @@ refresh_output:
     add r1, days_str          ;   the days_str every 11 cells.
     jmp r31, send_string
     jmp r29
+.invalid:
+    mov r3, 7
+    jmp .print
 .months_mod:
     dw 0x10006
     dw 0x10002
@@ -258,6 +283,19 @@ refresh_output:
     dw 0x10005
     dw 0x10001
     dw 0x10003
+.months_days:
+    dw 31
+    dw { 28 0x8000 + }        ; * February bit set.
+    dw 31
+    dw 30
+    dw 31
+    dw 31
+    dw 30
+    dw 31
+    dw 30
+    dw 31
+    dw 30
+    dw 31
 
 
 ; * The 8 input cells. Each row holds a terminal cursor position, followed by
