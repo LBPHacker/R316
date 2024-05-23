@@ -220,6 +220,7 @@ refresh_output:
     jna .no_decr_year34
     add r3, 0xFFFF
     jc .no_decr_year12
+    mov r3, 99
     add r2, 0xFFFF
 .no_decr_year12:
 .no_decr_year34:
