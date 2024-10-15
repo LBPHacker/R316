@@ -446,7 +446,7 @@ local randomize = true
 local spawn_delay = 0
 local start_delay
 local sync_bit = 0x10000
-local aftersim = xpcall_wrap(function()
+local function aftersim_inner()
 	if spawn_delay > 0 then
 		spawn_delay = spawn_delay - 1
 		return
@@ -510,55 +510,58 @@ local aftersim = xpcall_wrap(function()
 		start_delay = nil
 		sync_bit = 0x10000
 	end
+end
+local aftersim = xpcall_wrap(function()
+	aftersim_inner()
+	if randomize then
+		last_state = nil
+		expect_io_addr_out = nil
+		expect_io_data_out = nil
+		randomize = nil
+		sim.clearSim()
+		local x, y = 100, 100
+		local core_count = 10
+		local height_order = 4
+		local io_probes = {}
+		for i = 0, core_count - 1 do
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 15 })
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 16 })
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
+			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
+		end
+		plot.create_parts(x, y, plot.merge_parts(0, 0, r3.build(core_count, height_order), io_probes))
+		detect()
+		for index = 0, space_available - 1 do
+			sim_value(memory_id(index), any32())
+			-- local value = any32()
+			-- value = bitx.band(value, 0xFFF0FFFF)
+			-- local allowed = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+			-- value = bitx.bor(value, bitx.lshift(allowed[math.random(#allowed)], 16))
+			-- sim_value(memory_id(index), value)
+		end
+		for index = 1, 31 do
+			sim_value(register_id(index), any32())
+		end
+		start(0x10008)
+		sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
+		sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
+		do_input()
+		round_length = math.random(0x10, 0x100)
+		spawn_delay = 1
+	end
 end)
 local tick = xpcall_wrap(function()
 	if broken then
 		gfx.drawText(tx, ty, broken)
 	else
-		if randomize then
-			last_state = nil
-			expect_io_addr_out = nil
-			expect_io_data_out = nil
-			randomize = nil
-			sim.clearSim()
-			local x, y = 100, 100
-			local core_count = 10
-			local height_order = 4
-			local io_probes = {}
-			for i = 0, core_count - 1 do
-				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 15 })
-				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 16 })
-				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 17 })
-				table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 18 })
-				table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 17 })
-				table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 18 })
-				table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 17 })
-				table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 18 })
-				table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 17 })
-				table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 18 })
-				table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
-				table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
-			end
-			plot.create_parts(x, y, plot.merge_parts(0, 0, r3.build(core_count, height_order), io_probes))
-			detect()
-			for index = 0, space_available - 1 do
-				sim_value(memory_id(index), any32())
-				-- local value = any32()
-				-- value = bitx.band(value, 0xFFF0FFFF)
-				-- local allowed = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
-				-- value = bitx.bor(value, bitx.lshift(allowed[math.random(#allowed)], 16))
-				-- sim_value(memory_id(index), value)
-			end
-			for index = 1, 31 do
-				sim_value(register_id(index), any32())
-			end
-			start(0x10008)
-			sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
-			sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
-			do_input()
-			round_length = math.random(0x10, 0x100)
-			spawn_delay = 1
-		end
 		gfx.drawText(tx, ty, "Fuzzing...")
 	end
 end)
