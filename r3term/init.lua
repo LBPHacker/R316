@@ -9,7 +9,22 @@ local util = require("r3.util")
 local font = require("r3term.font")
 local core = require("r3term.core.generated")
 
-local function build(chars_nh, chars_nv, single_pixel)
+local outputs = {
+	char_color       = { x =   9, y = -18, ctype = 0x20000000 },
+	char_color_2     = { x =  35, y = -18, ctype = 0x20000000 },
+	char_dindex      = { x =  64, y = -18, ctype = 0x20000000 },
+	char_cindex      = { x =  84, y = -18, ctype = 0x20000000 },
+	pixel_xindex     = { x =  -1, y = -18, ctype = 0x3FFFFFFF },
+	char_hdray       = { x = -15, y = -18, ctype = 0x10000002 },
+	char_vdray       = { x = -13, y = -18, ctype = 0x10000002 },
+	char_hmask       = { x = -17, y = -18, ctype = 0x3FFFFFFF },
+	char_vmask       = { x = -11, y = -18, ctype = 0x3FFFFFFF },
+	pixel_yindex     = { x =  -5, y = -18, ctype = 0x200000B2 },
+	char_rindex_low  = { x =  15, y = -18, ctype = 0x10000002 },
+	char_rindex_high = { x =  11, y = -18, ctype = 0x10000003 },
+}
+
+local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags)
 	--[[
 	 - rows are row counts, columns are column counts
 	 - . means invalid
@@ -47,6 +62,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 	28 | . . . . # # # # # # # # # # # # # #
 	29 | . . . . . # # # # # # # # # # # # #
 	--]]
+	assert(bitx.band(base_address, 0xFFC0) == base_address, "invalid base address")
 	assert(chars_nh >= 12, "too few columns")
 	assert(chars_nh <= 29, "too many columns")
 	assert(chars_nv >= 4, "too few rows")
@@ -103,15 +119,44 @@ local function build(chars_nh, chars_nv, single_pixel)
 	local x_after_content = x_content + chars_w
 	local y_after_content = y_content + chars_h
 
-	do
+	if debug_flags and debug_flags.no_core then
+		for _, output in pairs(outputs) do
+			part({ type = pt.FILT, x = output.x, y = output.y, ctype = output.ctype })
+		end
+	else
 		local core_x = 24
 		local storage_remap = setmetatable({}, { __index = function(_, k)
 			if k > chars_w - core_x then
-				k = k + 2
+				k = k + 3
 			end
 			return k
 		end })
 		plot.merge_parts(core_x, -18, parts, core.get_parts(), storage_remap)
+	end
+	do -- core constants
+		local y = y_after_content + 6
+		local function constant(x, value)
+			part({ type = pt.FILT, x = x, y = y, ctype = value })
+			part({ type = pt.FILT, x = x, y = -17, ctype = value })
+			ldtc(x, -16, x, y)
+			for _, part in ipairs(parts) do
+				if part.x == x and part.y == -18 then
+					part.ctype = value
+				end
+			end
+		end
+		constant(48, bitx.bor(0x10000000, bitx.bor(chars_nh, bitx.lshift(chars_nh, 5))))
+		constant(50, bitx.bor(0x10000000, bitx.bor(chars_nv, bitx.lshift(chars_nv, 5))))
+		constant(52, bitx.bor(0x00020000, base_address))
+	end
+	if debug_flags and debug_flags.no_bus then
+		local function tap(x, value)
+			part({ type = pt.FILT, x = x, y = -19, ctype = value })
+			part({ type = pt.LDTC, x = x, y = -20 })
+			part({ type = pt.FILT, x = x, y = -24, ctype = value })
+		end
+		tap(58, 0x10000000)
+		tap(60, 0xDEADBEEF)
 	end
 
 	for xx = 0, chars_w - 1 do -- content
@@ -141,28 +186,28 @@ local function build(chars_nh, chars_nv, single_pixel)
 	do -- copier dray inst reset
 		local x_copier = x_after_content + char_size + 11
 		local y_copier = y_after_content + char_size + 11
-		spark_row(x_copier, y_after_content + 10, x_copier, chars_h - 1, pt.INWR, chars_h, 4)
+		spark_row(x_copier, y_after_content + 12, x_copier, chars_h - 1, pt.INWR, chars_h, 4)
 		do
-			local y = y_after_content + 14
-			local source = part({ type = pt.FILT, x = x_copier - 5, y = y - 1, ctype = 0x10000002 })
+			local y = y_after_content + 16
+			local source = part({ type = pt.FILT, x = outputs.char_vdray.x, y = y - 1, ctype = 0x10000002 })
+			ldtc(source.x, source.y - 1, outputs.char_vdray.x, outputs.char_vdray.y)
 			part({ type = pt.LSNS, x = x_copier	- 1, y = y - 1, tmp = 3 })
 			part({ type = pt.FILT, x = x_copier - 2, y = y - 1, ctype = 0x10000002 })
 			ldtc(x_copier - 3, y - 1, source.x, source.y)
 		end
 
-		local x_bottom = -10
+		local x_bottom = -12
 		spark_row(x_bottom, y_copier, 0, y_copier, pt.INWR, chars_w, 4)
 		do
-			local source = part({ type = pt.FILT, x = x_bottom - 3, y = y_copier - 20, ctype = 0x10000002 })
 			part({ type = pt.LSNS, x = x_bottom - 2, y = y_copier - 1, tmp = 3 })
 			part({ type = pt.FILT, x = x_bottom - 3, y = y_copier - 1, ctype = 0x10000002 })
-			ldtc(x_bottom - 3, y_copier - 2, source.x, source.y)
+			ldtc(x_bottom - 3, y_copier - 2, outputs.char_hdray.x, outputs.char_hdray.y)
 		end
 
 		for i = 0, -x_bottom - 2 do
 			part({ type = pt.FILT, x = x_bottom + 1 + i, y = y_after_content + char_size + 11, unstack = true })
 		end
-		for i = y_after_content, y_after_content + 9 do
+		for i = y_after_content, y_after_content + 11 do
 			part({ type = pt.FILT, x = x_copier, y = i, unstack = true })
 		end
 	end
@@ -240,8 +285,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 	local right_cray_first
 	do
 		local topmost_cray
-		local source_ctype = 0x3FFFFFFF
-		local y_demux = y_after_content + 11
+		local y_demux = y_after_content + 15
 		for rank = 0, 1 do
 			local x_rank = x_after_content + rank * 3
 			local targets = {}
@@ -270,7 +314,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 			local lsns_filt = part({ type = pt.FILT, x = x_rank + 1, y = y_after_content + 19, ctype = 0x10000003 })
 			generic_demuxer(x_rank + 1, y_demux, 0, -1, targets, lsns_filt, function(x, y, x_to, y_to)
 				dray(x, y, x_to, y_to + 1, 2, false)
-			end, true, 20, source_ctype)
+			end, true, 20, outputs.char_vmask.ctype)
 			solid_spark(x_rank + 2, y_demux - 2, -1, 0, pt.PSCN, true)
 			part({ type = pt.DMND, x = x_rank + 1, y = -1 })
 		end
@@ -279,13 +323,12 @@ local function build(chars_nh, chars_nv, single_pixel)
 		end
 		part({ type = pt.FILT, x = x_after_content + 2, y = y_demux - 3 })
 		part({ type = pt.FILT, x = x_after_content + 3, y = y_demux - 3 })
-		part({ type = pt.FILT, x = x_after_content + 5, y = y_demux - 3 })
-		local source = part({ type = pt.FILT, x = x_after_content + 8, y = y_demux - 3, ctype = source_ctype })
-		ldtc(x_after_content + 6, y_demux - 3, source.x, source.y)
+		local source = part({ type = pt.FILT, x = outputs.char_vmask.x, y = y_demux - 3, ctype = outputs.char_vmask.ctype })
+		ldtc(x_after_content, y_demux - 3, source.x, source.y)
+		ldtc(outputs.char_vmask.x, source.y - 1, outputs.char_vmask.x, outputs.char_vmask.y)
 	end
 
 	do
-		local source_ctype = 0x3FFFFFFF
 		local x_demux = x_after_content + 13
 		for rank = 0, 1 do
 			local y_rank = y_after_content + rank * 3
@@ -312,7 +355,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 			local lsns_filt = part({ type = pt.FILT, x = x_after_content + 19, y = y_rank + 1, ctype = 0x10000003 })
 			generic_demuxer(x_demux, y_rank + 1, -1, 0, targets, lsns_filt, function(x, y, x_to, y_to)
 				dray(x, y, x_to + 1, y_to, 2, false)
-			end, true, 20, source_ctype)
+			end, true, 20, outputs.char_hmask.ctype)
 			solid_spark(x_demux - 2, y_rank, 0, 1, pt.PSCN, true)
 			part({ type = pt.DMND, x = -1, y = y_rank + 1 })
 		end
@@ -321,8 +364,11 @@ local function build(chars_nh, chars_nv, single_pixel)
 		end
 		part({ type = pt.FILT, x = x_demux - 3, y = y_after_content + 2 })
 		part({ type = pt.FILT, x = x_demux - 3, y = y_after_content + 3 })
-		local source = part({ type = pt.FILT, x = x_demux - 3, y = -4, ctype = source_ctype })
+		local source = part({ type = pt.FILT, x = x_demux - 3, y = -4, ctype = outputs.char_hmask.ctype })
+		local source_prev = part({ type = pt.FILT, x = outputs.char_hmask.x, y = -4, ctype = outputs.char_hmask.ctype })
 		ldtc(x_demux - 3, y_after_content, source.x, source.y)
+		ldtc(source.x - 1, source.y, source_prev.x, source_prev.y)
+		ldtc(outputs.char_hmask.x, source_prev.y - 1, outputs.char_hmask.x, outputs.char_hmask.y)
 	end
 
 	local charpipe_1_x = -8
@@ -455,9 +501,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 			local xx = -char_size - 4 - i % 2 * 3
 			if i == 1 then
 				conductor = false
-				spark({ type = pt.PSCN, x = xx - 1, y = y    , life = 3 })
-				part ({ type = pt.LSNS, x = xx    , y = y    , tmp = 3 })
-				part ({ type = pt.FILT, x = xx    , y = y - 1, ctype = 0x10000003 })
+				lsns_spark({ type = pt.PSCN, x = xx - 1, y = y, life = 3 }, 1, 0, 1, -1)
 			end
 			cray(xx, y, 0, y, pt.SPRK, chars_w, conductor)
 		end
@@ -525,7 +569,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 			local csize = #colors
 			w_color_rom = csize + 13
 			local log_size = ilog2ceil(csize)
-			local function color_rom(x, carrier_type, shift)
+			local function color_rom(x, carrier_type, shift, input_x_offset, input)
 				assert(x and carrier_type and shift)
 				local targets = {}
 				for i = 0, log_size - 1 do
@@ -545,8 +589,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 				cray(x_retract_donor_right, y_retract_donor, retract_donor.x, retract_donor.y, retract_donor.type, 1, pt.PSCN)
 				x_retract_donor = x_retract_donor - 1
 
-				part({ type = pt.FILT, x = x - log_size - 3, y = y_color_rom - 5, ctype = 0x20000000 })
-				ldtc(x - log_size - 3, y_color_rom - 3, x - log_size - 3, y_color_rom - 5)
+				ldtc(x - log_size - 3 + input_x_offset, y_color_rom - 3, input.x, input.y)
 				part ({ type = pt.PSTN, x = x - 2           , y = y_color_rom - 1, extend = 1 })
 				part ({ type = pt.PSTN, x = x - log_size - 3, y = y_color_rom - 1, extend = math.huge })
 				part ({ type = pt.INSL, x = x - log_size - 5, y = y_color_rom - 1 })
@@ -569,8 +612,8 @@ local function build(chars_nh, chars_nv, single_pixel)
 					dray(x, y, x_to - 1, y_to, 2, false)
 				end, true, 20, 0x10000000)
 			end
-			color_rom(x_color_rom, pt.CRMC, 0)
-			color_rom(x_color_rom + w_color_rom, pt.STOR, log_size)
+			color_rom(x_color_rom, pt.CRMC, 0, 1, outputs.char_color)
+			color_rom(x_color_rom + w_color_rom, pt.STOR, log_size, 0, outputs.char_color_2)
 		end
 
 		local x_dray_rom = x_color_rom + w_color_rom * 2 - 4 + log_size
@@ -598,8 +641,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 			cray(x_retract_donor_right, y_retract_donor, retract_donor.x, retract_donor.y, retract_donor.type, 1, pt.PSCN)
 			x_retract_donor = x_retract_donor - 1
 
-			part({ type = pt.FILT, x = x_dray_rom - log_size - 3, y = y_dray_rom - 5, ctype = 0x20000000 })
-			ldtc(x_dray_rom - log_size - 3, y_dray_rom - 3, x_dray_rom - log_size - 3, y_dray_rom - 5)
+			ldtc(x_dray_rom - log_size - 3, y_dray_rom - 3, outputs.char_dindex.x, outputs.char_dindex.y)
 			part ({ type = pt.PSTN, x = x_dray_rom - 2           , y = y_dray_rom - 1, extend = 1 })
 			part ({ type = pt.PSTN, x = x_dray_rom - log_size - 3, y = y_dray_rom - 1, extend = math.huge })
 			part ({ type = pt.INSL, x = x_dray_rom - log_size - 5, y = y_dray_rom - 1 })
@@ -673,12 +715,12 @@ local function build(chars_nh, chars_nv, single_pixel)
 
 		dray(9 + x_after_content, y_color_grab - 1, target.x, target.y, 1, pt.PSCN)
 		if yy > 0 then
-			dray(5 + x_after_content, y_after_content + 18, 5 + x_after_content, y_base + 1, 3, pt.PSCN)
+			dray(5 + x_after_content, y_after_content + 9, 5 + x_after_content, y_base + 1, 3, pt.PSCN)
 		end
 	end
-	part({ type = pt.FRME, x = 5 + x_after_content, y = y_after_content + 15 })
-	part({ type = pt.HEAC, x = 5 + x_after_content, y = y_after_content + 16 })
-	part({ type = pt.HEAC, x = 5 + x_after_content, y = y_after_content + 17 })
+	part({ type = pt.FRME, x = 5 + x_after_content, y = y_after_content + 6 })
+	part({ type = pt.HEAC, x = 5 + x_after_content, y = y_after_content + 7 })
+	part({ type = pt.HEAC, x = 5 + x_after_content, y = y_after_content + 8 })
 
 	local y_bottom_char_piston
 	for xx = 0, chars_nh - 1 do -- bottom char pistons
@@ -756,8 +798,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 		cray(x_retract_donor_right, y_retract_donor, retract_donor.x, retract_donor.y, retract_donor.type, 1, pt.PSCN)
 		x_retract_donor = x_retract_donor - 1
 
-		part({ type = pt.FILT, x = x_cray_rom - log_size - 3, y = y_cray_rom - 10, ctype = 0x20000000 })
-		ldtc(x_cray_rom - log_size - 3, y_cray_rom - 3, x_cray_rom - log_size - 3, y_cray_rom - 5)
+		ldtc(x_cray_rom - log_size - 3, y_cray_rom - 3, outputs.char_cindex.x, outputs.char_cindex.y)
 		part ({ type = pt.PSTN, x = x_cray_rom - 2           , y = y_cray_rom - 1, extend = 1 })
 		part ({ type = pt.PSTN, x = x_cray_rom - log_size - 3, y = y_cray_rom - 1, extend = math.huge })
 		part ({ type = pt.INSL, x = x_cray_rom - log_size - 5, y = y_cray_rom - 1 })
@@ -818,7 +859,7 @@ local function build(chars_nh, chars_nv, single_pixel)
 			cray(-6, y, latter.x, latter.y, pt.SPRK, 1, pt.PSCN)
 			cray(-6, y, former.x, former.y, pt.SPRK, 1, pt.PSCN)
 			dray(-6, y, latter.x, latter.y, 1, pt.PSCN)
-			part({ type = pt.DRAY, x = -5, y = y, tmp = 1, tmp2 = chars_w - 1 + rank * 4 })
+			part({ type = pt.DRAY, x = -5, y = y, tmp = 1, tmp2 = chars_w - 1 + rank * 4, z = 1001 })
 			part({ type = rank == 1 and pt.HEAC or pt.FILT, x = -1, y = y })
 			dray_log(-2, y, 1, y, chars_w - 1, pt.PSCN)
 		end
@@ -986,13 +1027,12 @@ local function build(chars_nh, chars_nv, single_pixel)
 			spark({ type = pt.PSCN, x = x_piston + 1, y = y_piston - 3 })
 			part ({ type = pt.DMND, x = x_demux, y = y_piston + log_rows })
 			solid_spark(x_demux, y_piston - 6, 0, 0, pt.NSCN, true)
-			local source = part({ type = pt.FILT, x = x_demux, y = y_piston - 18, ctype = 0x3FFFFFFF })
-			ldtc(x_demux, y_piston - 15, source.x, source.y)
+			ldtc(x_demux, y_piston - 15, outputs.pixel_xindex.x, outputs.pixel_xindex.y)
 			dray(x_demux, y_piston - 15, x_demux, y_piston - 5, 1, pt.PSCN)
-			part({ type = pt.FILT, x = x_demux, y = y_piston - 14, ctype = source.ctype, tmp = 1 })
+			part({ type = pt.FILT, x = x_demux, y = y_piston - 14, ctype = outputs.pixel_xindex.ctype, tmp = 1 })
 			generic_demuxer(x_demux, y_piston - 8, 0, 1, targets, lsns_filt, function(x, y, x_to, y_to)
 				dray(x, y, x_to, y_to - 1, 2, false)
-			end, true, 20, source.ctype)
+			end, true, 20, outputs.pixel_xindex.ctype)
 		end
 		part({ type = pt.LSNS, x = x_demux, y = y_piston - 4, tmp = 3 })
 		part({ type = pt.STOR, x = x_demux, y = y_piston - 4 })
@@ -1129,7 +1169,8 @@ local function build(chars_nh, chars_nv, single_pixel)
 		part({ type = pt.PSTN, x = x - 1, y = y + log_size + 2, tmp = 2, extend = math.huge })
 		solid_spark(x - 1, y + log_size + 5, 0, -1, pt.NSCN, true)
 		solid_spark(x - 3, y + log_size + 2, 0, -1, pt.PSCN, true)
-		local source = part({ type = pt.FILT, x = x + 3, y = y, ctype = 0x200000B2 })
+		local source = part({ type = pt.FILT, x = outputs.pixel_yindex.x, y = y, ctype = outputs.pixel_yindex.ctype })
+		ldtc(outputs.pixel_yindex.x, y - 1, outputs.pixel_yindex.x, outputs.pixel_yindex.y, 1000)
 		ldtc(x + 1, y, source.x, source.y)
 		generic_demuxer(x, y - 3, 0, 1, targets, lsns_filt, function(x, y, x_to, y_to)
 			dray(x, y, x_to, y_to - 1, 2, false)
@@ -1231,8 +1272,9 @@ local function build(chars_nh, chars_nv, single_pixel)
 			generic_demuxer(x_char_rom - 12, y_char_rom - 4, 1, 0, targets, lsns_filt, function(x, y, x_to, y_to)
 				dray(x, y, x_to - 1, y_to, 2, false)
 			end, true, 20, 0x10000000)
-			local addr_source = part({ type = pt.FILT, x = x_char_rom - 9, y = y_char_rom - 7, ctype = 0x10000000 + default_char % 0x40 })
+			local addr_source = part({ type = pt.FILT, x = x_char_rom - 9, y = y_char_rom - 7, ctype = outputs.char_rindex_low.ctype })
 			ldtc(x_char_rom - 9, y_char_rom - 5, addr_source.x, addr_source.y)
+			ldtc(addr_source.x + 1, addr_source.y - 1, outputs.char_rindex_low.x, outputs.char_rindex_low.y)
 
 			do -- retract apom
 				local x = x_char_rom - 10
@@ -1250,7 +1292,8 @@ local function build(chars_nh, chars_nv, single_pixel)
 			local x = x_char_rom - 2
 			local y = y_char_rom - 5
 			part({ type = pt.LSNS, x = x, y = y, tmp = 3 })
-			part({ type = pt.FILT, x = x, y = y - 1, ctype = 0x10000001 + math.floor(default_char / 0x40) * 2 })
+			part({ type = pt.FILT, x = x, y = y - 1, ctype = outputs.char_rindex_high.ctype })
+			ldtc(outputs.char_rindex_high.x, y - 2, outputs.char_rindex_high.x, outputs.char_rindex_high.y)
 			dray(x, y, x_char_rom    , y_char_rom - 3, 1, pt.PSCN)
 			dray(x, y, x_char_rom + 1, y_char_rom - 2, 1, pt.PSCN)
 			part({ type = pt.LDTC, x = x + 1, y = y + 1, tmp = 1 })
@@ -1279,5 +1322,6 @@ local function build(chars_nh, chars_nv, single_pixel)
 end
 
 return {
-	build = util.wrap_build(build),
+	build   = util.wrap_build(build),
+	outputs = outputs,
 }

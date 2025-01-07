@@ -48,6 +48,7 @@ return testbed.module({
 		{ name = "next_char0_right", index = 29, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
 		{ name = "pixel_color"     , index = 31, keepalive = 0x10000000, payload = 0x0000000F                    },
 		{ name = "char_smart"      , index = 33, keepalive = 0x00000002, payload = 0x00000001                    },
+		{ name = "char_rindex_high", index = 37, keepalive = 0x10000001, payload = 0x000000FE                    },
 	},
 	func = function(inputs)
 		local function pack_data_if_needed(shift_to, mask)
@@ -80,6 +81,7 @@ return testbed.module({
 			char_print       = char_print,
 			char_smart       = inputs.ram_addr:bor(2):band(3),
 			char_char        = packed:band(0x100000FF),
+			char_rindex_high = spaghetti.rshiftk(packed, 5):bor(0x10000000):bor(1):band(0x100000FF),
 			char_color       = spaghetti.select(inputs.ram_addr:band(2):zeroable(), spaghetti.rshiftk(packed, 8):bor(0x10000000):band(0x100000FF), inputs.color),
 			next_cursor      = next_cursor,
 			next_hrange      = next_hrange,
@@ -182,6 +184,7 @@ return testbed.module({
 			char_print       = bitx.bor(0x00000002, char_print),
 			char_color       = char_print == 1 and bitx.bor(0x10000000, char_color) or false,
 			char_char        = char_print == 1 and bitx.bor(0x10000000, char_char ) or false,
+			char_rindex_high = char_print == 1 and { value = bitx.bor(0x10000001, bitx.band(bitx.rshift(char_char, 5), 6)), mask = 0x10000007 } or false,
 			char_smart       = char_print == 1 and bitx.bor(0x00000002, char_smart) or false,
 			next_dirbits     = { value = bitx.bor(0x10000000, next_dirbits), mask = 0x1000000F },
 			next_scrollmask  = bitx.bor(0x20000000, next_scrollmask),
