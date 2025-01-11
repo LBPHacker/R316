@@ -126,8 +126,8 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 	else
 		local core_x = 24
 		local storage_remap = setmetatable({}, { __index = function(_, k)
-			if k > chars_w - core_x then
-				k = k + 3
+			if k >= 73 then
+				k = k + chars_w - 93
 			end
 			return k
 		end })
@@ -455,7 +455,7 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 			dray(x_char_gen + x, y_bg_source - 2, charpipe_1_x + x, charpipe_1_y - 1, char_size + 1, false)
 			spark({ type = pt.INWR, x = x_char_gen + x, y = y_bg_source - 3 })
 		end
-		spark_row(x_after_content + 10, y_bg_source - 3, x_char_gen + char_size - 1, y_bg_source - 3, pt.INWR, char_size, 3)
+		spark_row(79, y_bg_source - 3, x_char_gen + char_size - 1, y_bg_source - 3, pt.INWR, char_size, 3)
 
 		local x_copy_donor = x_after_content - char_size - 9
 		local y_copy_donor = y_bg_source - 2
@@ -541,6 +541,23 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 			l = l + 1
 		end
 		return l
+	end
+
+	do -- char 0 delivery
+		local x = x_after_content + 11
+		local y = -6
+
+		ldtc(x, y, x, -18)
+		part({ type = pt.FILT, x = x, y = y + 1 })
+		dray(x + 1, y + 1, 13, y + 1, 1, pt.PSCN)
+
+		ldtc(x + 3, y, x + 3, -18)
+		part({ type = pt.FILT, x = x + 3, y = y + 1 })
+		part({ type = pt.FILT, x = x + 3, y = y + 2 })
+		dray(x + 4, y + 2, 14, y + 2, 1, false)
+		lsns_spark({ type = pt.PSCN, x = x + 5, y = y + 2, life = 3 }, 0, -1, 0, -2)
+		part({ type = pt.CONV, x = x + 4, y = y + 1, tmp = pt.INSL, ctype = pt.PSCN })
+		part({ type = pt.CONV, x = x + 4, y = y + 1, tmp = pt.PSCN, ctype = pt.SPRK })
 	end
 
 	local y_color_grab
