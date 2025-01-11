@@ -96,7 +96,7 @@ return testbed.module({
 		seed                = { 0x12345678, 0x87654321 },
 		work_slot_overhead_penalty = 100,
 		schedule = {
-			durations    = { 100000, 200000, 600000,        },
+			durations    = { 1000000, 2000000, 6000000,        },
 			temperatures = {      10,       2,       1,    0.5 },
 		},
 	},

@@ -112,6 +112,7 @@ return testbed.module({
 			bit_low  = emask_bits.bit_low,
 			bit_high = emask_bits.bit_high,
 		})
+		local color = spaghetti.select(inputs.data_config:band(2):zeroable(), inputs.data_color, inputs.color)
 		return {
 			next_cursor = next_cursor2,
 			emask       = spaghetti.select(inputs.data_config:band(8):zeroable(), inputs.scrollmask, emask.mask),
@@ -120,7 +121,7 @@ return testbed.module({
 			char        = char,
 			range_s     = range_s_out,
 			size_s      = size_s,
-			color       = spaghetti.select(inputs.data_config:band(2):zeroable(), inputs.data_color, inputs.color),
+			color       = spaghetti.select(inputs.print:band(1):zeroable(), color, 0x10000000),
 			horizontal  = horiz:bor(2):band(3),
 		}
 	end,
