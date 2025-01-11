@@ -21,7 +21,7 @@ local outputs = {
 	char_vmask       = { x = -11, y = -18, ctype = 0x3FFFFFFF },
 	pixel_yindex     = { x =  -5, y = -18, ctype = 0x200000B2 },
 	char_rindex_low  = { x =  15, y = -18, ctype = 0x10000002 },
-	char_rindex_high = { x =  11, y = -18, ctype = 0x10000003 },
+	char_rindex_high = { x =  17, y = -18, ctype = 0x10000003 },
 }
 
 local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags)
@@ -62,7 +62,7 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 	28 | . . . . # # # # # # # # # # # # # #
 	29 | . . . . . # # # # # # # # # # # # #
 	--]]
-	assert(bitx.band(base_address, 0xFFC0) == base_address, "invalid base address")
+	assert(bitx.band(base_address, 0xFF80) == base_address, "invalid base address")
 	assert(chars_nh >= 12, "too few columns")
 	assert(chars_nh <= 29, "too many columns")
 	assert(chars_nv >= 4, "too few rows")
@@ -612,8 +612,8 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 					dray(x, y, x_to - 1, y_to, 2, false)
 				end, true, 20, 0x10000000)
 			end
-			color_rom(x_color_rom, pt.CRMC, 0, 1, outputs.char_color)
-			color_rom(x_color_rom + w_color_rom, pt.STOR, log_size, 0, outputs.char_color_2)
+			color_rom(x_color_rom, pt.CRMC, log_size, 1, outputs.char_color)
+			color_rom(x_color_rom + w_color_rom, pt.STOR, 0, 0, outputs.char_color_2)
 		end
 
 		local x_dray_rom = x_color_rom + w_color_rom * 2 - 4 + log_size
@@ -672,19 +672,20 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 		local y_grab = y_dray_rom + 1
 		y_color_grab = y_grab
 		local x_grab_end = x_after_content + 10
-		part({ type = pt.INSL, x = x_grab - 1, y = y_grab })
+		part({ type = pt.INSL, x = x_grab - 2, y = y_grab })
+		part({ type = pt.PSTN, x = x_grab - 1, y = y_grab, extend = math.huge })
 		part({ type = pt.PSTN, x = x_grab    , y = y_grab, extend = math.huge })
-		part({ type = pt.PSTN, x = x_grab + 1, y = y_grab, extend = math.huge })
+		part({ type = pt.PSTN, x = x_grab + 1, y = y_grab, extend = 0 })
 		part({ type = pt.PSTN, x = x_grab + 2, y = y_grab, extend = 1 })
 		part({ type = pt.FRME, x = x_grab + 3, y = y_grab, tmp = 1 })
 		part({ type = pt.INSL, x = x_grab_end, y = y_grab })
-		dray(x_grab - 2 - log_size, y_grab, x_grab_end - 4, y_grab, 4, pt.PSCN)
+		dray(x_grab - 3 - log_size, y_grab, x_grab_end - 4, y_grab, 4, pt.PSCN)
 		part({ type = pt.HEAC, x = x_grab_end - 1, y = y_grab })
 		part({ type = pt.HEAC, x = x_grab_end - 2, y = y_grab })
 		part({ type = pt.STOR, x = x_grab_end - 3, y = y_grab })
 		part({ type = pt.CRMC, x = x_grab_end - 4, y = y_grab })
-		solid_spark(x_grab - 1, y_grab + 1,  1, 0, pt.PSCN, true)
-		solid_spark(x_grab + 2, y_grab + 1, -1, 0, pt.NSCN, true)
+		solid_spark(x_grab - 2, y_grab + 1,  1, 0, pt.PSCN, true)
+		solid_spark(x_grab + 1, y_grab + 1, -1, 0, pt.NSCN, true)
 	end
 
 	for yy = 0, chars_nv - 1 do -- right char pistons
@@ -1291,12 +1292,14 @@ local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags
 		do
 			local x = x_char_rom - 2
 			local y = y_char_rom - 5
-			part({ type = pt.LSNS, x = x, y = y, tmp = 3 })
-			part({ type = pt.FILT, x = x, y = y - 1, ctype = outputs.char_rindex_high.ctype })
-			ldtc(outputs.char_rindex_high.x, y - 2, outputs.char_rindex_high.x, outputs.char_rindex_high.y)
-			dray(x, y, x_char_rom    , y_char_rom - 3, 1, pt.PSCN)
-			dray(x, y, x_char_rom + 1, y_char_rom - 2, 1, pt.PSCN)
-			part({ type = pt.LDTC, x = x + 1, y = y + 1, tmp = 1 })
+			part({ type = pt.LSNS, x = x - 2, y = y - 4, tmp = 3 })
+			part({ type = pt.FILT, x = x - 2, y = y - 5, ctype = outputs.char_rindex_high.ctype })
+			ldtc(x - 1, y - 6, outputs.char_rindex_high.x, outputs.char_rindex_high.y, 1000)
+			part({ type = pt.LDTC, x = x - 1, y = y - 3, tmp = 1 })
+			local ldtc_next = part({ type = pt.LDTC, x = x - 2, y = y - 2, tmp = 1 })
+			dray(x    , y - 4, ldtc_next.x, ldtc_next.y, 1, pt.PSCN)
+			dray(x - 3, y - 3, x_char_rom    , y_char_rom - 3, 1, pt.PSCN)
+			dray(x - 3, y - 3, x_char_rom + 1, y_char_rom - 2, 1, pt.PSCN)
 		end
 
 		local x_output = x_char_gen_src - 1

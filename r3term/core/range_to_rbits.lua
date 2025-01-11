@@ -7,8 +7,9 @@ local testbed   = require("spaghetti.testbed")
 local constants = require("r3term.core.constants")
 
 assert(constants.max_size == 29)
+local mask_mask = bitx.lshift(1, constants.max_size) - 1
 return testbed.module({
-	tag = "core.index_to_bits",
+	tag = "core.range_to_rbits",
 	opt_params = {
 		thread_count  = 1,
 		temp_initial  = 1,
@@ -23,8 +24,8 @@ return testbed.module({
 		{ name = "range", index = 1, keepalive = 0x10000000, payload = 0x000003FF, initial = 0x10000000 },
 	},
 	outputs = {
-		{ name = "bit_low" , index = 1, keepalive = 0x00000000, payload = 0x1FFFFFFF, never_zero = true },
-		{ name = "bit_high", index = 3, keepalive = 0x00000000, payload = 0x1FFFFFFF, never_zero = true },
+		{ name = "bit_low" , index = 1, keepalive = 0x00000000, payload = mask_mask, never_zero = true },
+		{ name = "bit_high", index = 3, keepalive = 0x00000000, payload = mask_mask, never_zero = true },
 	},
 	func = function(inputs)
 		local range_above28 = inputs.range:band(spaghetti.rshiftk(inputs.range, 1):bor(0x10000000))
@@ -44,8 +45,8 @@ return testbed.module({
 			end
 		end
 		return {
-			bit_low  = shift_total[0]:force(0x00000000, 0x1FFFFFFF),
-			bit_high = shift_total[1]:force(0x00000000, 0x1FFFFFFF),
+			bit_low  = shift_total[0]:force(0x00000000, mask_mask),
+			bit_high = shift_total[1]:force(0x00000000, mask_mask),
 		}
 	end,
 	fuzz_inputs = function()
