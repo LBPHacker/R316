@@ -9,6 +9,7 @@ local function build()
 	local pt = plot.pt
 	local parts = {}
 	local ucontext = util.make_context(parts)
+	local cray = ucontext.cray
 	local part = ucontext.part
 	local aray = ucontext.aray
 	local ldtc = ucontext.ldtc
@@ -36,6 +37,8 @@ local function build()
 		part({ type = pt.DMND, x = 7, y = y, unstack = true })
 		part({ type = pt.DMND, x = 8, y = y, unstack = true })
 	end
+
+	cray(6, 2, 6, 0, pt.SPRK, 1, pt.PSCN)
 
 	for _, part in ipairs(parts) do
 		part.dcolour = 0xFF007F7F

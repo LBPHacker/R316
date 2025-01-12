@@ -131,6 +131,8 @@ The computer has three buttons on its bottom side, in this order from left to ri
 
 It also has an indicator next to these buttons that lights up when the computer is running.
 
+Note: halt requests are ignored if the bottommost core is executing a wait cycle.
+
 ## Instruction reference
 
 Each instruction encodes an operation, three operands, and whether the operation is allowed to update flags. There is a destination register operand, a primary source register operand, and a secondary operand that is either a source register or a 16-bit immediate value.

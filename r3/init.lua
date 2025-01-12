@@ -45,7 +45,7 @@ local function build(core_count, height_order, machine_id)
 
 	local pt = plot.pt
 	local parts = {}
-	local ucontext = util.make_context(parts)
+	local ucontext = util.make_context(parts, false)
 	local sig_magn      = ucontext.sig_magn
 	local mutate        = ucontext.mutate
 	local piston_extend = ucontext.piston_extend
@@ -814,6 +814,8 @@ local function build(core_count, height_order, machine_id)
 
 		per_core(function(i, y)
 			if i == core_count then
+				part({ type = pt.DMND, x = x_sync_bit - 6, y = y_sync_bit + 5 })
+				cray(x_sync_bit - 6, y_sync_bit + 9, x_sync_bit - 6, y_sync_bit + 8, pt.SPRK, 3, false)
 				dray(x_sync_bit - 5, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
 			else
 				dray(x_sync_bit, y_sync_bit + 9, x_sync_bit, y + 3, 1, pt.PSCN)
@@ -827,7 +829,6 @@ local function build(core_count, height_order, machine_id)
 		local y_source = y_call_sites + core_count * core_pitch
 		ldtc(x_sync_bit, y_source - 1, x_sync_bit, y_source - 3)
 		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 6, ctype = 0x00010000 })
-		part({ type = pt.BRAY, x = x_dtec - 1, y = y_sync_bit + 6, ctype = 0x00010000 })
 		part({ type = pt.INSL, x = x_dtec    , y = y_sync_bit + 6 })
 		part({ type = pt.FILT, x = x_dtec - 2, y = y_sync_bit + 7, ctype = 0x00010010 })
 		part({ type = pt.INSL, x = x_dtec - 0, y = y_sync_bit + 7 })
@@ -853,6 +854,9 @@ local function build(core_count, height_order, machine_id)
 		end
 		connect_button(x_button_stop  + 5, y_sync_bit + 7)
 		connect_button(x_button_start + 5, y_sync_bit + 8)
+		part({ type = pt.INSL, x = x_button_start + 2, y = y_sync_bit + 6 })
+		part({ type = pt.INSL, x = x_button_start + 4, y = y_sync_bit + 6 })
+		part({ type = pt.INSL, x = x_button_start + 6, y = y_sync_bit + 6 })
 	end
 
 	do -- ram mask
@@ -900,5 +904,5 @@ local function build(core_count, height_order, machine_id)
 end
 
 return {
-	build = build,
+	build = util.wrap_build(build),
 }
