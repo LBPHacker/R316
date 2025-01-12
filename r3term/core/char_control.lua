@@ -29,8 +29,8 @@ return testbed.module({
 	outputs = {
 		{ name = "hmask"      , index =  1, keepalive = 0x20000000, payload = 0x1FFFFFFF },
 		{ name = "vmask"      , index =  3, keepalive = 0x20000000, payload = 0x1FFFFFFF },
-		{ name = "hdray"      , index =  5, keepalive = 0x10000002, payload = 0x00000001 },
-		{ name = "vdray"      , index =  7, keepalive = 0x10000002, payload = 0x00000001 },
+		{ name = "hdray"      , index =  5, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "vdray"      , index =  7, keepalive = 0x10000004, payload = 0x00000001 },
 		{ name = "cindex"     , index =  9, keepalive = 0x0FFFFFE0, payload = 0x0000001F },
 		{ name = "dindex"     , index = 11, keepalive = 0x0FFFFFE0, payload = 0x0000001F },
 		{ name = "rindex_low" , index = 15, keepalive = 0x10000000, payload = 0x000000FF },
@@ -46,8 +46,8 @@ return testbed.module({
 		return {
 			hmask       = spaghetti.select(printh:band(1):zeroable(), inputs.emask, 0x20000000):bxor(0x1FFFFFFF),
 			vmask       = spaghetti.select(printv:band(1):zeroable(), inputs.emask, 0x20000000):bxor(0x1FFFFFFF),
-			hdray       = printh:bor(0x10000000),
-			vdray       = printv:bor(0x10000000),
+			hdray       = printh:bxor(7):bor(0x10000000),
+			vdray       = printv:bxor(7):bor(0x10000000),
 			cindex      =                   sub_2x5_outputs.diffs                    :band(0x1000001F):bxor(0x1FFFFFFF),
 			dindex      = spaghetti.rshiftk(sub_2x5_outputs.diffs, 5):bor(0x10000000):band(0x1000001F):bxor(0x1FFFFFFF),
 			rindex_low  = inputs.char,
@@ -80,8 +80,8 @@ return testbed.module({
 		return {
 			hmask       = bitx.bxor(bitx.bor(0x20000000, printh and inputs.emask or 0), 0x1FFFFFFF),
 			vmask       = bitx.bxor(bitx.bor(0x20000000, printv and inputs.emask or 0), 0x1FFFFFFF),
-			hdray       = bitx.bor(0x10000002, printh and 1 or 0),
-			vdray       = bitx.bor(0x10000002, printv and 1 or 0),
+			hdray       = bitx.bor(0x10000004, printh and 0 or 1),
+			vdray       = bitx.bor(0x10000004, printv and 0 or 1),
 			cindex      = bitx.bxor(bitx.bor(0x10000000, bitx.band(            diffs    , 0x1F)), 0x1FFFFFFF),
 			dindex      = bitx.bxor(bitx.bor(0x10000000, bitx.band(bitx.rshift(diffs, 5), 0x1F)), 0x1FFFFFFF),
 			rindex_low  = inputs.char,

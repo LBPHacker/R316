@@ -15,8 +15,8 @@ local outputs = {
 	char_dindex      = { x =  64, y = -18, ctype = 0x20000000 },
 	char_cindex      = { x =  84, y = -18, ctype = 0x20000000 },
 	pixel_xindex     = { x =  -1, y = -18, ctype = 0x3FFFFFFF },
-	char_hdray       = { x = -15, y = -18, ctype = 0x10000002 },
-	char_vdray       = { x = -13, y = -18, ctype = 0x10000002 },
+	char_hdray       = { x = -15, y = -18, ctype = 0x10000005 },
+	char_vdray       = { x = -13, y = -18, ctype = 0x10000005 },
 	char_hmask       = { x = -17, y = -18, ctype = 0x3FFFFFFF },
 	char_vmask       = { x = -11, y = -18, ctype = 0x3FFFFFFF },
 	pixel_yindex     = { x =  -5, y = -18, ctype = 0x200000B2 },
@@ -189,31 +189,54 @@ local function build(params)
 	end
 
 	do -- copier dray inst reset
+		local function patch_inwr_cray() -- fragile: patch inwr cray
+			-- delete last batch of convs
+			local convs_begin, convs_end
+			for i = #parts, 1, -1 do
+				if not convs_end then
+					if parts[i].type == pt.CONV then
+						convs_end = i
+					end
+				end
+				if convs_end then
+					if parts[i].type ~= pt.CONV then
+						convs_begin = i + 1
+						break
+					end
+				end
+			end
+			assert(convs_begin and convs_end)
+			for i = convs_end, convs_begin, -1 do
+				table.remove(parts, i)
+			end
+		end
+
 		local x_copier = x_after_content + char_size + 11
 		local y_copier = y_after_content + char_size + 11
-		spark_row(x_copier, y_after_content + 12, x_copier, chars_h - 1, pt.INWR, chars_h, 4)
+		spark_row(x_copier, y_after_content + 10, x_copier, chars_h - 1, pt.INWR, chars_h, 4, 4)
+		part({ type = pt.LSNS, x = x_copier - 1, y = y_after_content + 15, tmp = 3 })
+		part({ type = pt.FILT, x = x_copier - 2, y = y_after_content + 15, ctype = 0x10000004 })
+		patch_inwr_cray()
 		do
-			local y = y_after_content + 16
-			local source = part({ type = pt.FILT, x = outputs.char_vdray.x, y = y - 1, ctype = 0x10000002 })
+			local y = y_after_content + 14
+			local source = part({ type = pt.FILT, x = outputs.char_vdray.x, y = y - 1, ctype = 0x10000005 })
 			ldtc(source.x, source.y - 1, outputs.char_vdray.x, outputs.char_vdray.y)
 			part({ type = pt.LSNS, x = x_copier	- 1, y = y - 1, tmp = 3 })
-			part({ type = pt.FILT, x = x_copier - 2, y = y - 1, ctype = 0x10000002 })
+			part({ type = pt.FILT, x = x_copier - 2, y = y - 1, ctype = 0x10000005 })
 			ldtc(x_copier - 3, y - 1, source.x, source.y)
 		end
 
 		local x_bottom = -12
 		spark_row(x_bottom, y_copier, 0, y_copier, pt.INWR, chars_w, 4)
+		patch_inwr_cray()
+		part({ type = pt.FILT, x = x_bottom - 1, y = y_copier - 1, ctype = 0x10000003 })
 		do
 			part({ type = pt.LSNS, x = x_bottom - 2, y = y_copier - 1, tmp = 3 })
-			part({ type = pt.FILT, x = x_bottom - 3, y = y_copier - 1, ctype = 0x10000002 })
+			part({ type = pt.FILT, x = x_bottom + 2, y = y_copier - 1 })
+			local source_prev = part({ type = pt.FILT, x = x_bottom - 3, y = y_copier - 1, ctype = 0x10000005 })
 			ldtc(x_bottom - 3, y_copier - 2, outputs.char_hdray.x, outputs.char_hdray.y)
-		end
-
-		for i = 0, -x_bottom - 2 do
-			part({ type = pt.FILT, x = x_bottom + 1 + i, y = y_after_content + char_size + 11, unstack = true })
-		end
-		for i = y_after_content, y_after_content + 11 do
-			part({ type = pt.FILT, x = x_copier, y = i, unstack = true })
+			ldtc(x_bottom + 1, y_copier - 1, source_prev.x, source_prev.y)
+			part({ type = pt.LSNS, x = x_bottom + 1, y = y_copier - 1, tmp = 3 })
 		end
 	end
 

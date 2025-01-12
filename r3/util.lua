@@ -227,7 +227,8 @@ local function make_context(parts, debug_stacks)
 		return pos
 	end
 
-	local function spark_row(x, y, x_to, y_to, conductor, count, life)
+	local function spark_row(x, y, x_to, y_to, conductor, count, life, dist)
+		dist = dist or 3
 		assert(x and y and x_to and y_to and count and life)
 		local dx_sig, dx_magn = sig_magn(x_to - x)
 		local dy_sig, dy_magn = sig_magn(y_to - y)
@@ -235,8 +236,8 @@ local function make_context(parts, debug_stacks)
 			error("bad offset", 2)
 		end
 		local pos = pos_sort({
-			{ x = x - 3 * dx_sig, y = y - 3 * dy_sig },
-			{ x = x             , y = y              },
+			{ x = x - dist * dx_sig, y = y - dist * dy_sig },
+			{ x = x                , y = y                 },
 		})
 		cray(pos[1].x, pos[1].y, x_to, y_to, conductor, count, pt.PSCN)
 		cray(pos[1].x, pos[1].y, x_to, y_to, conductor, count, pt.PSCN)
