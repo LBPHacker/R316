@@ -24,7 +24,12 @@ local outputs = {
 	char_rindex_high = { x =  17, y = -18, ctype = 0x10000003 },
 }
 
-local function build(chars_nh, chars_nv, single_pixel, base_address, debug_flags)
+local function build(params)
+	local chars_nh     = params.chars_nh
+	local chars_nv     = params.chars_nv
+	local single_pixel = params.single_pixel
+	local base_address = params.base_address
+	local debug_flags  = params.debug_flags
 	--[[
 	 - rows are row counts, columns are column counts
 	 - . means invalid

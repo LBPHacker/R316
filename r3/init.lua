@@ -7,8 +7,12 @@ local rread = require("r3.rread.generated")
 local core  = require("r3.core.generated")
 local util  = require("r3.util")
 
-local function build(core_count, height_order, machine_id)
-	machine_id = machine_id or 1337
+local function build(params)
+	local core_count    = params.core_count
+	local height_order  = params.height_order
+	local machine_id    = params.machine_id    or 1337
+	local left_padding  = params.left_padding  or 0
+	local right_padding = params.right_padding or 0
 	local width_order = 7
 	local regs_order = 5
 	assert(core_count >= 1, "core count too small")
@@ -45,7 +49,7 @@ local function build(core_count, height_order, machine_id)
 
 	local pt = plot.pt
 	local parts = {}
-	local ucontext = util.make_context(parts, false)
+	local ucontext = util.make_context(parts, true)
 	local sig_magn      = ucontext.sig_magn
 	local mutate        = ucontext.mutate
 	local piston_extend = ucontext.piston_extend
@@ -186,7 +190,7 @@ local function build(core_count, height_order, machine_id)
 	per_core(function(i, y)
 		local function filt_line_to(x, y)
 			local qs = {}
-			for xx = x, x_io do
+			for xx = x, x_io + right_padding do
 				table.insert(qs, part({ type = pt.FILT, x = xx, y = y }))
 			end
 			return qs
@@ -755,8 +759,8 @@ local function build(core_count, height_order, machine_id)
 
 	local x_ram_mask = x_storage_slot(29)
 	local x_sync_bit = x_storage_slot(54)
-	local x1 = -15 - height_order_up - width_order_up
-	local x2 = width + 6
+	local x1 = -15 - height_order_up - width_order_up - left_padding
+	local x2 = width + 6 + right_padding
 	local y1 = y_filt_block - height
 	local y2 = y_call_sites + core_count * core_pitch + 4
 	do
