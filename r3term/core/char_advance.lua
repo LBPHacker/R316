@@ -95,7 +95,7 @@ return testbed.module({
 			range_p, cursor_p1:bor(spaghetti.lshiftk(cursor_p1:bor(0x00000200), 5)):band(0x100003FF)
 		)
 		local char = spaghetti.select(
-			wrap_p:band(eot_s):band(scroll):band(1):zeroable(),
+			wrap_p:band(eot_s):band(scroll):bor(inputs.print:bxor(1)):band(1):zeroable(),
 			inputs.newline, inputs.char
 		)
 		local next_cursor =      cursor_p2:bor(0x10000):lshift(horiz_shift)    :never_zero()
