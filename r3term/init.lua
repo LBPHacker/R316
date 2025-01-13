@@ -25,11 +25,12 @@ local outputs = {
 }
 
 local function build(params)
-	local chars_nh     = params.chars_nh
-	local chars_nv     = params.chars_nv
-	local single_pixel = params.single_pixel
-	local base_address = params.base_address
-	local debug_flags  = params.debug_flags
+	local chars_nh          = params.chars_nh
+	local chars_nv          = params.chars_nv
+	local single_pixel      = params.single_pixel
+	local base_address      = params.base_address
+	local debug_flags       = params.debug_flags
+	local interface_offset  = params.interface_offset
 	--[[
 	 - rows are row counts, columns are column counts
 	 - . means invalid
@@ -133,6 +134,8 @@ local function build(params)
 		local storage_remap = setmetatable({}, { __index = function(_, k)
 			if k >= 73 then
 				k = k + chars_w - 93
+			elseif k >= 65 then
+				k = k + chars_w - 96
 			end
 			return k
 		end })
@@ -153,15 +156,6 @@ local function build(params)
 		constant(48, bitx.bor(0x10000000, bitx.bor(chars_nh, bitx.lshift(chars_nh, 5))))
 		constant(50, bitx.bor(0x10000000, bitx.bor(chars_nv, bitx.lshift(chars_nv, 5))))
 		constant(52, bitx.bor(0x00020000, base_address))
-	end
-	if debug_flags and debug_flags.no_bus then
-		local function tap(x, value)
-			part({ type = pt.FILT, x = x, y = -19, ctype = value })
-			part({ type = pt.LDTC, x = x, y = -20 })
-			part({ type = pt.FILT, x = x, y = -24, ctype = value })
-		end
-		tap(58, 0x10000000)
-		tap(60, 0xDEADBEEF)
 	end
 
 	for xx = 0, chars_w - 1 do -- content
@@ -1357,6 +1351,115 @@ local function build(params)
 		part({ type = pt.FILT, x = x_output - 3, y = y_char_rom - 1 })
 		part({ type = pt.FILT, x = x_output - 2, y = y_char_rom - 1 })
 		ldtc(x_char_gen_src + 1, y_char_rom - 1, output_2.x, output_2.y)
+	end
+
+	do -- bus interface
+		local old_parts_length = #parts
+		local x_bi = chars_w - 14
+		local y_bi = y_after_content + 21 + interface_offset
+		local x_left = x_bi + 4
+		local x_right = x_bi + 26
+		local x_tap = x_left + 20
+		part({ type = pt.FILT, x = x_left - 1, y = y_bi    , unstack = true, ctype = 0x10000000 })
+		part({ type = pt.FILT, x = x_left - 1, y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
+		part({ type = pt.FILT, x = x_left    , y = y_bi    , unstack = true, ctype = 0x10000000 })
+		part({ type = pt.FILT, x = x_left    , y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
+		part({ type = pt.FILT, x = x_right   , y = y_bi    , unstack = true, ctype = 0x10000000 })
+		part({ type = pt.FILT, x = x_right   , y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
+		ldtc(x_right - 1, y_bi    , x_left, y_bi    )
+		ldtc(x_right - 1, y_bi + 1, x_left, y_bi + 1)
+		part({ type = pt.CRMC, x = x_right - 1, y = y_bi     })
+		part({ type = pt.CRMC, x = x_right - 1, y = y_bi + 1 })
+		for i = x_left - 1, x_right do
+			part({ type = pt.FILT, x = i, y = y_bi + 2, unstack = true })
+			part({ type = pt.FILT, x = i, y = y_bi + 3, unstack = true })
+		end
+		local tap_target = part({ type = pt.CONV, x = x_tap, y = y_bi + 2, tmp = pt.INSL, ctype = pt.FILT })
+		part({ type = pt.INSL, x = x_tap, y = y_bi + 2 })
+		lsns_spark({ type = pt.PSCN, x = x_tap, y = y_bi - 1, life = 3 }, 0, 1, -1, 1)
+		part({ type = pt.DTEC, x = x_tap - 2, y = y_bi })
+		local ghost_1 = { x = x_tap - 3, y = y_bi }
+		local ghost_2 = { x = x_tap - 12, y = y_bi }
+		ldtc(x_tap - 2, y_bi, ghost_1.x, ghost_1.y, nil, 1)
+		ldtc(x_tap - 2, y_bi, ghost_2.x, ghost_2.y, nil, 1)
+		cray(x_tap, y_bi, tap_target.x, tap_target.y, pt.DTEC, 1, false)
+		cray(x_tap, y_bi, tap_target.x, tap_target.y, pt.DTEC, 1, false)
+		part({ type = pt.FILT, x = x_tap - 4, y = y_bi, ctype = 0x10000004 })
+		part({ type = pt.FILT, x = x_tap - 5, y = y_bi, ctype = 3, tmp = 7 })
+		part({ type = pt.STOR, x = x_tap - 6, y = y_bi })
+		part({ type = pt.FILT, x = x_tap - 7, y = y_bi, ctype = 3 })
+		ldtc(x_tap - 10, y_bi, x_left, y_bi)
+		part({ type = pt.FILT, x = x_tap - 9, y = y_bi })
+		part({ type = pt.BRAY, x = x_tap - 8, y = y_bi })
+		part({ type = pt.BRAY, x = x_tap - 5, y = y_bi + 1 })
+		part({ type = pt.FILT, x = x_tap - 13, y = y_bi, ctype = 0x10000004 })
+		part({ type = pt.FILT, x = x_tap - 14, y = y_bi, tmp = 7, ctype = bitx.bor(0x10020000, base_address) })
+		part({ type = pt.FILT, x = x_tap - 15, y = y_bi, tmp = 1, ctype = 0x100FFF80 })
+		part({ type = pt.STOR, x = x_tap - 16, y = y_bi })
+		part({ type = pt.FILT, x = x_tap - 17, y = y_bi })
+		ldtc(x_tap - 18, y_bi, x_left, y_bi)
+		aray(x_tap - 18, y_bi, -1, 0, pt.METL)
+		aray(x_tap - 10, y_bi, -1, 0, pt.METL)
+		ldtc(x_tap - 7, y_bi + 1, x_left, y_bi + 1)
+		aray(x_tap - 7, y_bi + 1, -1, 0, pt.METL)
+		part({ type = pt.FILT, x = x_tap - 6, y = y_bi + 1 })
+		part({ type = pt.DMND, x = x_tap - 4, y = y_bi + 1 })
+		part({ type = pt.DTEC, x = x_tap - 7, y = y_bi + 1, tmp2 = 2 })
+		part({ type = pt.DTEC, x = x_tap - 10, y = y_bi, tmp2 = 2 })
+		cray(ghost_1.x, y_bi + 5, ghost_1.x, ghost_1.y, pt.SPRK, 1, pt.PSCN)
+		cray(ghost_2.x, y_bi + 5, ghost_2.x, ghost_2.y, pt.SPRK, 1, pt.PSCN)
+		part({ type = pt.DMND, x = ghost_1.x, y = ghost_1.y - 1 })
+		part({ type = pt.DMND, x = ghost_2.x, y = ghost_2.y - 1 })
+		part({ type = pt.BRAY, x = x_tap - 1, y = y_bi - 1, ctype = 0x10000003, life = 3 })
+		part({ type = pt.BRAY, x = x_tap, y = y_bi + 1, ctype = 0x10000001, life = 3 })
+		part({ type = pt.INSL, x = x_tap, y = y_bi + 4 })
+		dray(x_tap, y_bi + 5, x_tap, y_bi + 2, 1, pt.PSCN)
+		for i = -interface_offset - 3, -1 do
+			for j = 1, 4 do
+				local ctype
+				if j == 4 then
+					ctype = 0x10000000
+				end
+				if j == 1 then
+					ctype = 0xDEADBEEF
+				end
+				if j == 1 or j == 4 or (i >= -interface_offset - 1 and i <= -2) then
+					part({ type = pt.FILT, x = x_tap - 6 - j, y = y_bi + i, ctype = ctype })
+				end
+			end
+		end
+		for i = -13, -5 do
+			part({ type = pt.FILT, x = x_tap - 7, y = y_after_content + 22 + i, unstack = true })
+		end
+		ldtc(x_tap - 7, y_after_content + 8, chars_w + 3, -18)
+		local input_tap
+		do
+			local x_before = x_tap - 20
+			local x_after = x_after_content + 18
+			local y = -19
+			part({ type = pt.LDTC, x = x_before + 1, y = y, life = chars_h + 37 })
+			function input_tap(x)
+				part({ type = pt.FILT, x = x, y = y - 1 })
+				part({ type = pt.LDTC, x = x - 1, y = y })
+				local donor = part({ type = pt.HEAC, x = x - 7, y = y })
+				cray(x_before, y, donor.x, donor.y, pt.HEAC, 1, pt.PSCN)
+				dray(x_before, y, x, y, 1, pt.PSCN)
+				cray(x_after, y, x, y, pt.SPRK, 1, pt.PSCN)
+				cray(x_after, y, donor.x, donor.y, pt.HEAC, 1, pt.PSCN)
+			end
+		end
+		input_tap(x_tap - 7)
+		input_tap(x_tap - 10)
+		ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
+		for i = old_parts_length + 1, #parts do
+			local part = parts[i]
+			if part.y > y_after_content + 20 and part.type ~= pt.DMND then
+				part.dcolour = 0xFF007F7F
+				if part.type == pt.FILT then
+					part.dcolour = 0xFF00FFFF
+				end
+			end
+		end
 	end
 
 	local padding = 21

@@ -49,7 +49,11 @@ Input and output are implemented via memory mapping, i.e. treating write and rea
 
 The computer has internal memory, which it maps to a contiguous, whole-power-of-2-sized range of addresses starting at 0. Reads are by default served by this memory, even ones that address outside this range, which just wrap around. Writes to this range are also handled by this memory, but writes outside this range are ignored by it.
 
-Each execution unit exposes its memory control lines. These can be used to effectively put external hardware on the bus, letting it intercept reads and writes, or they can be left disconnected altogether, in which case they do not influence execution in any way. They are, from top to bottom, as follows:
+Each execution unit exposes its memory control lines. These can be used to effectively put external hardware on the bus, letting it intercept reads and writes, or they can be left disconnected altogether, in which case they do not influence execution in any way.
+
+In response to external memory access, hardware may produce a wait cycle, which causes the execution unit to functionally do nothing and let the next execution unit retry the memory access on its control lines. This repeats until an execution unit finishes the memory access without a wait cycle being produced.
+
+The memory control lines are, from top to bottom, as follows:
 
 ### Address output
 

@@ -244,14 +244,16 @@ local function make_context(parts, debug_stacks)
 		cray(pos[2].x, pos[2].y, x_to, y_to, pt.SPRK, count, pt.INWR, nil, life)
 	end
 
-	local function aray(x, y, x_off, y_off, conductor, z, life)
+	local function aray(x, y, x_off, y_off, conductor, z, life, no_auto_z)
 		assert(x and y and x_off and y_off and conductor)
 		local q = part({ type = pt.ARAY, x = x, y = y, z = z, life = life })
-		solid_spark(x, y, x_off, y_off, conductor)
+		solid_spark(x, y, x_off, y_off, conductor, no_auto_z)
 		return q
 	end
 
-	local function frame(x1, y1, x2, y2)
+	local function frame(x1, y1, x2, y2, bevel_begin, bevel_end)
+		bevel_begin = bevel_begin or -2
+		bevel_end = bevel_end or 0
 		local parts_by_pos = {}
 		for _, part in ipairs(parts) do
 			parts_by_pos[xy_key(part.x, part.y)] = part
@@ -285,12 +287,14 @@ local function make_context(parts, debug_stacks)
 			add_dmnd(x2, y)
 			add_dmnd(x2 + 1, y)
 		end
-		for y = 0, 1 do
-			for x = 0, 1 do
-				add_dmnd(x + x1, y + y1)
-				add_dmnd(x + x1, y + y2 - 1)
-				add_dmnd(x + x2 - 1, y + y1)
-				add_dmnd(x + x2 - 1, y + y2 - 1)
+		for y = -1, 1 do
+			for x = -1, 1 do
+				if x + y >= bevel_begin and x + y <= bevel_end then
+					add_dmnd(x1 - x, y1 - y)
+					add_dmnd(x1 - x, y2 + y)
+					add_dmnd(x2 + x, y1 - y)
+					add_dmnd(x2 + x, y2 + y)
+				end
 			end
 		end
 		return parts_by_pos
