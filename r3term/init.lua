@@ -31,6 +31,7 @@ local function build(params)
 	local base_address      = params.base_address
 	local debug_flags       = params.debug_flags
 	local interface_offset  = params.interface_offset
+	local keyboard_offset   = params.keyboard_offset
 	--[[
 	 - rows are row counts, columns are column counts
 	 - . means invalid
@@ -1450,16 +1451,16 @@ local function build(params)
 		end
 		input_tap(x_tap - 7)
 		input_tap(x_tap - 10)
-		ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
 		for i = old_parts_length + 1, #parts do
 			local part = parts[i]
-			if part.y > y_after_content + 20 and part.type ~= pt.DMND then
+			if part.y >= y_after_content + 20 then
 				part.dcolour = 0xFF007F7F
 				if part.type == pt.FILT then
 					part.dcolour = 0xFF00FFFF
 				end
 			end
 		end
+		ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
 	end
 
 	local padding = 21
@@ -1468,6 +1469,254 @@ local function build(params)
 	local y1 = -padding
 	local y2 = padding - 1 + chars_h
 	ucontext.frame(x1, y1, x2, y2)
+
+	do -- keyboard
+		local x_kb = math.floor(chars_w / 2) - 60
+		local y_kb = y_after_content + interface_offset + keyboard_offset + 30
+
+		local old_parts_length = #parts
+
+		local life_values = {}
+		local function emit_key(vx, vy, size, code, glyph, glyph_offset)
+			local life, glyph_index
+			if type(code) == "string" then
+				life = bitx.bor(bitx.bor(code:byte(1), bitx.lshift(code:byte(2), 7)), 0x4000)
+				glyph_index = code:byte(1)
+			else
+				life = code
+				glyph_index = 0
+			end
+			if glyph_index >= 0x61 and glyph_index <= 0x7A then
+				life = bitx.bor(life, 0x8000)
+				glyph_index = glyph_index - 0x20
+			end
+			glyph        = glyph        or font[glyph_index + 1]
+			glyph_offset = glyph_offset or 0
+			local max_x = 8 * size / 2 - 1
+			local max_y = 7
+			local x_dray = 0
+			if (vx + vy) % 2 == 1 then
+				x_dray = 1
+			end
+			x_dray = x_dray * 4 + 3
+			for xx = 0, max_x do
+				for yy = 0, max_y do
+					local ptype = pt.INST
+					local dcolour = 0xFF3F3F3F
+					if yy == max_y or xx == max_x then
+						ptype = pt.INSL
+						dcolour = 0xFF000000
+					elseif yy == 0 then
+						if (vx * 4 + xx) % 8 == (vy * 4 + 5) % 8 then
+							ptype = pt.PSCN
+						elseif (vx * 4 + xx) % 8 == (vy * 4 + 6) % 8 then
+							ptype = pt.INWR
+						elseif (vx * 4 + xx) % 8 == (vy * 4 + 7) % 8 then
+							ptype = pt.INSL
+						elseif (vx * 4 + xx) % 8 == (vy * 4 + 8) % 8 then
+							ptype = pt.INWR
+						elseif (vx * 4 + xx) % 8 == (vy * 4 + 9) % 8 then
+							ptype = pt.PSCN
+						end
+					elseif yy == max_y - 1 then
+						if xx == x_dray - 2 then
+							ptype = pt.PSCN
+						elseif xx == x_dray - 1 then
+							ptype = pt.INWR
+						elseif xx == x_dray then
+							ptype = pt.NSCN
+							part({ type = pt.DRAY, x = x_kb + vx * 4 + xx, y = y_kb + vy * 8 + yy + 1, tmp = 1, tmp2 = (4 - vy) * 8 })
+							table.insert(life_values, { x = x_kb + vx * 4 + xx, y = y_kb + vy * 8 + yy + 2, life = life })
+						elseif xx == x_dray + 1 then
+							ptype = pt.INWR
+						elseif xx == x_dray + 2 then
+							ptype = pt.PSCN
+						end
+					end
+					local shift = xx - glyph_offset
+					if shift >= 0 and shift <= 31 then
+						if bitx.band(bitx.rshift(glyph[yy + 1] or 0, shift), 1) ~= 0 then
+							dcolour = 0xFFFFFFFF
+						end
+					end
+					part({ type = ptype, x = x_kb + vx * 4 + xx, y = y_kb + vy * 8 + yy, dcolour = dcolour })
+				end
+			end
+		end
+
+		local layout = {
+			{ "`~", "1!", "2@", "3$", "4%", "5^", "6&", "7*", "8*", "9(", "0)", "-_", "=+",    "\8\24" },
+			{ "\9\25", "qQ", "wW", "eE", "rR", "tT", "yY", "uU", "iI", "oO", "pP", "[{", "]}",   "\\|" },
+			{             "aA", "sS", "dD", "fF", "gG", "hH", "jJ", "kK", "lL", ";:", "'\"",  "\10\26" },
+			{                "zZ", "xX", "cC", "vV", "bB", "nN", "mM", ",<", ".>", "/?"                },
+			{   "\17\28",   "\18\29",                  " \16"                 ,   "\19\30",   "\20\31" },
+		}
+		for i = 0, 13 do
+			if i == 13 then
+				emit_key(i * 2, 0, 4, layout[1][i + 1], { 0x0010, 0x0018, 0x3FFC, 0x3FFE, 0x3FFC, 0x0018, 0x0010, 0x0000 }, 0)
+			else
+				emit_key(i * 2, 0, 2, layout[1][i + 1])
+			end
+		end
+		for i = 0, 13 do
+			if i == 0 then
+				emit_key(i * 2, 1, 3, layout[2][i + 1], { 0x040, 0x0C0, 0x1FE, 0x3FE, 0x1FE, 0x0C0, 0x040, 0x000 }, 0)
+			else
+				emit_key(i * 2 + 1, 1, i == 13 and 3 or 2, layout[2][i + 1])
+			end
+		end
+		for i = 0, 11 do
+			if i == 11 then
+				emit_key(i * 2 + 4, 2, 4, layout[3][i + 1], { 0x3810, 0x3818, 0x3FFC, 0x3FFE, 0x1FFC, 0x0018, 0x0010, 0x0000 }, 0)
+			else
+				emit_key(i * 2 + 4, 2, 2, layout[3][i + 1])
+			end
+		end
+		for i = 0, 9 do
+			emit_key(i * 2 + 5, 3, 2, layout[4][i + 1])
+		end
+		emit_key( 0, 2,  4,            2, { 0x010, 0x038, 0x07C, 0x0FE, 0x038, 0x000, 0x038, 0x000 },  0)
+		emit_key( 0, 3,  5,            1, { 0x010, 0x038, 0x07C, 0x0FE, 0x038, 0x038, 0x038, 0x000 },  0)
+		emit_key(25, 3,  5,            1, { 0x010, 0x038, 0x07C, 0x0FE, 0x038, 0x038, 0x038, 0x000 }, 10)
+		emit_key( 0, 4,  4, layout[5][1], { 0x03E, 0x07F, 0x073, 0x073, 0x063, 0x07F, 0x03E, 0x000 },  4)
+		emit_key( 4, 4,  4, layout[5][2], { 0x03E, 0x07F, 0x063, 0x067, 0x067, 0x07F, 0x03E, 0x000 },  4)
+		emit_key( 8, 4, 14, layout[5][3], { 0x000, 0x000, 0x000, 0x000, 0x000, 0x183, 0x1FF, 0x000 }, 23)
+		emit_key(22, 4,  4, layout[5][4], { 0x03E, 0x07F, 0x063, 0x073, 0x073, 0x07F, 0x03E, 0x000 },  4)
+		emit_key(26, 4,  4, layout[5][5], { 0x03E, 0x07F, 0x067, 0x067, 0x063, 0x07F, 0x03E, 0x000 },  4)
+		for xx = -1, 119 do
+			part({ type = pt.INSL, x = x_kb + xx, y = y_kb - 1, unstack = true, dcolour = 0xFF000000 })
+			if xx % 8 == 3 then
+				part({ type = pt.INSL, x = x_kb + xx, y = y_kb + 40, unstack = true, dcolour = 0xFF000000 })
+			end
+		end
+		for yy = 0, 39 do
+			part({ type = pt.INSL, x = x_kb - 1, y = y_kb + yy, unstack = true, dcolour = 0xFF000000 })
+		end
+
+		for i = old_parts_length + 1, #parts do
+			local part = parts[i]
+			for _, item in ipairs(life_values) do
+				if part.x == item.x and part.y == item.y then
+					part.life = item.life
+				end
+			end
+		end
+
+		do -- grab life
+			local x = x_kb - 2
+			local y = y_kb + 41
+			cray(x - 4, y, x + 4, y, pt.INSL, 1, pt.PSCN)
+			part({ type = pt.HEAC, x = x - 1, y = y })
+			part({ type = pt.PSTN, x = x    , y = y, ctype = pt.HEAC, extend = math.huge })
+			part({ type = pt.PSTN, x = x + 1, y = y, ctype = pt.HEAC, extend = math.huge, tmp = 1 })
+			part({ type = pt.PSTN, x = x + 2, y = y, ctype = pt.HEAC, extend = 1 })
+			solid_spark(x + 1, y + 1, -1, 0, pt.PSCN, true)
+			solid_spark(x + 2, y + 1, -1, 0, pt.NSCN, true)
+			part({ type = pt.DMND, x = x + 3, y = y })
+			part({ type = pt.LSNS, x = x + 118, y = y, tmp = 1 })
+			part({ type = pt.HEAC, x = x + 118, y = y })
+			part({ type = pt.FILT, x = x + 119, y = y })
+			cray(x + 125, y, x + 117, y, pt.SPRK, 150, pt.PSCN)
+			ldtc(x + 121, y, x + 119, y)
+			aray(x + 121, y, -1, 0, pt.METL)
+			part({ type = pt.FILT, x = x + 122, y = y })
+			part({ type = pt.BRAY, x = x + 123, y = y })
+			part({ type = pt.DTEC, x = x + 124, y = y })
+			local grab_life_prev = part({ type = pt.FILT, x = x + 124, y = y + 1 })
+			ldtc(x_kb - 5, y + 1, grab_life_prev.x, grab_life_prev.y)
+			local grab_life = part({ type = pt.FILT, x = x_kb - 6, y = y + 1 })
+			local grab_busstate = part({ type = pt.FILT, x = x_kb - 8, y = y + 1 })
+			ldtc(x_kb - 7, y_kb + 3, x_kb - 3, y_kb - 1)
+			local grab_busstate_prev = part({ type = pt.FILT, x = x_kb - 8, y = y_kb + 4 })
+			ldtc(x_kb - 8, y, x_kb - 8, grab_busstate_prev.y)
+			ldtc(x_kb + 7, y + 1, grab_life.x, y + 1)
+			dray(x_kb + 7, y + 1, x_kb + 30, y + 1, 1, pt.PSCN)
+			part({ type = pt.FILT, x = x_kb + 8, y = y + 1 })
+			ldtc(x_kb + 3, y + 1, grab_busstate.x, y + 1)
+			dray(x_kb + 3, y + 1, x_kb + 31, y + 1, 1, pt.PSCN)
+			part({ type = pt.FILT, x = x_kb + 4, y = y + 1 })
+		end
+
+		do -- indicators
+			local y = y_kb + 43
+			do
+				local x = x_kb + 10
+				local function emit_indicator(x, y_target, dcolour)
+					for j = 0, 2 do
+						part({ type = pt.LCRY, x = x + j, y = y - 1, dcolour = dcolour })
+						for i = 0, 2 do
+							dray(x + j, y, x + j, y_target + i, 1, false)
+						end
+					end
+					for i = 0, 2 do
+						cray(x_kb - 5 + i % 2 * 3, y_target + i, x, y_target + i, pt.SPRK, 3, pt.PSCN)
+					end
+				end
+				emit_indicator(x    , y_kb + 18, 0xFFFF0000)
+				emit_indicator(x + 4, y_kb + 26, 0xFF00FF00)
+				for i = 0, 6 do
+					spark({ type = pt.INWR, x = x + i, y = y + 1 })
+				end
+				spark_row(x - 2, y + 1, x, y + 1, pt.INWR, 7, 4)
+			end
+
+			local x_control = x_kb + 96
+			local function emit_control(x_off, x_target, conductor)
+				local x = x_control + x_off
+				part ({ type = pt.LSNS, x = x + 2, y = y - 1, tmp = 3 })
+				spark({ type = pt.PSCN, x = x + 1, y = y - 1, life = 2 })
+				part ({ type = pt.FILT, x = x + 3, y = y - 1, ctype = 0x10000002 }) -- TODO: get from core
+				dray(x, y - 1, x_target, y - 1, 1, false)
+				lsns_spark({ type = conductor, x = x - 1, y = y - 1, life = 3 }, 0, 1, 1, 1)
+				spark({ type = conductor, x = x_target, y = y - 1, unstack = true, life = 2 })
+			end
+			emit_control( 0, x_kb +  9, pt.PSCN)
+			emit_control( 5, x_kb +  9, pt.NSCN)
+			emit_control(10, x_kb + 17, pt.PSCN)
+			emit_control(15, x_kb + 17, pt.NSCN)
+		end
+
+		do -- decoding
+			local x = x_kb + 18
+			local y = y_kb + 42
+			-- TODO
+		end
+
+		do -- bus
+			local x = x_kb - 4
+			local y = y_kb + 3
+			for i = -7, 40 do
+				part({ type = pt.FILT, x = x, y = y + i, ctype = 0x10000000 })
+			end
+			for i = -7, -4 do
+				part({ type = pt.FILT, x = x + 1, y = y + i })
+			end
+			part({ type = pt.DTEC, x = x, y = y + 41 })
+
+			local x_read = x_kb + 20
+			local y_read = y_kb + 43
+			aray(x_read, y_read, -1, 1, false)
+			solid_spark(x_read - 2, y_read + 1, 1, 0, pt.METL, true)
+			part({ type = pt.DTEC, x = x_read + 2, y = y_read, tmp2 = 2 })
+			local read = part({ type = pt.FILT, x = x_read + 3, y = y_read })
+			cray(x_read + 2, y_read, x_read + 2, y_read - 2, pt.SPRK, 1, pt.PSCN)
+			part({ type = pt.FILT, x = x_read + 1, y = y_read - 1, ctype = 0x1000 }) -- TODO: get from core
+			part({ type = pt.DMND, x = x_read + 3, y = y_read - 3 })
+
+			ldtc(x_read + 5, y_read, read.x, read.y)
+			aray(x_read + 5, y_read, -1, 0, pt.METL)
+			part({ type = pt.FILT, x = x_read + 6, y = y_read })
+			part({ type = pt.BRAY, x = x_read + 7, y = y_read })
+			local target = part({ type = pt.BRAY, x = x_kb - 3, y = y_read })
+			dray(x_read + 8, y_read, target.x, target.y, 1, pt.PSCN)
+		end
+
+		local x1 = -padding
+		local x2 = padding - 1 + chars_w
+		local y1 = y_kb - 3
+		local y2 = y_kb + 45
+		ucontext.frame(x1, y1, x2, y2)
+	end
 
 	return parts
 end

@@ -245,9 +245,12 @@ local function make_context(parts, debug_stacks)
 	end
 
 	local function aray(x, y, x_off, y_off, conductor, z, life, no_auto_z)
-		assert(x and y and x_off and y_off and conductor)
+		assert(x and y and x_off and y_off)
 		local q = part({ type = pt.ARAY, x = x, y = y, z = z, life = life })
-		solid_spark(x, y, x_off, y_off, conductor, no_auto_z)
+		if conductor ~= false then
+			assert(conductor)
+			solid_spark(x, y, x_off, y_off, conductor, no_auto_z)
+		end
 		return q
 	end
 
