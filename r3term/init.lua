@@ -5,9 +5,10 @@ local bitx = require("spaghetti.bitx")
 local plot = require("spaghetti.plot")
 local misc = require("spaghetti.misc")
 
-local util = require("r3.util")
-local font = require("r3term.font")
-local core = require("r3term.core.generated")
+local util    = require("r3.util")
+local font    = require("r3term.font")
+local core    = require("r3term.core.generated")
+local kbdcore = require("r3term.kbdcore.generated")
 
 local outputs = {
 	char_color       = { x =   9, y = -18, ctype = 0x20000000 },
@@ -1630,10 +1631,10 @@ local function build(params)
 			local grab_busstate_prev = part({ type = pt.FILT, x = x_kb - 8, y = y_kb + 4 })
 			ldtc(x_kb - 8, y, x_kb - 8, grab_busstate_prev.y)
 			ldtc(x_kb + 7, y + 1, grab_life.x, y + 1)
-			dray(x_kb + 7, y + 1, x_kb + 30, y + 1, 1, pt.PSCN)
+			dray(x_kb + 7, y + 1, x_kb + 46, y + 1, 1, pt.PSCN)
 			part({ type = pt.FILT, x = x_kb + 8, y = y + 1 })
 			ldtc(x_kb + 3, y + 1, grab_busstate.x, y + 1)
-			dray(x_kb + 3, y + 1, x_kb + 31, y + 1, 1, pt.PSCN)
+			dray(x_kb + 3, y + 1, x_kb + 47, y + 1, 1, pt.PSCN)
 			part({ type = pt.FILT, x = x_kb + 4, y = y + 1 })
 		end
 
@@ -1665,21 +1666,24 @@ local function build(params)
 				local x = x_control + x_off
 				part ({ type = pt.LSNS, x = x + 2, y = y - 1, tmp = 3 })
 				spark({ type = pt.PSCN, x = x + 1, y = y - 1, life = 2 })
-				part ({ type = pt.FILT, x = x + 3, y = y - 1, ctype = 0x10000002 }) -- TODO: get from core
 				dray(x, y - 1, x_target, y - 1, 1, false)
 				lsns_spark({ type = conductor, x = x - 1, y = y - 1, life = 3 }, 0, 1, 1, 1)
 				spark({ type = conductor, x = x_target, y = y - 1, unstack = true, life = 2 })
 			end
-			emit_control( 0, x_kb +  9, pt.PSCN)
-			emit_control( 5, x_kb +  9, pt.NSCN)
-			emit_control(10, x_kb + 17, pt.PSCN)
-			emit_control(15, x_kb + 17, pt.NSCN)
+			emit_control( 5, x_kb + 17, pt.NSCN)
+			emit_control( 0, x_kb + 17, pt.PSCN)
+			emit_control(15, x_kb +  9, pt.NSCN)
+			emit_control(10, x_kb +  9, pt.PSCN)
 		end
 
-		do -- decoding
-			local x = x_kb + 18
-			local y = y_kb + 42
-			-- TODO
+		do
+			local storage_remap = setmetatable({}, { __index = function(_, k)
+				if k >= 16 then
+					return 53 + (k - 16) * 5
+				end
+				return k
+			end })
+			plot.merge_parts(x_kb + 43, y_kb + 42, parts, kbdcore.get_parts(), storage_remap)
 		end
 
 		do -- bus
@@ -1689,18 +1693,17 @@ local function build(params)
 				part({ type = pt.FILT, x = x, y = y + i, ctype = 0x10000000 })
 			end
 			for i = -7, -4 do
-				part({ type = pt.FILT, x = x + 1, y = y + i })
+				part({ type = pt.FILT, x = x + 1, y = y + i, ctype = 2 })
 			end
 			part({ type = pt.DTEC, x = x, y = y + 41 })
 
-			local x_read = x_kb + 20
+			local x_read = x_kb + 60
 			local y_read = y_kb + 43
 			aray(x_read, y_read, -1, 1, false)
 			solid_spark(x_read - 2, y_read + 1, 1, 0, pt.METL, true)
 			part({ type = pt.DTEC, x = x_read + 2, y = y_read, tmp2 = 2 })
 			local read = part({ type = pt.FILT, x = x_read + 3, y = y_read })
 			cray(x_read + 2, y_read, x_read + 2, y_read - 2, pt.SPRK, 1, pt.PSCN)
-			part({ type = pt.FILT, x = x_read + 1, y = y_read - 1, ctype = 0x1000 }) -- TODO: get from core
 			part({ type = pt.DMND, x = x_read + 3, y = y_read - 3 })
 
 			ldtc(x_read + 5, y_read, read.x, read.y)
