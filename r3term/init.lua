@@ -1360,7 +1360,7 @@ local function build(params)
 		local x_bi = chars_w - 14
 		local y_bi = y_after_content + 21 + interface_offset
 		local x_left = x_bi + 4
-		local x_right = x_bi + 26
+		local x_right = x_bi + 30
 		local x_tap = x_left + 20
 		part({ type = pt.FILT, x = x_left - 1, y = y_bi    , unstack = true, ctype = 0x10000000 })
 		part({ type = pt.FILT, x = x_left - 1, y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
@@ -1376,16 +1376,23 @@ local function build(params)
 			part({ type = pt.FILT, x = i, y = y_bi + 2, unstack = true })
 			part({ type = pt.FILT, x = i, y = y_bi + 3, unstack = true })
 		end
-		local tap_target = part({ type = pt.CONV, x = x_tap, y = y_bi + 2, tmp = pt.INSL, ctype = pt.FILT })
-		part({ type = pt.INSL, x = x_tap, y = y_bi + 2 })
-		lsns_spark({ type = pt.PSCN, x = x_tap, y = y_bi - 1, life = 3 }, 0, 1, -1, 1)
-		part({ type = pt.DTEC, x = x_tap - 2, y = y_bi })
+		local tap_target_1 = part({ type = pt.CONV, x = x_tap    , y = y_bi + 2, tmp = pt.INSL, ctype = pt.FILT })
+		local tap_target_2 = part({ type = pt.CONV, x = x_tap + 4, y = y_bi + 2, tmp = pt.INSL, ctype = pt.FILT })
+		part({ type = pt.INSL, x = tap_target_1.x, y = y_bi + 2 })
+		part({ type = pt.INSL, x = tap_target_2.x, y = y_bi + 2 })
+		lsns_spark({ type = pt.PSCN, x = tap_target_1.x, y = y_bi - 1, life = 3 }, 0, 1, -1, 1)
+		lsns_spark({ type = pt.PSCN, x = tap_target_2.x, y = y_bi - 1, life = 3 }, 0, 1, -1, 1)
+		part({ type = pt.DTEC, x = tap_target_1.x - 2, y = y_bi })
+		part({ type = pt.DTEC, x = tap_target_2.x - 2, y = y_bi })
 		local ghost_1 = { x = x_tap - 3, y = y_bi }
 		local ghost_2 = { x = x_tap - 12, y = y_bi }
-		ldtc(x_tap - 2, y_bi, ghost_1.x, ghost_1.y, nil, 1)
-		ldtc(x_tap - 2, y_bi, ghost_2.x, ghost_2.y, nil, 1)
-		cray(x_tap, y_bi, tap_target.x, tap_target.y, pt.DTEC, 1, false)
-		cray(x_tap, y_bi, tap_target.x, tap_target.y, pt.DTEC, 1, false)
+		ldtc(tap_target_1.x - 2, y_bi, ghost_1.x, ghost_1.y, nil, 1)
+		ldtc(tap_target_1.x - 2, y_bi, ghost_2.x, ghost_2.y, nil, 1)
+		ldtc(tap_target_2.x - 2, y_bi, ghost_2.x, ghost_2.y, nil, 1)
+		cray(tap_target_1.x, y_bi, tap_target_1.x, tap_target_1.y, pt.DTEC, 1, false)
+		cray(tap_target_1.x, y_bi, tap_target_1.x, tap_target_1.y, pt.DTEC, 1, false)
+		cray(tap_target_2.x, y_bi, tap_target_2.x, tap_target_2.y, pt.DTEC, 1, false)
+		cray(tap_target_2.x, y_bi, tap_target_2.x, tap_target_2.y, pt.DTEC, 1, false)
 		part({ type = pt.FILT, x = x_tap - 4, y = y_bi, ctype = 0x10000004 })
 		part({ type = pt.FILT, x = x_tap - 5, y = y_bi, ctype = 3, tmp = 7 })
 		part({ type = pt.STOR, x = x_tap - 6, y = y_bi })
@@ -1412,10 +1419,14 @@ local function build(params)
 		cray(ghost_2.x, y_bi + 5, ghost_2.x, ghost_2.y, pt.SPRK, 1, pt.PSCN)
 		part({ type = pt.DMND, x = ghost_1.x, y = ghost_1.y - 1 })
 		part({ type = pt.DMND, x = ghost_2.x, y = ghost_2.y - 1 })
-		part({ type = pt.BRAY, x = x_tap - 1, y = y_bi - 1, ctype = 0x10000003, life = 3 })
-		part({ type = pt.BRAY, x = x_tap, y = y_bi + 1, ctype = 0x10000001, life = 3 })
-		part({ type = pt.INSL, x = x_tap, y = y_bi + 4 })
-		dray(x_tap, y_bi + 5, tap_target.x, tap_target.y, 1, pt.PSCN)
+		part({ type = pt.BRAY, x = tap_target_1.x - 1, y = y_bi - 1, ctype = 0x10000003, life = 3 })
+		part({ type = pt.BRAY, x = tap_target_2.x - 1, y = y_bi - 1, ctype = 0x10000003, life = 3 })
+		part({ type = pt.BRAY, x = tap_target_1.x, y = y_bi + 1, ctype = 0x10000001, life = 3 })
+		part({ type = pt.BRAY, x = tap_target_2.x, y = y_bi + 1, ctype = 0x10000000, life = 3 })
+		part({ type = pt.INSL, x = tap_target_1.x, y = y_bi + 4 })
+		part({ type = pt.INSL, x = tap_target_2.x, y = y_bi + 4 })
+		dray(tap_target_1.x, y_bi + 5, tap_target_1.x, tap_target_1.y, 1, pt.PSCN)
+		dray(tap_target_2.x, y_bi + 5, tap_target_2.x, tap_target_2.y, 1, pt.PSCN)
 		for i = -interface_offset - 3, -1 do
 			for j = 1, 4 do
 				local ctype

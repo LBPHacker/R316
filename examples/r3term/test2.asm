@@ -2,6 +2,7 @@
 
 start:
 	mov r2, 0x9F80
+	ld r1, r2
 	mov r1, 0x0160
 	st r1, r2, 0x42
 	mov r1, 0x00E0
