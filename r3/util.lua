@@ -5,6 +5,23 @@ local plot = require("spaghetti.plot")
 local bitx = require("spaghetti.bitx")
 local misc = require("spaghetti.misc")
 
+local function ilog2floor(n)
+	local l = 0
+	while n > 1 do
+		n = bitx.rshift(n, 1)
+		l = l + 1
+	end
+	return l
+end
+
+local function ilog2ceil(n)
+	local l = ilog2floor(n)
+	if bitx.lshift(1, l) < n then
+		l = l + 1
+	end
+	return l
+end
+
 local function make_context(parts, debug_stacks)
 	local pt = plot.pt
 
@@ -334,4 +351,6 @@ end
 return {
 	make_context = make_context,
 	wrap_build   = wrap_build,
+	ilog2floor   = ilog2floor,
+	ilog2ceil    = ilog2ceil,
 }

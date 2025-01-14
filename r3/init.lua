@@ -9,15 +9,22 @@ local util  = require("r3.util")
 
 local function build(params)
 	local core_count    = params.core_count
-	local height_order  = params.height_order
+	local memory_rows   = params.memory_rows
 	local machine_id    = params.machine_id    or 1337
 	local left_padding  = params.left_padding  or 0
 	local right_padding = params.right_padding or 0
 	local width_order = 7
 	local regs_order = 5
 	assert(core_count >= 1, "core count too small")
-	assert(height_order >= 4, "height order too small")
+	assert(memory_rows <= 64, "too many rows of memory")
+	assert(memory_rows >= 1, "not enough rows of memory")
 	assert(width_order >= 6, "width order too small")
+
+	local height_order = util.ilog2ceil(memory_rows)
+	if height_order < 4 then
+		height_order = 4
+	end
+
 	local height_order_2 = height_order + 1
 	assert(width_order >= height_order_2, "bad aspect ratio")
 	local addr_bits = width_order + height_order
@@ -144,21 +151,21 @@ local function build(params)
 	end
 
 	-- block of filt
-	for y = 0, height - 1 do
+	for y = 0, memory_rows - 1 do
 		for x = 0, width - 1 do
-			local addr = y * width + x
-			table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - height + y + 1, ctype = 0x2000DEAD })
+			table.insert(parts, { type = pt.FILT, x = x, y = y_filt_block - memory_rows + y + 1, ctype = 0x2000DEAD })
 		end
 	end
 
 	for y = 0, height - 1 do
-		local dist = y + y_ldtc_dray_bank - y_filt_block
+		local row = y - height + memory_rows
+		local dist = math.max(0, row) + y_ldtc_dray_bank - y_filt_block
 		-- active reader head template
 		part({ type = pt.LDTC, x = y * 2    , y = y_ldtc_dray_bank    , life = dist + 2 })
 		part({ type = pt.FILT, x = y * 2    , y = y_ldtc_dray_bank + 1 })
 		-- active writer head template
-		part ({ type = pt.DRAY, x = y * 2 + 1, y = y_ldtc_dray_bank    , tmp = 1, tmp2 = dist + 1 })
-		spark({ type = pt.PSCN, x = y * 2 + 1, y = y_ldtc_dray_bank + 1, life = 3 }) -- spark for the above
+		part ({ type = row >= 0 and pt.DRAY or pt.HEAC, x = y * 2 + 1, y = y_ldtc_dray_bank    , tmp = 1, tmp2 = dist + 1 })
+		spark({ type =                         pt.PSCN, x = y * 2 + 1, y = y_ldtc_dray_bank + 1, life = 3 }) -- spark for the above
 	end
 	-- active head second row template
 	local x_ah_sr_template = -10 - height_order_up - width_order_up
@@ -744,7 +751,7 @@ local function build(params)
 			checksum = checksum + value
 			x_push = x_push + 1
 		end
-		local model_name = ("R3A%s%02i"):format(string.char(addr_bits + 64), core_count)
+		local model_name = ("R3A%02i%02i"):format(memory_rows, core_count)
 		for ch in model_name:gmatch(".") do
 			push(ch:byte())
 		end

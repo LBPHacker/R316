@@ -1,4 +1,5 @@
 local r3   = require("r3")
+local util = require("r3.util")
 local plot = require("spaghetti.plot")
 
 local pt = plot.pt
@@ -12,7 +13,9 @@ local bitx = setmetatable({}, { __index = function(tbl, key)
 	return value
 end })
 
-local cx, cy, addr_bits, core_count, space_available
+local cx, cy, memory_rows, core_count, space_available
+local row_size = 128
+local height, memory_mask
 local function detect()
 	for id in sim.parts() do
 		if sim.partProperty(id, "ctype") == 0x1864A205 and sim.partProperty(id, "type") == elem.DEFAULT_PT_QRTZ then
@@ -28,14 +31,16 @@ local function detect()
 				table.insert(arr, string.char(value))
 			end
 			local str = table.concat(arr)
-			addr_bits, core_count = assert(str:match("^R3A(.)(..)$"))
-			addr_bits = string.byte(addr_bits) - 64
+			memory_rows, core_count = assert(str:match("^R3A(..)(..)$"))
+			memory_rows = tonumber(memory_rows)
 			core_count = tonumber(core_count)
 			break
 		end
 	end
-	assert(addr_bits)
-	space_available = 2 ^ addr_bits
+	assert(memory_rows)
+	space_available = memory_rows * row_size
+	height = bitx.lshift(1, math.max(util.ilog2ceil(memory_rows), 4))
+	memory_mask = height * row_size - 1
 end
 
 local function xpcall_wrap(func)
@@ -70,7 +75,13 @@ local function advance_state(state, sync_bit, io_state_in, io_data_in)
 	end
 	local pc = bitx.band(state.pc, 0xFFFF)
 	local next_pc = bitx.band(pc + 1, 0xFFFF)
-	local memory_read = state.memory[bitx.band(state.mem_addr, space_available - 1)]
+	local memory_read
+	do
+		local index = bitx.band(state.mem_addr, memory_mask)
+		local column = index % row_size
+		local row = math.min(math.floor(index / row_size), memory_rows - 1)
+		memory_read = state.memory[row * row_size + column]
+	end
 	if bitx.band(state.mem_addr, 0x10000) ~= 0 then
 		memory_read = 0xFFFFFFFF
 	end
@@ -245,13 +256,18 @@ local function advance_state(state, sync_bit, io_state_in, io_data_in)
 	if bitx.band(op, 0x80000000) ~= 0 then
 		next_state.flags = bitx.bor(0x10000000, new_flags)
 	end
-	if bitx.band(next_state.mem_addr, bitx.bxor(space_available - 1, 0xFFFF)) ~= 0 then
+	if bitx.band(next_state.mem_addr, bitx.bxor(memory_mask, 0xFFFF)) ~= 0 then
 		bus_mode = bitx.lshift(bus_mode, 1)
 	end
 	next_state.mem_addr = bitx.bor(next_state.mem_addr, bus_mode)
 	next_state.mem_data = pri
 	if bitx.band(next_state.mem_addr, 0x10000) ~= 0 then
-		next_state.memory[bitx.band(next_state.mem_addr, space_available - 1)] = next_state.mem_data
+		local index = bitx.band(next_state.mem_addr, memory_mask)
+		local column = index % row_size
+		local row = math.floor(index / row_size)
+		if row < memory_rows then
+			next_state.memory[row * row_size + column] = next_state.mem_data
+		end
 	end
 	next_state.cinstr_high = bitx.bor(0x10000000, cinstr_mask, next_state.cinstr_high)
 	next_state.cinstr_low = bitx.bor(0x10000000, next_state.cinstr_low)
@@ -273,9 +289,7 @@ local function advance_state(state, sync_bit, io_state_in, io_data_in)
 end
 
 local function memory_id(index)
-	local row_size = 128
-	local row_count = space_available / row_size
-	return sim.partID(cx + index % row_size - 41, cy + math.floor(index / row_size) - 13 - row_count - core_count * 6)
+	return sim.partID(cx + index % row_size - 41, cy + math.floor(index / row_size) - 13 - memory_rows - core_count * 6)
 end
 
 local function register_id(index)
@@ -382,7 +396,7 @@ local function get_state()
 	local mem_addr = sim_value(mem_addr_id())
 	if bitx.band(mem_addr, 0x10000) ~= 0 then
 		-- print(("write2 %08X %08X"):format(mem_addr, mem_data))
-		memory[bitx.band(mem_addr, space_available - 1)] = mem_data
+		memory[bitx.band(mem_addr, memory_mask)] = mem_data
 	end
 	return {
 		memory      = memory,
@@ -521,7 +535,7 @@ local aftersim = xpcall_wrap(function()
 		sim.clearSim()
 		local x, y = 100, 100
 		local core_count = 10
-		local height_order = 4
+		local memory_rows = 12
 		local io_probes = {}
 		for i = 0, core_count - 1 do
 			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 15 })
@@ -537,7 +551,10 @@ local aftersim = xpcall_wrap(function()
 			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
 			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
 		end
-		plot.create_parts(x, y, plot.merge_parts(0, 0, r3.build(core_count, height_order), io_probes))
+		plot.create_parts(x, y, plot.merge_parts(0, 0, r3.build({
+			core_count  = core_count,
+			memory_rows = memory_rows,
+		}), io_probes))
 		detect()
 		for index = 0, space_available - 1 do
 			sim_value(memory_id(index), any32())

@@ -2,3 +2,6 @@
 	path = spaghetti
 	url = https://github.com/LBPHacker/spaghetti.git
 	branch = v2
+[submodule "tptasm"]
+	path = tptasm
+	url = https://github.com/LBPHacker/tptasm

@@ -556,23 +556,6 @@ local function build(params)
 		end
 	end
 
-	local function ilog2floor(n)
-		local l = 0
-		while n > 1 do
-			n = bitx.rshift(n, 1)
-			l = l + 1
-		end
-		return l
-	end
-
-	local function ilog2ceil(n)
-		local l = ilog2floor(n)
-		if bitx.lshift(1, l) < n then
-			l = l + 1
-		end
-		return l
-	end
-
 	do -- char 0 delivery
 		local x = x_after_content + 11
 		local y = -6
@@ -593,7 +576,7 @@ local function build(params)
 	local y_color_grab
 	do
 		local size                  = math.max(chars_nh, chars_nv)
-		local log_size              = ilog2ceil(size)
+		local log_size              = util.ilog2ceil(size)
 		local x_color_rom           = 13
 		local y_dray_rom            = -13
 		local x_spark_row           = -10
@@ -615,7 +598,7 @@ local function build(params)
 			local y_color_rom = y_dray_rom
 			local csize = #colors
 			w_color_rom = csize + 13
-			local log_size = ilog2ceil(csize)
+			local log_size = util.ilog2ceil(csize)
 			local function color_rom(x, carrier_type, shift, input_x_offset, input)
 				assert(x and carrier_type and shift)
 				local targets = {}
@@ -809,7 +792,7 @@ local function build(params)
 
 	do -- cray rom
 		local size                  = math.max(chars_nh, chars_nv)
-		local log_size              = ilog2ceil(size)
+		local log_size              = util.ilog2ceil(size)
 		local x_cray_rom            = 87 + log_size
 		local y_cray_rom            = -8
 		local x_spark_row           = -10
@@ -1039,9 +1022,9 @@ local function build(params)
 	if single_pixel then -- 1px plotter dray bank
 		local x = -6
 		local y = char_size + 19
-		local log_size = ilog2ceil(chars_w)
+		local log_size = util.ilog2ceil(chars_w)
 		local rows = chars_w / 4
-		local log_rows = ilog2ceil(rows)
+		local log_rows = util.ilog2ceil(rows)
 		local x_piston = x + 3
 		local x_demux = x_piston + 2
 		local y_piston = y + rows + 2
@@ -1194,7 +1177,7 @@ local function build(params)
 	end
 
 	if single_pixel then -- 1px plotter arm
-		local log_size = ilog2ceil(chars_h)
+		local log_size = util.ilog2ceil(chars_h)
 		local x = -17
 		local y = y_after_content + 1
 		local lsns_filt = part({ type = pt.FILT, x = x, y = -16, ctype = 0x10000003 })
