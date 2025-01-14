@@ -33,6 +33,12 @@ local function build(params)
 	local debug_flags       = params.debug_flags
 	local interface_offset  = params.interface_offset
 	local keyboard_offset   = params.keyboard_offset
+	local unibody           = params.unibody
+
+	if interface_offset < 2 or keyboard_offset < 2 then
+		assert(unibody, "bus offsets this small require a unibody")
+	end
+
 	--[[
 	 - rows are row counts, columns are column counts
 	 - . means invalid
@@ -1355,12 +1361,14 @@ local function build(params)
 		ldtc(x_char_gen_src + 1, y_char_rom - 1, output_2.x, output_2.y)
 	end
 
+	local x_bi_disp_left, x_bi_disp_right
 	do -- bus interface
 		local old_parts_length = #parts
 		local x_bi = chars_w - 14
 		local y_bi = y_after_content + 21 + interface_offset
 		local x_left = x_bi + 4
 		local x_right = x_bi + 30
+		x_bi_disp_left, x_bi_disp_right = x_left - 1, x_right
 		local x_tap = x_left + 20
 		part({ type = pt.FILT, x = x_left - 1, y = y_bi    , unstack = true, ctype = 0x10000000 })
 		part({ type = pt.FILT, x = x_left - 1, y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
@@ -1463,29 +1471,35 @@ local function build(params)
 		end
 		input_tap(x_tap - 7)
 		input_tap(x_tap - 10)
-		for i = old_parts_length + 1, #parts do
-			local part = parts[i]
-			if part.y >= y_after_content + 20 then
-				part.dcolour = 0xFF007F7F
-				if part.type == pt.FILT then
-					part.dcolour = 0xFF00FFFF
+		if not unibody then
+			for i = old_parts_length + 1, #parts do
+				local part = parts[i]
+				if part.y >= y_after_content + 20 then
+					part.dcolour = 0xFF007F7F
+					if part.type == pt.FILT then
+						part.dcolour = 0xFF00FFFF
+					end
 				end
 			end
 		end
-		ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
+		if not unibody and interface_offset >= 2 then
+			ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
+		end
 	end
 
 	local padding = 21
-	local x1 = -padding
-	local x2 = padding - 1 + chars_w
-	local y1 = -padding
-	local y2 = padding - 1 + chars_h
-	ucontext.frame(x1, y1, x2, y2)
+	if not unibody then
+		local x1 = -padding
+		local x2 = padding - 1 + chars_w
+		local y1 = -padding
+		local y2 = padding - 1 + chars_h
+		ucontext.frame(x1, y1, x2, y2)
+	end
 
+	local x_bi_kbd_left, x_bi_kbd_right
+	local x_kb = math.floor(chars_w / 2) - 60
+	local y_kb = y_after_content + interface_offset + keyboard_offset + 30
 	do -- keyboard
-		local x_kb = math.floor(chars_w / 2) - 60
-		local y_kb = y_after_content + interface_offset + keyboard_offset + 30
-
 		local old_parts_length = #parts
 
 		local life_values = {}
@@ -1700,11 +1714,8 @@ local function build(params)
 		do -- bus
 			local x = x_kb - 4
 			local y = y_kb + 3
-			for i = -7, 40 do
+			for i = -3, 40 do
 				part({ type = pt.FILT, x = x, y = y + i, ctype = 0x10000000 })
-			end
-			for i = -7, -4 do
-				part({ type = pt.FILT, x = x + 1, y = y + i, ctype = 2 })
 			end
 			part({ type = pt.DTEC, x = x, y = y + 41 })
 
@@ -1725,18 +1736,13 @@ local function build(params)
 			dray(x_read + 8, y_read, target.x, target.y, 1, pt.PSCN)
 		end
 
-		local x1 = -padding
-		local x2 = padding - 1 + chars_w
-		local y1 = y_kb - 3
-		local y2 = y_kb + 45
-		ucontext.frame(x1, y1, x2, y2)
-
 		do -- bus interface
 			local old_parts_length = #parts
 			local x_bi = x_kb - 11
 			local y_bi = y_after_content + 21 + interface_offset
 			local x_left = x_bi + 4
 			local x_right = x_bi + 21
+			x_bi_kbd_left, x_bi_kbd_right = x_left - 1, x_right
 			part({ type = pt.FILT, x = x_left - 1, y = y_bi    , unstack = true, ctype = 0x10000000 })
 			part({ type = pt.FILT, x = x_left - 1, y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
 			part({ type = pt.FILT, x = x_left    , y = y_bi    , unstack = true, ctype = 0x10000000 })
@@ -1793,22 +1799,53 @@ local function build(params)
 			end
 			part({ type = pt.BRAY, x = x_left +  9, y = y_bi + 1 })
 			part({ type = pt.DMND, x = x_left + 10, y = y_bi + 1 })
-			for i = 1, keyboard_offset - 4 do
-				part({ type = pt.FILT, x = x_left + 3, y = y_bi + 8 + i })
-				part({ type = pt.FILT, x = x_left + 4, y = y_bi + 8 + i })
+			for i = 1, keyboard_offset do
+				part({ type = pt.FILT, x = x_left + 3, y = y_bi + 8 + i, ctype = 0x10000000 })
+				part({ type = pt.FILT, x = x_left + 4, y = y_bi + 8 + i, ctype = 2 })
 			end
 
-			for i = old_parts_length + 1, #parts do
-				local part = parts[i]
-				if part.y >= y_after_content + 20 then
-					part.dcolour = 0xFF007F7F
-					if part.type == pt.FILT then
-						part.dcolour = 0xFF00FFFF
+			if not unibody then
+				for i = old_parts_length + 1, #parts do
+					local part = parts[i]
+					if part.y < y_after_content + interface_offset + 34 then
+						part.dcolour = 0xFF007F7F
+						if part.type == pt.FILT then
+							part.dcolour = 0xFF00FFFF
+						end
 					end
 				end
 			end
-			ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
+			if not unibody and keyboard_offset >= 2 then
+				ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
+			end
 		end
+
+		if not unibody then
+			local x1 = -padding
+			local x2 = padding - 1 + chars_w
+			local y1 = y_kb - 3
+			local y2 = y_kb + 45
+			ucontext.frame(x1, y1, x2, y2)
+		end
+	end
+
+	if unibody then
+		local x1 = -padding
+		local x2 = padding - 1 + chars_w
+		local y1 = -padding
+		local y2 = y_kb + 45
+		for x = x1 - 1, x2 + 1 do
+			if x >= x_bi_kbd_left and x <= x_bi_kbd_right then
+				-- skip
+			elseif x >= x_bi_disp_left and x <= x_bi_disp_right then
+				-- skip
+			else
+				for yy = 0, 3 do
+					part({ type = pt.FILT, x = x, y = y_after_content + interface_offset + 21 + yy })
+				end
+			end
+		end
+		ucontext.frame(x1, y1, x2, y2)
 	end
 
 	return parts
