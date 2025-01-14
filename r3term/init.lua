@@ -1415,7 +1415,7 @@ local function build(params)
 		part({ type = pt.BRAY, x = x_tap - 1, y = y_bi - 1, ctype = 0x10000003, life = 3 })
 		part({ type = pt.BRAY, x = x_tap, y = y_bi + 1, ctype = 0x10000001, life = 3 })
 		part({ type = pt.INSL, x = x_tap, y = y_bi + 4 })
-		dray(x_tap, y_bi + 5, x_tap, y_bi + 2, 1, pt.PSCN)
+		dray(x_tap, y_bi + 5, tap_target.x, tap_target.y, 1, pt.PSCN)
 		for i = -interface_offset - 3, -1 do
 			for j = 1, 4 do
 				local ctype
@@ -1719,6 +1719,85 @@ local function build(params)
 		local y1 = y_kb - 3
 		local y2 = y_kb + 45
 		ucontext.frame(x1, y1, x2, y2)
+
+		do -- bus interface
+			local old_parts_length = #parts
+			local x_bi = x_kb - 11
+			local y_bi = y_after_content + 21 + interface_offset
+			local x_left = x_bi + 4
+			local x_right = x_bi + 21
+			part({ type = pt.FILT, x = x_left - 1, y = y_bi    , unstack = true, ctype = 0x10000000 })
+			part({ type = pt.FILT, x = x_left - 1, y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
+			part({ type = pt.FILT, x = x_left    , y = y_bi    , unstack = true, ctype = 0x10000000 })
+			part({ type = pt.FILT, x = x_left    , y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
+			part({ type = pt.FILT, x = x_right   , y = y_bi    , unstack = true, ctype = 0x10000000 })
+			part({ type = pt.FILT, x = x_right   , y = y_bi + 1, unstack = true, ctype = 0xDEADBEEF })
+			ldtc(x_right - 1, y_bi    , x_left, y_bi    )
+			ldtc(x_right - 1, y_bi + 1, x_left, y_bi + 1)
+			part({ type = pt.CRMC, x = x_right - 1, y = y_bi     })
+			part({ type = pt.CRMC, x = x_right - 1, y = y_bi + 1 })
+			for i = x_left - 1, x_right do
+				part({ type = pt.FILT, x = i, y = y_bi + 2, unstack = true })
+				part({ type = pt.FILT, x = i, y = y_bi + 3, unstack = true })
+			end
+
+			ldtc(x_left + 3, y_bi, x_left, y_bi, nil, 1)
+			aray(x_left + 3, y_bi, -1, 0, pt.METL)
+			part({ type = pt.FILT, x = x_left +  4, y = y_bi })
+			part({ type = pt.STOR, x = x_left +  5, y = y_bi })
+			part({ type = pt.FILT, x = x_left +  6, y = y_bi, tmp = 7, ctype = bitx.bor(0x10080000, base_address) })
+			part({ type = pt.FILT, x = x_left +  7, y = y_bi, tmp = 1, ctype = 0x100FFF80 })
+			part({ type = pt.FILT, x = x_left +  8, y = y_bi, ctype = 2 })
+			part({ type = pt.DMND, x = x_left +  8, y = y_bi - 1 })
+			part({ type = pt.DMND, x = x_left + 11, y = y_bi - 1 })
+			part({ type = pt.BRAY, x = x_left + 13, y = y_bi - 1, ctype = 0x10000003, life = 3 })
+			part({ type = pt.FILT, x = x_left + 10, y = y_bi - 1, ctype = 3 })
+			part({ type = pt.FILT, x = x_left + 10, y = y_bi, ctype = 0x10000004 })
+			part({ type = pt.DTEC, x = x_left + 12, y = y_bi })
+			local ghost_1 = { x = x_left +  9, y = y_bi }
+			local ghost_2 = { x = x_left + 11, y = y_bi }
+			ldtc(x_left + 12, y_bi, ghost_2.x, ghost_2.y, nil, 1)
+			lsns_spark({ type = pt.PSCN, x = x_left + 15, y = y_bi - 1, life = 3 }, -1, 1, -2, 1)
+			cray(x_left + 14, y_bi, x_left + 14, y_bi + 2, pt.DTEC, 2, false)
+			cray(x_left + 14, y_bi, x_left + 14, y_bi + 2, pt.DTEC, 2, false)
+			part({ type = pt.CONV, x = x_left + 12, y = y_bi + 2, tmp = pt.INSL, ctype = pt.FILT })
+			local tap_target_1 = part({ type = pt.INSL, x = x_left + 12, y = y_bi + 2 })
+			local tap_target_2 = part({ type = pt.INSL, x = x_left + 11, y = y_bi + 3 })
+			part({ type = pt.BRAY, x = x_left + 14, y = y_bi + 1, ctype = 0x10000008, life = 3 })
+			cray(ghost_1.x + 5, y_bi + 5, ghost_1.x, ghost_1.y, pt.SPRK, 1, pt.PSCN)
+			cray(ghost_2.x, y_bi + 5, ghost_2.x, ghost_2.y, pt.SPRK, 1, pt.PSCN)
+			part({ type = pt.INSL, x = tap_target_1.x - 2, y = y_bi + 4 })
+			dray(tap_target_1.x - 3, y_bi + 5, tap_target_1.x, tap_target_1.y, 1, pt.PSCN)
+			dray(tap_target_2.x - 2, y_bi + 5, tap_target_2.x, tap_target_2.y, 1, pt.PSCN)
+			for i = 1, 8 do
+				part({ type = pt.FILT, x = x_left + 3, y = y_bi + i })
+			end
+			ldtc(x_left + 5, y_bi + 4, ghost_1.x, ghost_1.y, nil, 2)
+			local state = part({ type = pt.FILT, x = x_left + 4, y = y_bi + 5 })
+			ldtc(x_left + 4, y_bi + 7, state.x, state.y)
+			part({ type = pt.FILT, x = x_left + 4, y = y_bi + 8 })
+			aray(x_left + 2, y_bi + 1, -1, 0, pt.METL)
+			for i = 4, 8 do
+				part({ type = pt.STOR, x = x_left + i, y = y_bi + 1 })
+			end
+			part({ type = pt.BRAY, x = x_left +  9, y = y_bi + 1 })
+			part({ type = pt.DMND, x = x_left + 10, y = y_bi + 1 })
+			for i = 1, keyboard_offset - 4 do
+				part({ type = pt.FILT, x = x_left + 3, y = y_bi + 8 + i })
+				part({ type = pt.FILT, x = x_left + 4, y = y_bi + 8 + i })
+			end
+
+			for i = old_parts_length + 1, #parts do
+				local part = parts[i]
+				if part.y >= y_after_content + 20 then
+					part.dcolour = 0xFF007F7F
+					if part.type == pt.FILT then
+						part.dcolour = 0xFF00FFFF
+					end
+				end
+			end
+			ucontext.frame(x_left, y_bi - 2, x_right - 1, y_bi + 7, 0, 1)
+		end
 	end
 
 	return parts
