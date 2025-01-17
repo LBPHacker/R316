@@ -12,7 +12,7 @@ Note: Instruction spellings and expansions reflect the state of integration with
 
  - **data path**: quasi-32-bit, works with *almost every* 32-bit value
  - **registers**: 32-bit words, 31 general purpose read/write, 1 read-only *almost zero*
- - **memory**: 2K (2048), 4K (4096), or 8K (8192) 32-bit words
+ - **memory**: any amount of 32-bit words from 128 to 8192 (8K), in increments of 128
  - **ALU**: 16-bit addition, logic, and shifting
  - ***spatial unrolling***: many CPU cycles per frame depending on configuration
  - **input and output**: memory-mapped, control lines are exposed, *wait cycles* can be injected
@@ -439,3 +439,161 @@ jnb  D, S ; jump if not below (unsigned, same as jnc)
 ```
 
 All of the above also have a variant that only jumps if the conditions associated with the variants above hold *and* the instruction is being executed by any execution unit other than the last (bottommost) one. These are *synchronizing* conditional jumps, named so because they make it possible to easily synchronize with external hardware. These have the same mnemonics as the ordinary variant, but with an extra `y` after the `j`. The exception is `jy`, which is synchronizing `jmp`.
+
+## Terminal
+
+*TODO: description of basic operation i.e. scrollprint*
+
+7-bit ASCII
+
+| index | rgb888 | name |
+|-|-|-|
+|  0 | #000000 | black |
+|  1 | #AA0000 | dark red |
+|  2 | #00AA00 | dark green |
+|  3 | #AAAA00 | dark yellow |
+|  4 | #0000AA | dark blue |
+|  5 | #AA00AA | dark magenta |
+|  6 | #00AAAA | dark cyan |
+|  7 | #AAAAAA | light grey |
+|  8 | #555555 | dark grey |
+|  9 | #FF5555 | light red |
+| 10 | #55FF55 | light green |
+| 11 | #FFFF55 | light yellow |
+| 12 | #5555FF | light blue |
+| 13 | #FF55FF | light magenta |
+| 14 | #55FFFF | light cyan |
+| 15 | #FFFFFF | white |
+
+The terminal's I/O area is accessible at a 128-cell-aligned block in the address space; the 9 MSB of addresses used to access this area are configurable at creation time. *TODO: explain creation elsewhere.* The 7 LSB form an address into the area, used to select write-only registers and write-triggered sub-areas:
+
+| addresses | register |
+|-|-|
+| 0x40 | `char0left` |
+| 0x41 | `char0right` |
+| 0x42 | `hrange` |
+| 0x43 | `vrange` |
+| 0x44 | `cursor` |
+| 0x45 | `nlchar` |
+| 0x46 | `colour` |
+| 0x47 | `scrollmask` |
+
+| addresses | area |
+|-|-|
+| 0x00 to 0x3F | `printchar` |
+| 0x60 to 0x7F | `plotpix` |
+
+### `char0left` register: character #0 left half
+
+This write-only register holds the data for the leftmost 4 columns of character #0. Bits of this register map to the 8×4 grid of pixels according to the following table:
+
+```
+ 0   8  16  24
+ 1   9  17  25
+ 2  10  18  26
+ 3  11  19  27
+ 4  12  20  28
+ 5  13  21  29
+ 6  14  22  30
+ 7  15  23  31
+```
+
+A set bit results in the corresponding pixel being plotted with the selected background colour, while a clear bit results in it being plotted with the selected foreground colour. Note that the usual limitations of the quasi-32-bit architecture apply.
+
+### `char0right` register: character #0 right half
+
+This write-only register has the exact same semantics as `char0left`, except it holds the data for the rightmost 4 columns of character #0.
+
+### `hrange` register: horizontal range
+
+This write-only register holds the horizontal range, or the column-wise extent of the active rectangle.
+
+| data bits | function |
+|-|-|
+| 31 to 10 | unused |
+| 9 to 5 | last column index |
+| 4 to 0 | first column index |
+
+### `vrange` register: vertical range
+
+This write-only register holds the vertical range, or the row-wise extent of the active rectangle.
+
+| data bits | function |
+|-|-|
+| 31 to 10 | unused |
+| 9 to 5 | last row index |
+| 4 to 0 | first row index |
+
+### `cursor` register: cursor position
+
+This write-only register holds the position of the terminal mode cursor.
+
+| data bits | function |
+|-|-|
+| 31 to 10 | unused |
+| 9 to 5 | row index |
+| 4 to 0 | column index |
+
+### `nlchar` register: newline trigger character
+
+This write-only register holds the character used to signal that the terminal mode cursor should be moved to a new line.
+
+| data bits | function |
+|-|-|
+| 31 to 8 | unused |
+| 7 to 0 | character index |
+
+### `colour` register: colour
+
+This write-only register holds the colour used for printing characters.
+
+| data bits | function |
+|-|-|
+| 31 to 8 | unused |
+| 7 to 4 | background colour index |
+| 3 to 0 | foreground colour index |
+
+### `scrollmask` register: scroll mask
+
+This write-only register holds the scroll mask used for printing characters.
+
+| data bits | function |
+|-|-|
+| 31 to 29 | unused |
+| 28 to 0 | enable bit for the column or row of the corresponding index |
+
+Setting or clearing bits that correspond to columns or rows that do not exist have no effect.
+
+### `printchar` area: print character
+
+Writing to this sub-area causes a character to be printed. *TODO: explain all the features of terminal mode*
+
+| address bits | function |
+|-|-|
+| 5 | enable newline trigger character |
+| 4 | enable terminal mode scrolling |
+| 3 | enable scroll mask |
+| 2 | enable row-oriented printing |
+| 1 | take colour from data |
+| 0 | enable terminal mode |
+
+| data bits | function |
+|-|-|
+| 31 to 16 | unused |
+| 15 to 12 | background colour index |
+| 11 to 8 | foreground colour index |
+| 7 to 0 | character index |
+
+### `plotpix` area: plot pixel
+
+Writing to this sub-area causes a pixel to be plotted, at the intersection of the specified pixel column and row, using the specified colour.
+
+| address bits | function |
+|-|-|
+| 3 to 0 | colour index |
+
+| data bits | function |
+|-|-|
+| 31 to 16 | unused |
+| 15 to 8 | row index |
+| 7 to 0 | column index |
