@@ -30,7 +30,7 @@ return testbed.module({
 		{ name = "ram_addr", index = 1, keepalive = 0x10000000, payload = 0x000FFFFF },
 	},
 	func = function(inputs)
-		local instr_not_ld        = util.op_is_not_k(inputs.instr, 2)
+		local instr_not_ld        = util.op_is_not_k(inputs.instr, 2, 0x0F)
 		local addr_with_ld    = spaghetti.select(instr_not_ld:band(1):zeroable(), inputs.pc, inputs.ld_addr)
 		local addr_with_ld_st, write_2 = spaghetti.select(inputs.state:band(4):zeroable(), inputs.st_addr, addr_with_ld, 1, 4)
 		write_2:never_zero()

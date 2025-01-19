@@ -26,7 +26,7 @@ return testbed.module({
 	},
 	func = function(inputs)
 		local addr           = spaghetti.rshiftk(inputs.instr, 9):bor(0x10000000):band(0x1000001F)
-		local instr_not_st   = util.op_is_not_k(inputs.instr, 10)
+		local instr_not_st   = util.op_is_not_k(inputs.instr, 10, 0x0F)
 		local wreg_addr = spaghetti.select(instr_not_st:band(1):zeroable(), addr, 0x10000000)
 		return {
 			wreg_addr = wreg_addr,

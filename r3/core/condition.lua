@@ -27,7 +27,7 @@ return testbed.module({
 		{ name = "condition", index = 1, keepalive = 0x00010000, payload = 0x00000001 },
 	},
 	func = function(inputs)
-		local instr_not_jmp  = util.op_is_not_k(inputs.instr, 1)
+		local instr_not_jmp  = util.op_is_not_k(inputs.instr, 0x0001, 0x800F)
 		local flag_c  = inputs.flags
 		local flag_o  = spaghetti.rshiftk(flag_c, 1)
 		local flag_z  = spaghetti.rshiftk(flag_o, 1)

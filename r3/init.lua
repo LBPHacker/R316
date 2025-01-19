@@ -1,11 +1,12 @@
 local strict = require("spaghetti.strict")
 strict.wrap_env()
 
-local bitx  = require("spaghetti.bitx")
-local plot  = require("spaghetti.plot")
-local rread = require("r3.rread.generated")
-local core  = require("r3.core.generated")
-local util  = require("r3.util")
+local bitx   = require("spaghetti.bitx")
+local plot   = require("spaghetti.plot")
+local rread  = require("r3.rread.generated")
+local core_m = require("r3.core.generated_m")
+local core_s = require("r3.core.generated_s")
+local util   = require("r3.util")
 
 local audited_pairs = pairs
 
@@ -17,6 +18,14 @@ local function build(params)
 	local right_padding = params.right_padding or 0
 	local width_order = 7
 	local regs_order = 5
+	local core_types
+	if type(core_count) == "string" then
+		assert(not core_count:find("[^ms]"), "invalid core type")
+		core_types = core_count
+		core_count = #core_count
+	else
+		core_types = ("s"):rep(core_count)
+	end
 	assert(core_count >= 1, "core count too small")
 	assert(memory_rows <= 64, "too many rows of memory")
 	assert(memory_rows >= 1, "not enough rows of memory")
@@ -608,6 +617,10 @@ local function build(params)
 				part({ type = pt.FILT, x = x, y = y + 1 })
 			end
 		end
+		local core = core_s
+		if core_types:sub(i, i) == "m" then
+			core = core_m
+		end
 		plot.merge_parts(x_core - 2, y + 3, parts, core.get_parts())
 	end)
 	for _, info in ipairs(vertical_inputs) do
@@ -731,7 +744,13 @@ local function build(params)
 		cray(x_bank_dray_donor, y_stack + 1, x_bank_dray_donor, y_stack, pt.PSTN, 1, pt.PSCN) -- restore bank dray's id after its update
 		dray(x_bank_dray_donor + 3, y_stack - 1, x_bank_dray, y_stack - 1, 1, pt.PSCN) -- restore bank dray's id before its update
 		part({ type = pt.DRAY, x = x_bank_dray_donor + 2, y = y_stack - 1, tmp = 1, tmp2 = 1 }) -- bank dray template
-		cray(x_bank_dray - 2, y_stack + 1, x_bank_dray, y_stack - 1, pt.SPRK, 1, pt.PSCN) -- float bank dray's id after its update
+		cray(x_bank_dray - 2, y_stack + 1, x_bank_dray, y_stack - 1, pt.SPRK, 1, false) -- float bank dray's id after its update
+		part({ x = x_bank_dray - 2, y = y_stack + 1, type = pt.CONV, tmp = pt.SPRK, ctype = pt.HEAC }) -- float bank dray's id after its update
+		part({ x = x_bank_dray - 3, y = y_stack + 2, type = pt.HEAC })
+		part({ x = x_bank_dray - 4, y = y_stack + 1, type = pt.CONV, tmp = pt.HEAC, ctype = pt.PSCN })
+		part({ x = x_bank_dray - 4, y = y_stack + 1, type = pt.CONV, tmp = pt.PSCN, ctype = pt.SPRK })
+		part({ x = x_bank_dray - 4, y = y_stack + 1, type = pt.LSNS, tmp = 3 })
+		part({ x = x_bank_dray - 5, y = y_stack + 1, type = pt.FILT, ctype = 0x10000003 })
 
 		lsns_spark({ type = pt.PSCN, x = x_bank_dray, y = y_stack - 2, life = 3 }, -1, 1, -2, 1)
 		lsns_taboo(x_bank_dray + 2, y_stack - 1)

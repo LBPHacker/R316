@@ -33,23 +33,45 @@ local function any_sync_bit()
 	                            math.random(0, 1)    )
 end
 
-local function op_is_not_k(instr, k)
+local function op_is_bits(instr, k, mask)
+	assert(bitx.band(mask, 0x800F) == mask)
 	instr:assert(0x30000000, 0x0001FFFF)
-	local conjunctive
-	for i = 0, 3 do
-		local instr_bit = instr
-		if bitx.band(k, 1) == 1 then
-			instr_bit = instr_bit:bxor(1)
+	local bits = {}
+	local last_index = 0
+	local function next_bit(index)
+		local shift_by = index - last_index
+		if shift_by > 0 then
+			k = bitx.rshift(k, shift_by)
+			instr = spaghetti.rshiftk(instr, shift_by)
 		end
-		conjunctive = conjunctive and conjunctive:bor(instr_bit) or instr_bit
-		k = bitx.rshift(k, 1)
-		instr = spaghetti.rshiftk(instr, 1)
+		if bitx.band(mask, bitx.lshift(1, index)) ~= 0 then
+			local instr_bit = instr
+			if bitx.band(k, 1) == 1 then
+				instr_bit = instr_bit:bxor(1)
+			end
+			table.insert(bits, instr_bit)
+		end
+		last_index = index
 	end
-	return conjunctive:bsub(0xFFFE):assert(0x3E000000, 0x00010001)
+	next_bit(0)
+	next_bit(1)
+	next_bit(2)
+	next_bit(3)
+	next_bit(15)
+	return bits
+end
+
+local function op_is_not_k(instr, k, mask)
+	local conjunctive
+	for _, instr_bit in ipairs(op_is_bits(instr, k, mask)) do
+		conjunctive = conjunctive and conjunctive:bor(instr_bit) or instr_bit
+	end
+	return conjunctive:bsub(0xFFFE)
 end
 
 return {
 	op_is_not_k     = op_is_not_k,
+	op_is_bits      = op_is_bits,
 	any_state       = any_state,
 	any_state_instr = any_state_instr,
 	any_sync_bit    = any_sync_bit,

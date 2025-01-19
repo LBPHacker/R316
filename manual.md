@@ -47,7 +47,7 @@ This makes synchronizing with memory-mapped external hardware difficult because 
 
 Input and output are implemented via memory mapping, i.e. treating write and read accesses to specific addresses as sending data to and receiving data from external hardware.
 
-The computer has internal memory, which it maps to a contiguous, whole-power-of-2-sized range of addresses starting at 0. Reads are by default served by this memory, even ones that address outside this range, which just wrap around. Writes to this range are also handled by this memory, but writes outside this range are ignored by it.
+The computer has internal memory, which it maps to a contiguous, whole-power-of-2-sized range of addresses starting at 0. Reads are by default served by this memory, even ones that address outside this range, which just wrap around. Writes to this range are also handled by this memory, but writes outside this range are ignored by it. *TODO: explain what happens when the memory has a non-power-of-2 amount of rows*
 
 Each execution unit exposes its memory control lines. These can be used to effectively put external hardware on the bus, letting it intercept reads and writes, or they can be left disconnected altogether, in which case they do not influence execution in any way.
 
@@ -143,15 +143,15 @@ Each instruction encodes an operation, three operands, and whether the operation
 
 Different operations take different sets of operands: some take all three, some take none at all. In general, operations combine their source operands to produce an output that they then store in their destination operand.
 
-Bit layout:
+Instruction bit layout:
 
 | bits | function |
 |-|-|
-| 31 | enables updating flags |
+| 31 | MSB of operation index, mostly enables updating flags |
 | 30 | secondary operand is an immediate |
 | 29 to 25 | destination register index |
 | 24 to 20 | primary source register index |
-| 19 to 16 | operation index |
+| 19 to 16 | 4 LSB of operation index |
 | 15 to 0 | secondary source register index, or an immediate value |
 
 Jumps encode their conditions *instead of* a primary source register index. Bit layout:
@@ -163,24 +163,29 @@ Jumps encode their conditions *instead of* a primary source register index. Bit 
 
 Operations:
 
-| operation | operation index | cycles taken | produces flags | carry and overflow valid |
+| operation | operation index | cycles taken | produces flags if requested | carry and overflow valid |
 |-|-|-|-|-|
-| `mov` | 0 | 1 | x | |
+| `mov` | 0/16 | 1 | x | |
 | jumps (`jmp`, `jc`, ...) | 1 | 1 | | |
+| `hlt` | 17 | 1 | | |
 | `ld` | 2 | 2 | | |
-| `exh` | 3 | 1 | x | |
-| `sub` | 4 | 1 | x | x |
-| `sbb` | 5 | 1 | x | x |
-| `add` | 6 | 1 | x | x |
-| `adc` | 7 | 1 | x | x |
-| `shl` | 8 | 1 | x | |
-| `shr` | 9 | 1 | x | |
+| `exh` | 3/19 | 1 | x | |
+| `sub` | 4/20 | 1 | x | x |
+| `sbb` | 5/21 | 1 | x | x |
+| `add` | 6/22 | 1 | x | x |
+| `adc` | 7/23 | 1 | x | x |
 | `st` | 10 | 2 | | |
-| `hlt` | 11 | 1 | | |
-| `and` | 12 | 1 | x | |
-| `or` | 13 | 1 | x | |
-| `xor` | 14 | 1 | x | |
-| `clr` | 15 | 1 | x | |
+| `umll` | 8 | 1 | | |
+| `smll` | 24 | 1 | | |
+| `umlh` | 9 | 1 | | |
+| `smlh` | 25 | 1 | | |
+| `shl` | 11/27 (instruction bit 15 is 0) | 1 | x | |
+| `shr` | 11/27 (instruction bit 15 is 1) | 1 | x | |
+| `and` | 12/28 | 1 | x | |
+| `or` | 13/29 | 1 | x | |
+| `uml` | 14 | 2 | x | |
+| `sml` | 30 | 2 | x | |
+| `xor` | 15/31 | 1 | x | |
 
 Conditions:
 
@@ -270,6 +275,14 @@ adc r3, -8
 adc r3, r5, -8
 ```
 
+### `uml`, `umll`, `umlh`: unsigned multiply
+
+*TODO*
+
+### `sml`, `smll`, `smlh`: signed multiply
+
+*TODO*
+
 ### `shl`: shift left
 
 ```asm
@@ -320,29 +333,6 @@ xors D, P, S ; leaves flags unchanged
 ```
 
 Executes a bitwise XOR operation on `P` and `S`, and stores the result in `D`.
-
-### `clr`: bitwise AND NOT a.k.a. clear
-
-```asm
-clr  D, P, S
-clr  D, Sreg ; expands to clr D, D, Sreg
-clr  D, Simm ; expands to and D, D, ~Simm
-clrs D, P, S ; leaves flags unchanged
-```
-
-Executes a bitwise AND operation on `P` and **an inverted copy of `S`**, and stores the result in `D`. Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`. Accordingly, the following:
-
-```asm
-clr r3, 0x0008
-clr r3, r5, 0x0008
-```
-
-are interpreted as the following semantically equivalent spellings:
-
-```asm
-and r3, 0xFFF7
-and r3, r5, 0xFFF7
-```
 
 ### `mov`: move
 
