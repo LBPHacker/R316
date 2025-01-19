@@ -4,9 +4,9 @@ strict.wrap_env()
 local spaghetti      = require("spaghetti")
 local bitx           = require("spaghetti.bitx")
 local testbed        = require("spaghetti.testbed")
-local range_to_rbits = require("r3term.core.range_to_rbits")
-local rbits_to_mask  = require("r3term.core.rbits_to_mask")
-local constants = require("r3term.core.constants")
+local range_to_rbits = require("r3term.core.range_to_rbits").instantiate()
+local rbits_to_mask  = require("r3term.core.rbits_to_mask") .instantiate()
+local constants      = require("r3term.core.constants")
 
 assert(constants.max_size == 29)
 return testbed.module({
@@ -62,10 +62,10 @@ return testbed.module({
 		)
 		local cursor_p = inputs.cursor:rshift(horiz_shift)    :never_zero():bor(0x10000000):band(0x1000001F)
 		local cursor_s = inputs.cursor:rshift(horiz_shift_inv):never_zero():bor(0x10000000):band(0x1000001F)
-		local range_p_bits = range_to_rbits.instantiate({
+		local range_p_bits = range_to_rbits.component({
 			range = range_p,
 		})
-		local range_s_bits = range_to_rbits.instantiate({
+		local range_s_bits = range_to_rbits.component({
 			range = range_s,
 		})
 		local flip_p = spaghetti.select(range_p_bits.bit_high:rshift(range_p_bits.bit_low):zeroable(), 0x3F, 0x20)
@@ -105,10 +105,10 @@ return testbed.module({
 			inputs.print:band(smart):band(1):zeroable(),
 			next_cursor, inputs.cursor
 		)
-		local emask_bits = range_to_rbits.instantiate({
+		local emask_bits = range_to_rbits.component({
 			range = emask_range,
 		})
-		local emask = rbits_to_mask.instantiate({
+		local emask = rbits_to_mask.component({
 			bit_low  = emask_bits.bit_low,
 			bit_high = emask_bits.bit_high,
 		})

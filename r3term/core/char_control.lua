@@ -4,7 +4,7 @@ strict.wrap_env()
 local spaghetti = require("spaghetti")
 local bitx      = require("spaghetti.bitx")
 local testbed   = require("spaghetti.testbed")
-local sub_2x5   = require("r3term.core.sub_2x5")
+local sub_2x5   = require("r3term.core.sub_2x5").instantiate()
 
 return testbed.module({
 	tag = "core.char_control",
@@ -39,7 +39,7 @@ return testbed.module({
 	func = function(inputs)
 		local printh = inputs.print:band(inputs.horizontal)        :assert(0x00000002, 0x00000001)
 		local printv = inputs.print:band(inputs.horizontal:bxor(1)):assert(0x00000002, 0x00000001)
-		local sub_2x5_outputs = sub_2x5.instantiate({
+		local sub_2x5_outputs = sub_2x5.component({
 			sizes   = inputs.size_s,
 			indices = inputs.range_s,
 		})

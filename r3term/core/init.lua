@@ -4,15 +4,15 @@ strict.wrap_env()
 local spaghetti     = require("spaghetti")
 local bitx          = require("spaghetti.bitx")
 local testbed       = require("spaghetti.testbed")
-local bus           = require("r3term.core.bus")
-local char_control  = require("r3term.core.char_control")
-local char_advance  = require("r3term.core.char_advance")
-local pixel_control = require("r3term.core.pixel_control")
-local color_select  = require("r3term.core.color_select")
-local cursor_select = require("r3term.core.cursor_select")
+local bus           = require("r3term.core.bus")          .instantiate()
+local char_control  = require("r3term.core.char_control") .instantiate()
+local char_advance  = require("r3term.core.char_advance") .instantiate()
+local pixel_control = require("r3term.core.pixel_control").instantiate()
+local color_select  = require("r3term.core.color_select") .instantiate()
+local cursor_select = require("r3term.core.cursor_select").instantiate()
 
-local function flow(inputs, instantiate)
-	local bus_outputs = instantiate("bus", bus, {
+local function flow(inputs, component)
+	local bus_outputs = component("bus", bus, {
 		ram_data      = inputs.ram_data,
 		ram_addr      = inputs.ram_addr,
 		base_addr     = inputs.base_addr,
@@ -28,7 +28,7 @@ local function flow(inputs, instantiate)
 		ram_addr_prev = inputs.ram_addr_prev,
 		retry         = inputs.retry,
 	})
-	local char_advance_outputs = instantiate("char_advance", char_advance, {
+	local char_advance_outputs = component("char_advance", char_advance, {
 		print       = bus_outputs.char_print,
 		cursor      = inputs.cursor,
 		newline     = inputs.newline,
@@ -42,7 +42,7 @@ local function flow(inputs, instantiate)
 		data_config = bus_outputs.char_config,
 		scrollmask  = inputs.scrollmask,
 	})
-	local char_control_outputs = instantiate("char_control", char_control, {
+	local char_control_outputs = component("char_control", char_control, {
 		print      = char_advance_outputs.print,
 		emask      = char_advance_outputs.emask,
 		range_s    = char_advance_outputs.range_s,
@@ -51,16 +51,16 @@ local function flow(inputs, instantiate)
 		horizontal = char_advance_outputs.horizontal,
 		size_s     = char_advance_outputs.size_s,
 	})
-	local pixel_control_outputs = instantiate("pixel_control", pixel_control, {
+	local pixel_control_outputs = component("pixel_control", pixel_control, {
 		print    = bus_outputs.pixel_print,
 		position = bus_outputs.pixel_position,
 	})
-	local color_select_outputs = instantiate("color_select", color_select, {
+	local color_select_outputs = component("color_select", color_select, {
 		pixel_print = bus_outputs.pixel_print,
 		char_color  = char_advance_outputs.color,
 		pixel_color = bus_outputs.pixel_color,
 	})
-	local cursor_select_outputs = instantiate("cursor_select", cursor_select, {
+	local cursor_select_outputs = component("cursor_select", cursor_select, {
 		char_print     = bus_outputs.char_print,
 		advance_cursor = char_advance_outputs.next_cursor,
 		bus_cursor     = bus_outputs.next_cursor,
@@ -155,7 +155,7 @@ return testbed.module({
 	},
 	func = function(inputs)
 		return flow(inputs, function(name, mod, instance_inputs)
-			return mod.instantiate(instance_inputs)
+			return mod.component(instance_inputs)
 		end)
 	end,
 	fuzz_inputs = function()
