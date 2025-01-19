@@ -5,6 +5,8 @@ local plot = require("spaghetti.plot")
 local bitx = require("spaghetti.bitx")
 local misc = require("spaghetti.misc")
 
+local audited_pairs = pairs
+
 local function ilog2floor(n)
 	local l = 0
 	while n > 1 do
@@ -32,10 +34,10 @@ local function make_context(parts, debug_stacks)
 
 	local function mutate(p, m)
 		local q = {}
-		for key, value in pairs(p) do
+		for key, value in audited_pairs(p) do
 			q[key] = value
 		end
-		for key, value in pairs(m) do
+		for key, value in audited_pairs(m) do
 			q[key] = value
 		end
 		return q

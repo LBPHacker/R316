@@ -3,6 +3,7 @@ local util = require("r3.util")
 local plot = require("spaghetti.plot")
 
 local pt = plot.pt
+local audited_pairs = pairs
 
 local bitx = setmetatable({}, { __index = function(tbl, key)
 	local real_value = bit[key]
@@ -412,12 +413,12 @@ local function get_state()
 end
 
 local function compare_states(expected, actual)
-	for key, value in pairs(expected.memory) do
+	for key, value in audited_pairs(expected.memory) do
 		if actual.memory[key] ~= value then
 			return nil, ("[%04X] expected to be %08X, actually %08X"):format(key, value, actual.memory[key])
 		end
 	end
-	for key, value in pairs(expected.registers) do
+	for key, value in audited_pairs(expected.registers) do
 		if actual.registers[key] ~= value then
 			return nil, ("r%i expected to be %08X, actually %08X"):format(key, value, actual.registers[key])
 		end

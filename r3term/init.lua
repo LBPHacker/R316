@@ -134,7 +134,7 @@ local function build(params)
 	local y_after_content = y_content + chars_h
 
 	if debug_flags and debug_flags.no_core then
-		for _, output in pairs(outputs) do
+		for _, output in misc.ordered_pairs(outputs) do
 			part({ type = pt.FILT, x = output.x, y = output.y, ctype = output.ctype })
 		end
 	else

@@ -7,6 +7,8 @@ local rread = require("r3.rread.generated")
 local core  = require("r3.core.generated")
 local util  = require("r3.util")
 
+local audited_pairs = pairs
+
 local function build(params)
 	local core_count    = params.core_count
 	local memory_rows   = params.memory_rows
@@ -899,7 +901,7 @@ local function build(params)
 		patch_filt(x_storage_slot(86)    ,    y_top + 0, 0x10040000) -- ram_addr*
 		patch_filt(x_storage_slot(64)    ,    y_top + 1, 0x10000000) -- ram_data*
 		patch_filt(x_storage_slot(64)    ,    y_top + 2, 0x10000000) -- ram_data*
-		for key, ctype in pairs(patch_filt_list) do
+		for key, ctype in audited_pairs(patch_filt_list) do
 			parts_by_pos[key].ctype = ctype
 		end
 
