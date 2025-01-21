@@ -244,21 +244,14 @@ gen_pixel:
 	add r19, 1
 	adc r20, 0
 .no_neg_r19:
-	mov r1, r19
-	mov r2, r19
-	jmp r31, mul_16
-	mov r6, r2
-	mov r1, r20
-	mov r2, r20
-	jmp r31, mul_16
-	mov r5, r1
-	mov r1, r19
-	mov r2, r20
-	jmp r31, mul_16
-	add r1, r1
+	mulh r2, r19, r20
+	mul r3, r19, r20
+	mulh r6, r19, r19
+	add r3, r3
+	mul r5, r20, r20
 	adc r2, r2
 	add r2, r5
-	add r7, r1, r6
+	add r7, r3, r6
 	adc r8, r2, 0
 
 	mov r17, r11
@@ -269,21 +262,14 @@ gen_pixel:
 	add r17, 1
 	adc r18, 0
 .no_neg_r17:
-	mov r1, r17
-	mov r2, r17
-	jmp r31, mul_16
-	mov r6, r2
-	mov r1, r18
-	mov r2, r18
-	jmp r31, mul_16
-	mov r5, r1
-	mov r1, r17
-	mov r2, r18
-	jmp r31, mul_16
-	add r1, r1
+	mulh r2, r17, r18
+	mul r3, r17, r18
+	mulh r6, r17, r17
+	add r3, r3
+	mul r5, r18, r18
 	adc r2, r2
 	add r2, r5
-	add r5, r1, r6
+	add r5, r3, r6
 	adc r6, r2, 0
 
 	add r0, r5, r7
@@ -299,21 +285,14 @@ gen_pixel:
 	add r11, 1
 	adc r12, 0
 .no_neg_r11:
-	mov r1, r11
-	mov r2, r11
-	jmp r31, mul_16
-	mov r20, r2
-	mov r1, r12
-	mov r2, r12
-	jmp r31, mul_16
-	mov r19, r1
-	mov r1, r11
-	mov r2, r12
-	jmp r31, mul_16
-	add r1, r1
+	mulh r2, r11, r12
+	mul r3, r11, r12
+	mulh r20, r11, r11
+	add r3, r3
+	mul r19, r12, r12
 	adc r2, r2
 	add r2, r19
-	add r9, r1, r20
+	add r9, r3, r20
 	adc r10, r2, 0
 
 	sub r21, 1
@@ -321,51 +300,6 @@ gen_pixel:
 .loop_done:
 	mov r1, r21
 	jmp r29
-
-; * Multiply two 16-bit unsigned integers.
-; * r1 in: one multiplicand
-; * r2 in: other multiplicand
-; * r31 in: return address
-; * r2:r1 out: product
-; * Clobbers: r3, r4
-%macro shift
-	add r1, r1
-	adc r2, r2
-	shl r3, 1
-%endmacro
-%macro round
-	jns .round _Macrounique
-	add r1, r4
-	adc r2, 0
-.round _Macrounique:
-%endmacro
-%macro round2
-	round
-	shift
-	round
-%endmacro
-%macro round3
-	round2
-	shift
-	round2
-%endmacro
-mul_16:
-	movf r3, r1
-	mov r4, r2
-	mov r1, 0
-	mov r2, 0
-	round3
-	shift
-	round3
-	shift
-	round3
-	shift
-	round3
-	jmp r31
-%unmacro round3
-%unmacro round2
-%unmacro round
-%unmacro shift
 
 ; * Plot a single pixel.
 ; * r1 in: horizontal position, [0, max_x)
