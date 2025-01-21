@@ -13,7 +13,7 @@ Note: Instruction spellings and expansions reflect the state of integration with
  - **data path**: quasi-32-bit, works with *almost every* 32-bit value
  - **registers**: 32-bit words, 31 general purpose read/write, 1 read-only *almost zero*
  - **memory**: any amount of 32-bit words from 128 to 8192 (8K), in increments of 128
- - **ALU**: 16-bit addition, logic, and shifting
+ - **ALU**: 16-bit addition, logic, and shifting, optionally 16×16-bit *multiplication* with 32-bit results
  - ***spatial unrolling***: many CPU cycles per frame depending on configuration
  - **input and output**: memory-mapped, control lines are exposed, *wait cycles* can be injected
 
@@ -29,7 +29,9 @@ There are 31 general purpose read/write registers `r1` to `r31`, and also one re
 
 ## ALU
 
-The ALU operates on the 16 LSBs of registers and on 16-bit immediate values. It is capable of addition and subtraction, with or without carry and borrow, bitwise OR, AND, XOR, and CLR (AND NOT), and left and logical (i.e. not arithmetic) right shifting. All of these operations also output flags, which may optionally be stored for later use with conditional jumps, or discarded. Note that these flags carry information only about the output of the ALU operation, which is only 16 bits wide.
+The ALU operates on the 16 LSBs of registers and on 16-bit immediate values. It is capable of addition and subtraction, with or without carry and borrow, bitwise OR, AND, and XOR, and left and logical (i.e. not arithmetic) right shifting. All of these operations also output flags, which may optionally be stored for later use with conditional jumps, or discarded. Note that these flags carry information only about the output of the ALU operation, which is only 16 bits wide.
+
+The ALU is also capable of 16×16-bit unsigned and signed multiplication, which yields 32-bit numbers. Either or both halves of the result can be stored. Multiplication does not output flags.
 
 The zero flag `Zf` indicates that the result of the ALU operation is zero. The sign flag `Sf` indicates that the MSB of the result is set. In the case of addition and subtraction, the carry flag `Cf` indicates that there was a carry out of the MSB, while the overflow flag `Of` indicates that the carry out was different from the MSB than from the bit of one lower order, essentially indicating signed carry, as opposed to unsigned carry.
 
@@ -39,15 +41,57 @@ The 16 MSBs of the output produced by ALU operations are the 16 MSBs of the prim
 
 ## Spatial unrolling
 
-Depending on configuration, multiple execution units may be vertically stacked on top of one another. These act as a single core sped up by a factor of however many execution units there are compared to a core with only one execution unit, resulting in a cycles per frame figure larger than 1.
+Depending on configuration, multiple execution units may be vertically stacked on top of one another. The amount of cores is configurable at creation time. These act as a single core sped up by a factor of however many execution units there are compared to a core with only one execution unit, resulting in a cycles per frame figure larger than 1.
 
 This makes synchronizing with memory-mapped external hardware difficult because it is difficult to predict which execution unit an instruction will be executed on. To make this easier, conditional jumps are given a way to detect that they are being executed on the last (bottommost) execution unit, see the relevant section.
+
+## Memory
+
+The computer has internal memory arranged into rows of 128 quasi-32-bit cells, `mem_cells` cells and `mem_rows` rows overall. These values are configurable at creation time. For illustrative purposes, also keep the number `mem_p2rows` in mind, which is the smallest whole power of 2 larger than or equal to `mem_rows`, and the corresponding number of cells, `mem_p2cells`. The 16-bit address space is divided into 512 128-cell blocks, which are mapped to the internal memory as follows:
+
+ - `mem_rows` blocks are mapped to the corresponding row in the internal memory in read-write mode
+ - `mem_p2rows - mem_rows` blocks are mapped to the highest-address row of internal memory in read-only mode
+ - `512 - mem_p2rows` blocks mirror the previous two sets of blocks in terms of being mapped to the internal memory, but only in read-only mode, and accesses in this range are considered external
+
+Blocks being mapped to the internal memory in read-write mode means that reads addressing them are by default served by the internal memory, and writes addressing them are by default handled by it. Blocks being mapped to the internal memory in read-only mode means that reads addressing them are by default served by the internal memory, but writes are ignored by it.
+
+Consider the example of `mem_rows` being 13: in this case, `mem_cells` is 0x680, `mem_p2rows` is 16, `mem_p2cells` is 0x800, and the memory map is as follows:
+
+| cell range | block | reads served by | writes handled by | external |
+|-|-|-|-|-|
+| 0x0000 to 0x007F | 0 | row 0 | row 0 | |
+| 0x0080 to 0x00FF | 1 | row 1 | row 1 | |
+| 0x0100 to 0x017F | 2 | row 2 | row 2 | |
+| 0x0180 to 0x01FF | 3 | row 3 | row 3 | |
+| ... | ... | ... | ... | ... |
+| 0x0500 to 0x057F | 10 | row 10 | row 10 | |
+| 0x0580 to 0x05FF | 11 | row 11 | row 11 | |
+| 0x0600 to 0x067F (`mem_cells` - 1) | 12 | row 12 | row 12 | |
+| 0x0680 to 0x06FF | 13 | row 12 | nothing | |
+| 0x0700 to 0x077F | 14 | row 12 | nothing | |
+| 0x0780 to 0x07FF (`mem_p2cells` - 1) | 15 | row 12 | nothing | |
+| 0x0800 to 0x087F | 16 | row 0 | nothing | x |
+| 0x0880 to 0x08FF | 17 | row 1 | nothing | x |
+| 0x0900 to 0x097F | 18 | row 2 | nothing | x |
+| 0x0980 to 0x09FF | 19 | row 3 | nothing | x |
+| ... | ... | ... | ... | ... |
+| 0x0D00 to 0x0D7F | 26 | row 10 | nothing | x |
+| 0x0D80 to 0x0DFF | 27 | row 11 | nothing | x |
+| 0x0E00 to 0x0E7F | 28 | row 12 | nothing | x |
+| 0x0E80 to 0x0EFF | 29 | row 12 | nothing | x |
+| 0x0F00 to 0x0F7F | 30 | row 12 | nothing | x |
+| 0x0F80 to 0x0FFF (2 * `mem_p2cells` - 1) | 31 | row 12 | nothing | x |
+| 0x1000 to 0x107F | 32 | row 0 | nothing | x |
+| 0x1080 to 0x10FF | 33 | row 1 | nothing | x |
+| 0x1100 to 0x117F | 34 | row 2 | nothing | x |
+| 0x1180 to 0x11FF | 35 | row 3 | nothing | x |
+| ... | ... | ... | ... | ... |
+
+Note that this is only the default memory map imposed by the internal memory, in the complete absence of external hardware.
 
 ## Input and output
 
 Input and output are implemented via memory mapping, i.e. treating write and read accesses to specific addresses as sending data to and receiving data from external hardware.
-
-The computer has internal memory, which it maps to a contiguous, whole-power-of-2-sized range of addresses starting at 0. Reads are by default served by this memory, even ones that address outside this range, which just wrap around. Writes to this range are also handled by this memory, but writes outside this range are ignored by it. *TODO: explain what happens when the memory has a non-power-of-2 amount of rows*
 
 Each execution unit exposes its memory control lines. These can be used to effectively put external hardware on the bus, letting it intercept reads and writes, or they can be left disconnected altogether, in which case they do not influence execution in any way.
 
@@ -165,27 +209,33 @@ Operations:
 
 | operation | operation index | cycles taken | produces flags if requested | carry and overflow valid |
 |-|-|-|-|-|
-| `mov` | 0/16 | 1 | x | |
-| jumps (`jmp`, `jc`, ...) | 1 | 1 | | |
-| `hlt` | 17 | 1 | | |
-| `ld` | 2 | 2 | | |
-| `exh` | 3/19 | 1 | x | |
-| `sub` | 4/20 | 1 | x | x |
-| `sbb` | 5/21 | 1 | x | x |
-| `add` | 6/22 | 1 | x | x |
-| `adc` | 7/23 | 1 | x | x |
-| `st` | 10 | 2 | | |
-| `umll` | 8 | 1 | | |
-| `smll` | 24 | 1 | | |
-| `umlh` | 9 | 1 | | |
-| `smlh` | 25 | 1 | | |
-| `shl` | 11/27 (instruction bit 15 is 0) | 1 | x | |
-| `shr` | 11/27 (instruction bit 15 is 1) | 1 | x | |
-| `and` | 12/28 | 1 | x | |
-| `or` | 13/29 | 1 | x | |
-| `uml` | 14 | 2 | x | |
-| `sml` | 30 | 2 | x | |
-| `xor` | 15/31 | 1 | x | |
+| `mov` | 0/F | 1 | x | |
+| jumps (`jmp`, `jc`, ...) | 1/0 | 1 | | |
+| `hlt` | 1/1 | 1 | | |
+| `ld` | 2/0 | 2 | | |
+| `exh` | 3/F | 1 | x | |
+| `sub` | 4/F | 1 | x | x |
+| `sbb` | 5/F | 1 | x | x |
+| `add` | 6/F | 1 | x | x |
+| `adc` | 7/F | 1 | x | x |
+| `st` | 10/0 | 2 | | |
+| `umll` | 8/0 | 1 | | |
+| `smll` | 8/1 | 1 | | |
+| `umlh` | 9/0 | 1 | | |
+| `smlh` | 9/1 | 1 | | |
+| `shl` | 11/F (instruction bit 15 is 0) | 1 | x | |
+| `shr` | 11/F (instruction bit 15 is 1) | 1 | x | |
+| `and` | 12/F | 1 | x | |
+| `or` | 13/F | 1 | x | |
+| `uml` | 14/0 | 2 | x | |
+| `sml` | 14/1 | 2 | x | |
+| `xor` | 15/F | 1 | x | |
+
+In this table, operation indices are in the form X/F, where X is the 4 LSB of the operation index, while F is the MSB of the operation index, unspecified in some cases because both possible values yield a valid operation index.
+
+Note that not every execution unit necessarily supports multiplication; these units waste a cycle not doing anything when encountering these instructions, letting the next execution unit handle it.
+
+The effects of using any operation index not listed above are undefined.
 
 Conditions:
 
@@ -277,11 +327,41 @@ adc r3, r5, -8
 
 ### `uml`, `umll`, `umlh`: unsigned multiply
 
-*TODO*
+```asm
+umll D, P, S
+umlh D, P, S
+uml  D, D^1, P, S
+```
+
+Calculates the product of the two unsigned integers `P` and `S`, and stores:
+
+ - `umll`: the low half of the result in `D`
+ - `umlh`: the high half of the result in `D`
+ - `uml`: the low half of the result in `D`, and the high half of the result in `D^1`, which is the *companion register* of `D`
+
+For the purposes of this instruction, registers are arranged into pairs: to find the companion of a register based on its index, bitwise XOR the index with 1 to get the index of the companion. In other words, r0 and r1 are companions, r2 and r3 also are, etc. `uml` stores the low half of the result in the specified register, and stores the high half of the result in *its companion*.
+
+For example, the following assembles:
+
+```asm
+uml r2, r3, r8, 0xBEEF
+```
+
+But the following does not:
+
+```asm
+uml r2, r5, r8, 0xBEEF
+```
 
 ### `sml`, `smll`, `smlh`: signed multiply
 
-*TODO*
+```asm
+smll D, P, S
+smlh D, P, S
+sml  D, D^1, P, S
+```
+
+Behaves exactly like unsigned multiplication, except its inputs and outputs are signed numbers. Note that this only has any effect on the high half of the result, the low half is the same regardless of signedness.
 
 ### `shl`: shift left
 
@@ -432,9 +512,48 @@ All of the above also have a variant that only jumps if the conditions associate
 
 ## Terminal
 
-*TODO: description of basic operation i.e. scrollprint*
+The display area is a collection of 8×8-pixel blocks, arranged into rows and columns, inside which pixels take any of 16 hard-coded colours. The amount of rows and columns is configurable at creation time.
 
-7-bit ASCII
+The supported primitive operations are the *scrollprint* and simple pixel plotting. A scrollprint involves scrolling every block in an arbitrary rectangular sub-area of the display blocks by exactly one block in any of the four basic directions, and then filling the space thus freed up with copies of an arbitrary bitmap of a set of 256 bitmaps, one of which can be customized at the pixel level. Pixel plotting enables changing any pixel on the display.
+
+Scrollprints can be requested directly or through terminal mode. Terminal mode introduces a cursor which respects the boundaries of the selected scrollprint sub-area, and can be configured to take different actions when printing characters and when reaching these boundaries.
+
+The terminal's I/O range is accessible at a 128-cell-aligned block in the address space; the 9 MSB of addresses used to access this range are configurable at creation time. The 7 LSB form an address into the range, used to select read-only and write-only registers and write-triggered sub-ranges:
+
+| addresses | register | access |
+|-|-|-|
+| 0x00 | `input` | read-only |
+| 0x40 | `char0left` | write-only |
+| 0x41 | `char0right` | write-only |
+| 0x42 | `hrange` | write-only |
+| 0x43 | `vrange` | write-only |
+| 0x44 | `cursor` | write-only |
+| 0x45 | `nlchar` | write-only |
+| 0x46 | `colour` | write-only |
+| 0x47 | `scrollmask` | write-only |
+
+| addresses | sub-range | access |
+|-|-|-|
+| 0x00 to 0x3F | `scrollprint` | write-only |
+| 0x60 to 0x7F | `plotpix` | write-only |
+
+The effects of accessing any other address in the block are undefined. The effects of accessing any aforementioned register in a manner not appropriate for its capabilities are undefined.
+
+### `input` register: keyboard input
+
+This read-only register returns the code associated with the most recently pressed key, and causes the terminal to forget about this key press. If the value 0 is read from this register, no key has been pressed since the last time this register was read.
+
+### `colour` register: colours used for scrollprints
+
+This write-only register holds the colour used for printing characters.
+
+| data bits | function |
+|-|-|
+| 31 to 8 | unused |
+| 7 to 4 | background colour index |
+| 3 to 0 | foreground colour index |
+
+The 16 hard-coded colours are as follows:
 
 | index | rgb888 | name |
 |-|-|-|
@@ -455,23 +574,59 @@ All of the above also have a variant that only jumps if the conditions associate
 | 14 | #55FFFF | light cyan |
 | 15 | #FFFFFF | white |
 
-The terminal's I/O area is accessible at a 128-cell-aligned block in the address space; the 9 MSB of addresses used to access this area are configurable at creation time. *TODO: explain creation elsewhere.* The 7 LSB form an address into the area, used to select write-only registers and write-triggered sub-areas:
+### `hrange` register: horizontal range used for scrollprints
 
-| addresses | register |
-|-|-|
-| 0x40 | `char0left` |
-| 0x41 | `char0right` |
-| 0x42 | `hrange` |
-| 0x43 | `vrange` |
-| 0x44 | `cursor` |
-| 0x45 | `nlchar` |
-| 0x46 | `colour` |
-| 0x47 | `scrollmask` |
+This write-only register holds the horizontal range, or the column-wise extent of the scrollprint sub-area.
 
-| addresses | area |
+| data bits | function |
 |-|-|
-| 0x00 to 0x3F | `printchar` |
-| 0x60 to 0x7F | `plotpix` |
+| 31 to 10 | unused |
+| 9 to 5 | high column index |
+| 4 to 0 | low column index |
+
+Note that it is perfectly valid for the high column index to hold a value lower than the low column index: in this case, when the horizontal dimension is the secondary dimension during a scrollprint, blocks are scrolled to the left, rather than to the right. When the two values are equal, scrolling is not visible.
+
+### `vrange` register: vertical range used for scrollprints
+
+This write-only register holds the vertical range, or the row-wise extent of the scrollprint sub-area.
+
+| data bits | function |
+|-|-|
+| 31 to 10 | unused |
+| 9 to 5 | high row index |
+| 4 to 0 | low row index |
+
+Note that it is perfectly valid for the high row index to hold a value lower than the low row index: in this case, when the vertical dimension is the secondary dimension during a scrollprint, blocks are scrolled upward, rather than downward. When the two values are equal, scrolling is not visible.
+
+### `cursor` register: cursor position used for scrollprints
+
+This write-only register holds the position of the terminal mode cursor.
+
+| data bits | function |
+|-|-|
+| 31 to 10 | unused |
+| 9 to 5 | row index |
+| 4 to 0 | column index |
+
+### `nlchar` register: newline trigger character used for scrollprints
+
+This write-only register holds the character used to signal that the terminal mode cursor should be moved to a new line.
+
+| data bits | function |
+|-|-|
+| 31 to 8 | unused |
+| 7 to 0 | character index |
+
+### `scrollmask` register: scroll mask used for scrollprints
+
+This write-only register holds the scroll mask used for printing characters.
+
+| data bits | function |
+|-|-|
+| 31 to 29 | unused |
+| 28 to 0 | enable bit for the column or row of the corresponding index |
+
+Setting or clearing bits that correspond to columns or rows that do not exist have no effect.
 
 ### `char0left` register: character #0 left half
 
@@ -494,69 +649,23 @@ A set bit results in the corresponding pixel being plotted with the selected bac
 
 This write-only register has the exact same semantics as `char0left`, except it holds the data for the rightmost 4 columns of character #0.
 
-### `hrange` register: horizontal range
+### `scrollprint` sub-range: scroll selection and print character
 
-This write-only register holds the horizontal range, or the column-wise extent of the active rectangle.
+Writing to this sub-range causes a character to be printed. The bitmap used to print the character is loaded from the character ROM, from the index specified by the character index.
 
-| data bits | function |
-|-|-|
-| 31 to 10 | unused |
-| 9 to 5 | last column index |
-| 4 to 0 | first column index |
+If row-oriented printing is enabled, the primary dimension of the scrollprint is the horizontal dimension, while the secondary dimension is the vertical dimension. If it is disabled, these roles are reversed. Scrolling happens along the secondary dimension, in the direction specified by the `hrange` and `vrange` registers.
 
-### `vrange` register: vertical range
+If terminal mode is enabled, printing a character this way causes the character to be printed under the terminal mode cursor, and advances the cursor by 1 block along the primary dimension. If this causes the cursor to exit the selected sub-area, then at the next terminal mode scrollprint, before a character is printed, it is moved to the low position of the primary range and is advanced by 1 block along the secondary dimension. If this once again causes the cursor to exit the selected sub-area, then what happens next depends on whether terminal mode scrolling is enabled.
 
-This write-only register holds the vertical range, or the row-wise extent of the active rectangle.
+If terminal mode scrolling is enabled, the sub-area is automatically scrolled along the secondary dimension by one block, with the space thus feed up filled with the bitmap at the character index stored in the `nlchar` register. The cursor does not move along the secondary dimension, though it will have moved relative to the display's contents. If it is disabled, the cursor is simply moved to the low position of the secondary range.
 
-| data bits | function |
-|-|-|
-| 31 to 10 | unused |
-| 9 to 5 | last row index |
-| 4 to 0 | first row index |
+Note that this automatic scroll can cause the terminal to take two frames to print a single character (one to execute the automatic scroll, and one to print the character). The automatic scroll is executed in the frame in which the terminal received the request, while the character is printed in the next frame. If a command is sent to the terminal in this frame, the terminal temporarily rejects the command by responding on the bus with a wait cycle.
 
-### `cursor` register: cursor position
+If the newline trigger character is enabled, and the character index matches that stored in the `nlchar` register, everything happens as if the cursor has exited the selected sub-area while being advanced along the primary dimension, except no character is printed.
 
-This write-only register holds the position of the terminal mode cursor.
+If terminal mode is disabled, printing a character this way causes a scroll in the selected sub-area, and the space thus feed up is filled with the bitmap at the specified character index.
 
-| data bits | function |
-|-|-|
-| 31 to 10 | unused |
-| 9 to 5 | row index |
-| 4 to 0 | column index |
-
-### `nlchar` register: newline trigger character
-
-This write-only register holds the character used to signal that the terminal mode cursor should be moved to a new line.
-
-| data bits | function |
-|-|-|
-| 31 to 8 | unused |
-| 7 to 0 | character index |
-
-### `colour` register: colour
-
-This write-only register holds the colour used for printing characters.
-
-| data bits | function |
-|-|-|
-| 31 to 8 | unused |
-| 7 to 4 | background colour index |
-| 3 to 0 | foreground colour index |
-
-### `scrollmask` register: scroll mask
-
-This write-only register holds the scroll mask used for printing characters.
-
-| data bits | function |
-|-|-|
-| 31 to 29 | unused |
-| 28 to 0 | enable bit for the column or row of the corresponding index |
-
-Setting or clearing bits that correspond to columns or rows that do not exist have no effect.
-
-### `printchar` area: print character
-
-Writing to this sub-area causes a character to be printed. *TODO: explain all the features of terminal mode*
+If the scroll mask is enabled, the set of rows of columns subject to scrolling is determined by the `scrollmask` register for the duration of this scrollprint, rather than from the range of the scrollprint along the primary dimension, as specified by the `hrange` and `vrange` registers. This feature does not combine well with terminal mode.
 
 | address bits | function |
 |-|-|
@@ -574,9 +683,11 @@ Writing to this sub-area causes a character to be printed. *TODO: explain all th
 | 11 to 8 | foreground colour index |
 | 7 to 0 | character index |
 
-### `plotpix` area: plot pixel
+The colour indices in the data bits are only consulted if this is enabled by the address bits; otherwise, colours are taken from the `colour` register.
 
-Writing to this sub-area causes a pixel to be plotted, at the intersection of the specified pixel column and row, using the specified colour.
+### `plotpix` sub-range: plot pixel
+
+Writing to this sub-range causes a pixel to be plotted, at the intersection of the specified pixel column and row, using the specified colour.
 
 | address bits | function |
 |-|-|
@@ -587,3 +698,5 @@ Writing to this sub-area causes a pixel to be plotted, at the intersection of th
 | 31 to 16 | unused |
 | 15 to 8 | row index |
 | 7 to 0 | column index |
+
+Note that the resolution of the column and row indices is eightfold compared to the indices of the scrollprint range and cursor registers.
