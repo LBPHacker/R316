@@ -19,7 +19,7 @@ return testbed.module({
 	storage_slots = 30,
 	work_slots    = 12,
 	inputs = {
-		{ name = "flags"   , index = 1, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000000 },
+		{ name = "flags"   , index = 1, keepalive = 0x10000000, payload = 0x000FFFFF, initial = 0x10000000 },
 		{ name = "sync_bit", index = 3, keepalive = 0x00010000, payload = 0x00000019, initial = 0x00010000 },
 		{ name = "instr"   , index = 5, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x30000000 },
 	},
@@ -28,7 +28,8 @@ return testbed.module({
 	},
 	func = function(inputs)
 		local instr_not_jmp  = util.op_is_not_k(inputs.instr, 1)
-		local flag_c  = inputs.flags
+		local flags   = inputs.flags:band(0x1000000F)
+		local flag_c  = flags
 		local flag_o  = spaghetti.rshiftk(flag_c, 1)
 		local flag_z  = spaghetti.rshiftk(flag_o, 1)
 		local flag_s  = spaghetti.rshiftk(flag_z, 1)
@@ -41,7 +42,7 @@ return testbed.module({
 		local flag_array = spaghetti.constant(0x02):bor(flag_only_be)
 		                              :lshift(0x02):bor(flag_only_l)
 		                              :lshift(0x02):bor(flag_only_ng)
-		                              :lshift(0x10):bor(inputs.flags):assert(0x30000080, 0x0000007F)
+		                              :lshift(0x10):bor(flags):assert(0x30000080, 0x0000007F)
 		local instr = spaghetti.rshiftk(inputs.instr, 4)
 		for i = 0, 2 do
 			local i22 = bitx.lshift(1, bitx.lshift(1, i))
@@ -65,7 +66,7 @@ return testbed.module({
 	end,
 	fuzz_inputs = function()
 		return {
-			flags    = bitx.bor(0x10000000, math.random(0x00000000, 0x0000000B)),
+			flags    = bitx.bor(0x10000000, math.random(0x0, 0xB), bitx.lshift(math.random(0x0000, 0xFFFF), 4)),
 			sync_bit = bitx.bor(0x00010000, util.any_sync_bit()),
 			instr    = bitx.bor(0x30000000, math.random(0x00000000, 0x0001FFFF)),
 		}

@@ -1,0 +1,295 @@
+p_00:                               1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+p_01:                             1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_02:                           1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_03:                         1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_04:                       1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_05:                     1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_06:                   1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_07:                 1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_08:               1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_09:             1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_10:           1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_11:         1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_12:       1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_13:     1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_14:   1 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(group)
+
+p_00:                               1 1 1 1 1 1 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a
+p_01:                             1 1 1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a
+p_02:                           1 1 1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a
+p_03:                         1 1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b
+p_04:                       1 1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b
+p_05:                     1 1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b
+p_06:                   1 1 1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c
+p_07:                 1 1 1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c
+p_08:               1 1 1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c
+p_09:             1 1 1 1 1 1 0 0 0 0 0 0 0 0 d d d d d d d d d d d d d d d d
+p_10:           1 1 1 1 1 1 0 0 0 0 0 0 0 0 d d d d d d d d d d d d d d d d
+p_11:         1 1 1 1 1 1 0 0 0 0 0 0 0 0 d d d d d d d d d d d d d d d d
+p_12:       1 1 1 1 1 1 0 0 0 0 0 0 0 0 e e e e e e e e e e e e e e e e
+p_13:     1 1 1 1 1 1 0 0 0 0 0 0 0 0 e e e e e e e e e e e e e e e e
+p_14:   1 1 1 1 1 1 0 0 0 0 0 0 0 0 e e e e e e e e e e e e e e e e
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+p_01 <<= 1
+p_02 <<= 2
+p_04 <<= 1
+p_05 <<= 2
+p_07 <<= 1
+p_08 <<= 2
+p_10 <<= 1
+p_11 <<= 2
+p_13 <<= 1
+p_14 <<= 2
+
+p_00:                               1 1 1 1 1 1 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a
+p_01:                               1 1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0
+p_02:                               1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0 0
+p_03:                         1 1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b
+p_04:                         1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0
+p_05:                         1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0 0
+p_06:                   1 1 1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c
+p_07:                   1 1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c 0
+p_08:                   1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c 0 0
+p_09:             1 1 1 1 1 1 0 0 0 0 0 0 0 0 d d d d d d d d d d d d d d d d
+p_10:             1 1 1 1 1 0 0 0 0 0 0 0 0 d d d d d d d d d d d d d d d d 0
+p_11:             1 1 1 1 0 0 0 0 0 0 0 0 d d d d d d d d d d d d d d d d 0 0
+p_12:       1 1 1 1 1 1 0 0 0 0 0 0 0 0 e e e e e e e e e e e e e e e e
+p_13:       1 1 1 1 1 0 0 0 0 0 0 0 0 e e e e e e e e e e e e e e e e 0
+p_14:       1 1 1 1 0 0 0 0 0 0 0 0 e e e e e e e e e e e e e e e e 0 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(reduce)
+
+s_1a:                               1 1 1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x
+c_1a:                             1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+s_1b:                         1 1 1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x
+c_1b:                       1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+s_1c:                   1 1 1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x
+c_1c:                 1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+s_1d:             1 1 1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x
+c_1d:           1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+s_1e:       1 1 1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x
+c_1e:     1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(group)
+
+s_1a:                               1 1 1 1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a
+c_1a:                             1 1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0
+s_1b:                         1 1 1 1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a
+c_1b:                       1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0
+s_1c:                   1 1 1 1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b
+c_1c:                 1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0
+s_1d:             1 1 1 1 0 1 0 0 0 0 0 0 c c c c c c c c c c c c c c c c c c
+c_1d:           1 1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c 0
+s_1e:       1 1 1 1 0 1 0 0 0 0 0 0 c c c c c c c c c c c c c c c c c c
+c_1e:     1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+c_1a <<= 1
+s_1b <<= 3
+s_1c <<= 2
+c_1c <<= 3
+c_1d <<= 1
+s_1e <<= 3
+
+s_1a:                               1 1 1 1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a
+c_1a:                               1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0 0
+s_1b:                               1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0
+c_1b:                       1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0
+s_1c:                       1 1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b 0 0
+c_1c:                       1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0 0 0 0
+s_1d:             1 1 1 1 0 1 0 0 0 0 0 0 c c c c c c c c c c c c c c c c c c
+c_1d:             1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c 0 0
+s_1e:             1 0 1 0 0 0 0 0 0 c c c c c c c c c c c c c c c c c c 0 0 0
+c_1e:     1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+s_1a ^= 01000000
+s_1d ^= 01000000
+
+s_1a:                               1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a
+c_1a:                               1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0 0
+s_1b:                               1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0
+c_1b:                       1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0
+s_1c:                       1 1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b 0 0
+c_1c:                       1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0 0 0 0
+s_1d:             1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c c c
+c_1d:             1 1 1 1 0 0 0 0 0 0 0 0 c c c c c c c c c c c c c c c c 0 0
+s_1e:             1 0 1 0 0 0 0 0 0 c c c c c c c c c c c c c c c c c c 0 0 0
+c_1e:     1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(reduce)
+
+s_2a:                               1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x x x x
+c_2a:                             1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0 0
+s_2b:                       1 1 1 0 1 0 0 0 0 0 x x x x x x x x x x x x x x x x x x x 0
+c_2b:                     1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0
+s_2c:             1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x x x x
+c_2c:           1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0 0
+c_1e:     1 1 1 1 1 0 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(group)
+
+s_2a:                               1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a a a
+c_2a:                             1 1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0 0
+s_2b:                       1 1 1 0 1 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a 0
+c_2b:                     1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0
+s_2c:             1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b b b b
+c_2c:           1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0 0
+c_1e:     1 1 1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+c_2a <<= 1
+s_2b <<= 4
+c_2c <<= 1
+c_1e <<= 4
+
+s_2a:                               1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a a a
+c_2a:                               1 1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a 0 0 0
+s_2b:                               1 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
+c_2b:                     1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0
+s_2c:             1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b b b b
+c_2c:             1 1 1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0 0 0
+c_1e:             1 0 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b 0 0 0 0 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(reduce)
+
+s_3a:                               1 1 0 0 0 0 x x x x x x x x x x x x x x x x x x x x x x x x
+c_3a:                             1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0 0
+c_2b:                     1 1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0
+s_3b:             1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x x x x
+c_3b:           1 0 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x
+
+(group)
+
+s_3a:                               1 1 0 0 0 0 a a a a a a a a a a a a a a a a a a a a a a a a
+c_3a:                             1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0
+c_2b:                     1 1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0
+s_3b:             1 1 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b b b b
+c_3b:           1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b 0 0 0
+p_15: 1 1 1 1 1 1 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b
+
+c_2b ^= 0x00200000
+p_15 ^= 0x00200000
+
+s_3a:                               1 1 0 0 0 a a a a a a a a a a a a a a a a a a a a a a a a a
+c_3a:                             1 0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0
+c_2b:                     1 1 0 1 0 0 0 0 1 0 0 a a a a a a a a a a a a a a a a a 0 0
+s_3b:             1 1 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b b b b
+c_3b:           1 0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b 0 0 0
+p_15: 1 1 1 1 1 1 0 0 1 0 0 0 0 b b b b b b b b b b b b b b b b b
+
+c_3a <<= 1
+c_2b <<= 5
+c_3b <<= 1
+p_15 <<= 6
+
+s_3a:                               1 1 0 0 0 a a a a a a a a a a a a a a a a a a a a a a a a a
+c_3a:                               0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0 0
+c_2b:                               0 0 0 1 0 0 a a a a a a a a a a a a a a a a a 0 0 0 0 0 0 0
+s_3b:             1 1 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b b b b
+c_3b:             0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b 0 0 0 0
+p_15:             0 0 1 0 0 0 0 b b b b b b b b b b b b b b b b b 0 0 0 0 0 0
+
+c_2b ^= 20000000
+p_15 ^= 20000000
+
+s_3a:                               1 1 0 0 0 a a a a a a a a a a a a a a a a a a a a a a a a a
+c_3a:                               0 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0 0
+c_2b:                               1 0 0 1 0 0 a a a a a a a a a a a a a a a a a 0 0 0 0 0 0 0
+s_3b:             1 1 0 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b b b b
+c_3b:             0 1 0 0 0 0 0 0 b b b b b b b b b b b b b b b b b b 0 0 0 0
+p_15:             1 0 1 0 0 0 0 b b b b b b b b b b b b b b b b b 0 0 0 0 0 0
+
+(reduce)
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+c_4a:                             1 1 0 0 0 0 x x x x x x x x x x x x x x x x x x x x 0 0 0 0
+s_4b:             0 0 1 0 0 0 0 x x x x x x x x x x x x x x x x x x x x x x x
+c_4b:           1 1 0 0 0 0 0 0 x x x x x x x x x x x x x x x x x x 0 0 0 0
+
+(group)
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+c_4a:                             1 1 0 0 0 0 a a a a a a a a a a a a a a a a a a a a 0 0 0 0
+s_4b:             0 0 1 0 0 0 0 a a a a a a a a a a a a a a a a a a a a a a a
+c_4b:           1 1 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a 0 0 0 0
+
+s_4b ^= 01000000
+c_4b ^= 01000000
+c_4a ^= 20000000
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+c_4a:                             0 1 0 0 0 0 a a a a a a a a a a a a a a a a a a a a 0 0 0 0
+s_4b:             0 0 1 0 0 1 0 a a a a a a a a a a a a a a a a a a a a a a a
+c_4b:           1 1 0 0 0 1 0 0 a a a a a a a a a a a a a a a a a a 0 0 0 0
+
+c_4a >>= 4
+s_4b <<= 4
+c_4b <<= 5
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+c_4a:                     0 0 0 0 0 1 0 0 0 0 a a a a a a a a a a a a a a a a a a a a
+s_4b:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0
+c_4b:                     1 0 0 a a a a a a a a a a a a a a a a a a 0 0 0 0 0 0 0 0 0
+
+c_4a ^= 30000000
+c_4a ^= 01000000
+c_4b ^= 10000000
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+c_4a:                     1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a a
+s_4b:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0
+c_4b:                     1 1 0 a a a a a a a a a a a a a a a a a a 0 0 0 0 0 0 0 0 0
+
+(reduce)
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+s_5a:                     0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x x x
+c_5a:                   1 1 0 x x x x x x x x x x x x x x x x x x x x x x x 0 0 0 0
+
+but c_5a[26] can never be 1
+
+s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
+s_5a:                     0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x x x
+c_5a:                   1 1 0 0 x x x x x x x x x x x x x x x x x x x x x x 0 0 0 0
+
+(group)
+
+s_4a:                               0 0 0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a
+s_5a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+c_5a:                   1 1 0 0 a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0
+
+s_4a >>= 5 (low 5 bits saved elsewhere)
+c_5a <<= 1
+
+s_4a:                     0 0 0 0 0 0 0 0 1 0 a a a a a a a a a a a a a a a a a a a a
+s_5a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+c_5a:                     1 0 0 a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
+
+s_4a ^= 30000000
+c_5a ^= 10000000
+s_4a ^= 00200000
+
+s_4a:                     1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a a
+s_5a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+c_5a:                     1 1 0 a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
+
+(reduce)
+
+s_6a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+c_6a:                   1 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+
+but c_6a[26] can never be 1
+
+s_6a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+c_6a:                   1 1 0 0 a a a a a a a a a a a a a a a a a a a a a a a a a a

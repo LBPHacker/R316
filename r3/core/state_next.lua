@@ -29,7 +29,7 @@ return testbed.module({
 	func = function(inputs)
 		local instr_not_ld  = util.op_is_not_k(inputs.instr,  2)
 		local instr_not_st  = util.op_is_not_k(inputs.instr, 10)
-		local instr_not_hlt = util.op_is_not_k(inputs.instr, 11)
+		local instr_not_hlt = util.op_is_not_k(inputs.instr, 13)
 		local normal        = inputs.state:bsub(0xFFFE):bor(0x00001000)
 		local normal_ld     = normal:bsub(instr_not_ld ):assert(0x00001000, 0x00000001)
 		local normal_st     = normal:bsub(instr_not_st ):assert(0x00001000, 0x00000001)
@@ -63,7 +63,7 @@ return testbed.module({
 				state_next = 2
 			elseif op == 10 then
 				state_next = 4
-			elseif op == 11 then
+			elseif op == 13 then
 				state_next = 8
 			else
 				state_next = 1

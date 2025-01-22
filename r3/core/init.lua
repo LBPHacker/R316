@@ -6,22 +6,26 @@ local bitx           = require("spaghetti.bitx")
 local testbed        = require("spaghetti.testbed")
 local alu            = require("r3.core.alu")
 local condition      = require("r3.core.condition")     .instantiate()
-local flags_sel      = require("r3.core.flags_sel")     .instantiate()
+local flags_sel      = require("r3.core.flags_sel")
 local unstack_high   = require("r3.core.unstack_high")  .instantiate()
 local stack_high     = require("r3.core.stack_high")    .instantiate()
 local instr_sel      = require("r3.core.instr_sel")     .instantiate()
 local pc_incr        = require("r3.core.pc_incr")       .instantiate()
 local pc_sel         = require("r3.core.pc_sel")        .instantiate()
 local sec_sel        = require("r3.core.sec_sel")       .instantiate()
-local state_next     = require("r3.core.state_next")    .instantiate()
+local state_next     = require("r3.core.state_next")
 local wreg_addr_sel  = require("r3.core.wreg_addr_sel") .instantiate()
-local curr_instr_sel = require("r3.core.curr_instr_sel").instantiate()
+local curr_instr_sel = require("r3.core.curr_instr_sel")
 local ram_addr_sel   = require("r3.core.ram_addr_sel")  .instantiate()
-local io_state_sel   = require("r3.core.io_state_sel")  .instantiate()
+local io_state_sel   = require("r3.core.io_state_sel")
 local util           = require("r3.core.util")
 
 return testbed.module(function(params)
 	local alu_instance = alu.instantiate(params)
+	local curr_instr_sel_instance = curr_instr_sel.instantiate(params)
+	local flags_sel_instance      = flags_sel     .instantiate(params)
+	local state_next_instance     = state_next    .instantiate(params)
+	local io_state_sel_instance   = io_state_sel  .instantiate(params)
 
 	local function flow(inputs, component)
 		local unstack_high_pri_outputs = component("unstack_high_pri", unstack_high, {
@@ -53,7 +57,7 @@ return testbed.module(function(params)
 			imm     = instr_sel_outputs.imm,
 			sec_reg = unstack_high_sec_outputs.low_half,
 		})
-		local state_next_outputs = component("state_next", state_next, {
+		local state_next_outputs = component("state_next", state_next_instance, {
 			state    = inputs.state,
 			instr    = instr_sel_outputs.instr,
 			sync_bit = inputs.sync_bit,
@@ -62,6 +66,7 @@ return testbed.module(function(params)
 			pri      = unstack_high_pri_outputs.low_half,
 			pri_high = unstack_high_pri_outputs.high_half,
 			sec      = sec_sel_outputs.sec,
+			imm      = instr_sel_outputs.imm,
 			ram_high = unstack_high_ram_outputs.high_half,
 			ram_low  = unstack_high_ram_outputs.low_half,
 			flags    = inputs.flags,
@@ -75,18 +80,20 @@ return testbed.module(function(params)
 			state     = inputs.state,
 			condition = condition_outputs.condition,
 		})
-		local flags_sel_outputs = component("flags_sel", flags_sel, {
+		local flags_sel_outputs = component("flags_sel", flags_sel_instance, {
 			instr     = instr_sel_outputs.instr,
+			res_mull  = alu_outputs.res_mull,
 			flags_new = alu_outputs.flags,
 			flags_old = inputs.flags,
 		})
 		local wreg_addr_sel_outputs = component("wreg_addr_sel", wreg_addr_sel, {
 			instr = instr_sel_outputs.instr,
 		})
-		local curr_instr_sel_outputs = component("curr_instr_sel", curr_instr_sel, {
+		local curr_instr_sel_outputs = component("curr_instr_sel", curr_instr_sel_instance, {
 			ram_high = unstack_high_ram_outputs.high_half,
 			ram_low  = unstack_high_ram_outputs.low_half,
 			state    = inputs.state,
+			imm      = instr_sel_outputs.imm,
 			instr    = instr_sel_outputs.instr,
 			st_addr  = alu_outputs.res,
 		})
@@ -102,9 +109,11 @@ return testbed.module(function(params)
 			high_half = alu_outputs.res_high,
 			low_half  = alu_outputs.res,
 		})
-		local io_state_sel_outputs = component("io_state_sel", io_state_sel, {
+		local io_state_sel_outputs = component("io_state_sel", io_state_sel_instance, {
 			io_state        = inputs.io_state,
 			state           = inputs.state,
+			instr           = instr_sel_outputs.instr,
+			imm             = instr_sel_outputs.imm,
 			curr_instr      = inputs.curr_instr,
 			curr_imm        = inputs.curr_imm,
 			ram_addr        = inputs.ram_addr,
@@ -133,6 +142,19 @@ return testbed.module(function(params)
 		}
 	end
 
+	local mcore_offset = 0
+	local voids    = {                                                                    76, 77, 78         }
+	local clobbers = { 1, 30, 31, 32, 57, 58, 59, 60, 61, 62, 63, 65, 69, 71, 73, 74, 75,             79, 81 }
+	if params.for_mcore then
+		mcore_offset = 2
+		table.remove(clobbers, 1)
+		for i = 1, #clobbers do
+			clobbers[i] = clobbers[i] - mcore_offset
+		end
+		for i = 1, #voids do
+			voids[i] = voids[i] - mcore_offset
+		end
+	end
 	return {
 		tag = "core",
 		opt_params = {
@@ -145,36 +167,36 @@ return testbed.module(function(params)
 				temperatures = {      10,       2,       1,    0.5 },
 			},
 		},
-		stacks        = 2,
-		storage_slots = 86,
+		stacks        = params.for_mcore and 3 or 2,
+		storage_slots = params.for_mcore and 84 or 86,
 		work_slots    = 31,
-		voids         = {                                                                    76, 77, 78         },
-		clobbers      = { 1, 30, 31, 32, 57, 58, 59, 60, 61, 62, 63, 65, 69, 71, 73, 74, 75,             79, 81 },
+		voids         = voids,
+		clobbers      = clobbers,
 		inputs = {
-			{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
-			{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
-			{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x1000000B },
-			{ name = "ram_mask"  , index = 29, keepalive = 0x20000000, payload = 0x0000FFFF,                    initial = 0x20000000 },
-			{ name = "curr_instr", index = 35, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
-			{ name = "curr_imm"  , index = 48, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
-			{ name = "pri_reg"   , index = 64, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-			{ name = "ram_data"  , index = 68, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-			{ name = "ram"       , index = 70, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-			{ name = "sec_reg"   , index = 80, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
-			{ name = "sync_bit"  , index = 54, keepalive = 0x00010000, payload = 0x00000019,                    initial = 0x00010001 },
-			{ name = "io_state"  , index = 84, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
-			{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x000FFFFF,                    initial = 0x10000000 },
+			{ name = "state"     , index = 10 - mcore_offset, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000001 },
+			{ name = "pc"        , index = 14 - mcore_offset, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x10000000 },
+			{ name = "flags"     , index = 16 - mcore_offset, keepalive = 0x10000000, payload = 0x000FFFFF,                    initial = 0x1000000B },
+			{ name = "ram_mask"  , index = 29 - mcore_offset, keepalive = 0x20000000, payload = 0x0000FFFF,                    initial = 0x20000000 },
+			{ name = "curr_instr", index = 35 - mcore_offset, keepalive = 0x10000000, payload = 0x0001FFFF,                    initial = 0x1000CAFE },
+			{ name = "curr_imm"  , index = 48 - mcore_offset, keepalive = 0x10000000, payload = 0x0000FFFF,                    initial = 0x1000CAFE },
+			{ name = "pri_reg"   , index = 64 - mcore_offset, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+			{ name = "ram_data"  , index = 68 - mcore_offset, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+			{ name = "ram"       , index = 70 - mcore_offset, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+			{ name = "sec_reg"   , index = 80 - mcore_offset, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true, initial = 0xDEADBEEF },
+			{ name = "sync_bit"  , index = 54 - mcore_offset, keepalive = 0x00010000, payload = 0x00000019,                    initial = 0x00010001 },
+			{ name = "io_state"  , index = 84 - mcore_offset, keepalive = 0x10000000, payload = 0x0000000F,                    initial = 0x10000000 },
+			{ name = "ram_addr"  , index = 86 - mcore_offset, keepalive = 0x10000000, payload = 0x000FFFFF,                    initial = 0x10000000 },
 		},
 		outputs = {
-			{ name = "wreg_data" , index =  7, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
-			{ name = "state"     , index = 10, keepalive = 0x10000000, payload = 0x0000000F                    },
-			{ name = "pc"        , index = 14, keepalive = 0x10000000, payload = 0x0000FFFF                    },
-			{ name = "flags"     , index = 16, keepalive = 0x10000000, payload = 0x0000000F                    },
-			{ name = "curr_instr", index = 29, keepalive = 0x10000000, payload = 0x0001FFFF                    },
-			{ name = "curr_imm"  , index = 54, keepalive = 0x10000000, payload = 0x0000FFFF                    },
-			{ name = "ram_data"  , index = 63, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
-			{ name = "wreg_addr" , index = 65, keepalive = 0x10000000, payload = 0x0000001F                    },
-			{ name = "ram_addr"  , index = 86, keepalive = 0x10000000, payload = 0x000FFFFF                    },
+			{ name = "wreg_data" , index =  7 - mcore_offset, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
+			{ name = "state"     , index = 10 - mcore_offset, keepalive = 0x10000000, payload = 0x0000000F                    },
+			{ name = "pc"        , index = 14 - mcore_offset, keepalive = 0x10000000, payload = 0x0000FFFF                    },
+			{ name = "flags"     , index = 16 - mcore_offset, keepalive = 0x10000000, payload = 0x000FFFFF                    },
+			{ name = "curr_instr", index = 29 - mcore_offset, keepalive = 0x10000000, payload = 0x0001FFFF                    },
+			{ name = "curr_imm"  , index = 54 - mcore_offset, keepalive = 0x10000000, payload = 0x0000FFFF                    },
+			{ name = "ram_data"  , index = 63 - mcore_offset, keepalive = 0x00000000, payload = 0xFFFFFFFF, never_zero = true },
+			{ name = "wreg_addr" , index = 65 - mcore_offset, keepalive = 0x10000000, payload = 0x0000001F                    },
+			{ name = "ram_addr"  , index = 86 - mcore_offset, keepalive = 0x10000000, payload = 0x000FFFFF                    },
 		},
 		func = function(inputs)
 			return flow(inputs, function(name, mod, instance_inputs)
