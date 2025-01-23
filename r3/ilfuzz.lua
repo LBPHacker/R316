@@ -37,12 +37,9 @@ local function detect()
 			core_count = tonumber(core_count)
 			core_types = {}
 			for i = 1, core_count do
-				local stor_id = sim.partID(cx + 1, cy + 6 * (i - 1 - core_count))
-				if stor_id and sim.partProperty(stor_id, "type") == pt.STOR then
-					table.insert(core_types, "m")
-				else
-					table.insert(core_types, "s")
-				end
+				local core_type = string.char(sim.partProperty(sim.partID(cx + 6, cy - 4 + 6 * (i - 1 - core_count)), "ctype"))
+				assert(("msf"):find(core_type, 1, true))
+				table.insert(core_types, core_type)
 			end
 			core_types = table.concat(core_types)
 			break
@@ -74,7 +71,7 @@ local function keyify(arr)
 end
 
 local function advance_state(core_index, state, sync_bit, io_state_in, io_data_in)
-	local mcore = core_types:sub(core_index, core_index) == "m"
+	local core_type = core_types:sub(core_index, core_index)
 	local next_state = {
 		memory    = {},
 		registers = {},
@@ -209,7 +206,7 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 		res16 = bitx.band(memory_read, 0xFFFF)
 		prihi = bitx.rshift(memory_read, 0xFFFF0000)
 	elseif bitx.band(op, 0x000E0000) == 0x000E0000 then
-		if not mcore then
+		if core_type == "s" then
 			local prev_dest = bitx.band(bitx.rshift(state.cinstr_high, 9), 0x1F)
 			local prev_src1 = bitx.band(bitx.rshift(state.cinstr_high, 4), 0x1F)
 			local prev_src2 = bitx.band(            state.cinstr_low     , 0x1F)
@@ -227,6 +224,10 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 				skip_mul = true
 			end
 			res16 = bitx.band(bitx.rshift(state.flags, 4), 0xFFFF)
+			mul_flags = 0
+		elseif core_type == "f" then
+			skip_mul = true
+			res16 = 0
 			mul_flags = 0
 		else
 			local pri_mul = pri16
@@ -298,7 +299,7 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 			next_state.state = 0x10000004
 			next_state.cinstr_high = bitx.lshift(dest, 4)
 			next_state.cinstr_low = res16
-		elseif mcore and bitx.band(op, 0x000E0000) == 0x000E0000 then
+		elseif core_type == "m" and bitx.band(op, 0x000E0000) == 0x000E0000 then
 			next_state.cinstr_high = bitx.band(bitx.rshift(op, 16), 0xFFFF)
 			next_state.cinstr_low = bitx.band(op, 0xFFFF)
 		elseif bitx.band(op, 0x000F0000) == 0x000D0000 then
@@ -317,7 +318,7 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 	if bitx.band(op, 0x80000000) ~= 0 and bitx.band(op, 0x000E0000) ~= 0x000E0000 then
 		next_state.flags = bitx.bor(0x10000000, new_flags)
 	end
-	if bitx.band(op, 0x000E0000) == 0x000E0000 and mcore then
+	if bitx.band(op, 0x000E0000) == 0x000E0000 and core_type == "m" then
 		next_state.flags = bitx.bor(next_state.flags, bitx.lshift(mul_flags, 4))
 	end
 	if bitx.band(next_state.mem_addr, bitx.bxor(memory_mask, 0xFFFF)) ~= 0 then
@@ -598,7 +599,7 @@ local aftersim = xpcall_wrap(function()
 		randomize = nil
 		sim.clearSim()
 		local x, y = 100, 100
-		local core_count = "msmsmsmsms"
+		local core_count = "msfmsfmsfmsf"
 		local memory_rows = 12
 		local io_probes = {}
 		for i = 0, #core_count - 1 do

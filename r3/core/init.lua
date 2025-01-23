@@ -21,7 +21,7 @@ local io_state_sel   = require("r3.core.io_state_sel")
 local util           = require("r3.core.util")
 
 return testbed.module(function(params)
-	local alu_instance = alu.instantiate(params)
+	local alu_instance            = alu           .instantiate(params)
 	local curr_instr_sel_instance = curr_instr_sel.instantiate(params)
 	local flags_sel_instance      = flags_sel     .instantiate(params)
 	local state_next_instance     = state_next    .instantiate(params)
@@ -145,7 +145,7 @@ return testbed.module(function(params)
 	local mcore_offset = 0
 	local voids    = {                                                                    76, 77, 78         }
 	local clobbers = { 1, 30, 31, 32, 57, 58, 59, 60, 61, 62, 63, 65, 69, 71, 73, 74, 75,             79, 81 }
-	if params.for_mcore then
+	if params.core_type == "m" then
 		mcore_offset = 2
 		table.remove(clobbers, 1)
 		for i = 1, #clobbers do
@@ -167,8 +167,8 @@ return testbed.module(function(params)
 				temperatures = {      10,       2,       1,    0.5 },
 			},
 		},
-		stacks        = params.for_mcore and 3 or 2,
-		storage_slots = params.for_mcore and 84 or 86,
+		stacks        = params.core_type == "m" and 3 or 2,
+		storage_slots = params.core_type == "m" and 84 or 86,
 		work_slots    = 31,
 		voids         = voids,
 		clobbers      = clobbers,

@@ -25,7 +25,7 @@ return testbed.module(function(params)
 			{ name = "ram_high", index =  5, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 			{ name = "ram_low" , index =  7, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 			{ name = "st_addr" , index =  9, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
-			params.for_mcore and { name = "imm", index = 11, keepalive = 0x30000000, payload = 0x0000FFFF, initial = 0x30000000 } or nil,
+			params.core_type == "m" and { name = "imm", index = 11, keepalive = 0x30000000, payload = 0x0000FFFF, initial = 0x30000000 } or nil,
 		},
 		outputs = {
 			{ name = "curr_instr", index = 1, keepalive = 0x10000000, payload = 0x0001FFFF },
@@ -40,7 +40,7 @@ return testbed.module(function(params)
 			local st_imm           = inputs.st_addr:bor(0x00010000)
 			local curr_instr_ld    = spaghetti.select(instr_not_ld:band(1):zeroable(), inputs.ram_high, ld_instr):assert(0x10000000, 0x2001FFFF)
 			local curr_instr_ld_st, curr_imm = spaghetti.select(instr_not_st:band(1):zeroable(), curr_instr_ld  , st_instr, inputs.ram_low, st_imm)
-			if params.for_mcore then
+			if params.core_type == "m" then
 				local instr_not_mul = util.op_is_not_k(inputs.instr, 14, 0xE)
 				curr_instr_ld_st, curr_imm = spaghetti.select(instr_not_mul:band(1):zeroable(), curr_instr_ld_st, inputs.instr, curr_imm, inputs.imm:bxor(0x20000000))
 			end
@@ -57,7 +57,7 @@ return testbed.module(function(params)
 			return {
 				state    = bitx.bor(0x10000000, state),
 				instr    = bitx.bor(0x30000000, instr),
-				imm      = params.for_mcore and bitx.bor(0x30000000, math.random(0x00000000, 0x0000FFFF)),
+				imm      = params.core_type == "m" and bitx.bor(0x30000000, math.random(0x00000000, 0x0000FFFF)),
 				ram_high = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 				ram_low  = bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)),
 				st_addr  = bitx.bor(0x10000000, math.random(0x00000000, 0x0000FFFF)),
@@ -76,7 +76,7 @@ return testbed.module(function(params)
 				local wreg_addr = bitx.band(bitx.rshift(inputs.instr, 9), 0x001F)
 				curr_instr = bitx.lshift(wreg_addr, 4)
 				curr_imm   = st_addr
-			elseif params.for_mcore and (op == 14 or op == 15) then
+			elseif params.core_type == "m" and (op == 14 or op == 15) then
 				curr_instr = bitx.band(inputs.instr, 0xFFFF)
 				curr_imm   = bitx.band(inputs.imm, 0xFFFF)
 			end

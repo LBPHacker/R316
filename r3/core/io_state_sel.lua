@@ -7,6 +7,7 @@ local testbed   = require("spaghetti.testbed")
 local util      = require("r3.core.util")
 
 return testbed.module(function(params)
+	local s_or_f = ("sf"):find(params.core_type, 1, true)
 	return {
 		tag = "core.io_state_sel",
 		opt_params = {
@@ -36,8 +37,8 @@ return testbed.module(function(params)
 			{ name = "next_ram_data"  , index = 27, keepalive = 0x00000000, payload = 0xFFFFFFFF, initial = 0x10000000, never_zero = true },
 			{ name = "ram_addr"       , index = 29, keepalive = 0x10000000, payload = 0x000FFFFF, initial = 0x10000000 },
 			{ name = "ram_data"       , index = 31, keepalive = 0x00000000, payload = 0xFFFFFFFF, initial = 0x10000000, never_zero = true },
-			not params.for_mcore and { name = "instr", index = 33, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x10000000 } or nil,
-			not params.for_mcore and { name = "imm"  , index = 35, keepalive = 0x30000000, payload = 0x0000FFFF, initial = 0x30000000 } or nil,
+			s_or_f                  and { name = "instr", index = 33, keepalive = 0x30000000, payload = 0x0001FFFF, initial = 0x10000000 } or nil,
+			params.core_type == "s" and { name = "imm"  , index = 35, keepalive = 0x30000000, payload = 0x0000FFFF, initial = 0x30000000 } or nil,
 		},
 		outputs = {
 			{ name = "state"     , index =  1, keepalive = 0x10000000, payload = 0x0000000F },
@@ -51,7 +52,7 @@ return testbed.module(function(params)
 		},
 		func = function(inputs)
 			local keep_old = inputs.io_state
-			if not params.for_mcore then
+			if params.core_type == "s" then
 				local instr_not_mul = util.op_is_not_k(inputs.instr, 14, 0xE)
 				local instr_not_mul_e = util.op_is_not_k(inputs.instr, 14)
 				local instr_not_mull = instr_not_mul_e:bor(spaghetti.rshiftk(inputs.instr:bsub(0x10000), 15)):bsub(0xFFFE):assert(0x3E000000, 0x00010001)
@@ -70,6 +71,9 @@ return testbed.module(function(params)
 				local cannot_fuse = not_mull_or_differs:bor(clobber):assert(0x3E010000, 0x0000FFFF)
 				local shift_by = instr_not_mul:bor(0x10000):bxor(1):assert(0x1E010000, 0x00000001)
 				keep_old = keep_old:bsub(0xFFFE):bor(cannot_fuse:band(spaghetti.constant(0x3FFFFFFF):lshift(shift_by))):band(0xFFFF)
+			elseif params.core_type == "f" then
+				local instr_not_mul = util.op_is_not_k(inputs.instr, 14, 0xE)
+				keep_old = keep_old:bor(instr_not_mul:bxor(1)):band(1)
 			else
 				keep_old = keep_old:band(1)
 			end
@@ -101,7 +105,7 @@ return testbed.module(function(params)
 			local curr_imm   = math.random(0x00000000, 0x0000FFFF)
 			local instr      = math.random(0x00000000, 0x0001FFFF)
 			local imm        = math.random(0x00000000, 0x0000FFFF)
-			if not params.for_mcore and math.random(1, 10) == 1 then
+			if params.core_type == "s" and math.random(1, 10) == 1 then
 				imm = curr_imm
 				curr_instr = bitx.bor(bitx.band(curr_instr, 0xFFFFFFF1), 0x0000000E)
 				instr = bitx.band(curr_instr, 0xFFFF7FFE)
@@ -121,30 +125,34 @@ return testbed.module(function(params)
 				next_ram_addr   = bitx.bor(0x10000000, math.random(0x00000000, 0x000FFFFF)),
 				next_wreg_addr  = bitx.bor(0x10000000, math.random(0x00000000, 0x0000001F)),
 				ram_addr        = bitx.bor(0x10000000, math.random(0x00000000, 0x000FFFFF)),
-				instr           = not params.for_mcore and bitx.bor(0x30000000, instr),
-				imm             = not params.for_mcore and bitx.bor(0x30000000, imm),
+				instr           = s_or_f                  and bitx.bor(0x30000000, instr),
+				imm             = params.core_type == "s" and bitx.bor(0x30000000, imm),
 				ram_data        = testbed.any(),
 				next_ram_data   = testbed.any(),
 			}
 		end,
 		fuzz_outputs = function(inputs)
 			local keep_old = bitx.band(inputs.io_state, 1) ~= 0
-			if not params.for_mcore then
+			if s_or_f then
 				if bitx.band(inputs.instr, 0xE) == 14 then
-					local prev_is_mul = bitx.band(bitx.bxor(inputs.curr_instr, inputs.instr), 0x7FFE) == 0 and
-					                    bitx.band(bitx.bxor(inputs.curr_imm  , inputs.imm  ), 0xFFFF) == 0
-					local this_is_mull = bitx.band(inputs.instr, 0x800F) == 0x000E
-					local can_do_mull = prev_is_mul and this_is_mull
-					local prev_dest = bitx.band(bitx.rshift(inputs.curr_instr, 9), 0x1F)
-					local prev_src1 = bitx.band(bitx.rshift(inputs.curr_instr, 4), 0x1F)
-					local prev_src2 = bitx.band(            inputs.curr_imm      , 0x1F)
-					if prev_dest == prev_src1 then
-						can_do_mull = false
+					if params.core_type == "s" then
+						local prev_is_mul = bitx.band(bitx.bxor(inputs.curr_instr, inputs.instr), 0x7FFE) == 0 and
+						                    bitx.band(bitx.bxor(inputs.curr_imm  , inputs.imm  ), 0xFFFF) == 0
+						local this_is_mull = bitx.band(inputs.instr, 0x800F) == 0x000E
+						local can_do_mull = prev_is_mul and this_is_mull
+						local prev_dest = bitx.band(bitx.rshift(inputs.curr_instr, 9), 0x1F)
+						local prev_src1 = bitx.band(bitx.rshift(inputs.curr_instr, 4), 0x1F)
+						local prev_src2 = bitx.band(            inputs.curr_imm      , 0x1F)
+						if prev_dest == prev_src1 then
+							can_do_mull = false
+						end
+						if bitx.band(inputs.curr_instr, 0x4000) == 0x0000 and prev_dest == prev_src2 then
+							can_do_mull = false
+						end
+						keep_old = keep_old or not can_do_mull
+					else
+						keep_old = true
 					end
-					if bitx.band(inputs.curr_instr, 0x4000) == 0x0000 and prev_dest == prev_src2 then
-						can_do_mull = false
-					end
-					keep_old = keep_old or not can_do_mull
 				end
 			end
 			return {

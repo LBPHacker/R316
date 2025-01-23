@@ -99,15 +99,11 @@ local function make_context(parts, debug_stacks)
 		}))
 	end
 
-	local function xy_key(x, y)
-		return y * sim.XRES + x
-	end
-
 	local solid_spark
 	do
 		local map = {}
 		function solid_spark(x, y, x_off, y_off, conductor, no_auto_z)
-			local key = xy_key(x + x_off, y + y_off)
+			local key = plot.xy_key(x + x_off, y + y_off)
 			if map[key] then
 				if not (map[key].x == x and map[key].y == y and map[key].conductor == conductor) then
 					error("spark conflict", 2)
@@ -129,11 +125,11 @@ local function make_context(parts, debug_stacks)
 	do
 		local dmnds = {}
 		function lsns_taboo(x, y)
-			local key = xy_key(x, y)
+			local key = plot.xy_key(x, y)
 			if not dmnds[key] then
-				dmnds[key] = true
-				part({ type = pt.DMND, x = x, y = y })
+				dmnds[key] = part({ type = pt.DMND, x = x, y = y })
 			end
+			return dmnds[key]
 		end
 	end
 
@@ -141,7 +137,7 @@ local function make_context(parts, debug_stacks)
 	do
 		local lmap = {}
 		local function lsns(p)
-			local key = xy_key(p.x, p.y)
+			local key = plot.xy_key(p.x, p.y)
 			if not lmap[key] then
 				lmap[key] = true
 				part(mutate(p, { type = pt.LSNS, tmp = 3 }))
@@ -149,7 +145,7 @@ local function make_context(parts, debug_stacks)
 		end
 		local fmap = {}
 		local function filt(p, life)
-			local key = xy_key(p.x, p.y)
+			local key = plot.xy_key(p.x, p.y)
 			if not fmap[key] then
 				fmap[key] = life
 				part(mutate(p, { type = pt.FILT, ctype = 0x10000000 + life }))
@@ -278,13 +274,13 @@ local function make_context(parts, debug_stacks)
 		bevel_end = bevel_end or 0
 		local parts_by_pos = {}
 		for _, part in ipairs(parts) do
-			parts_by_pos[xy_key(part.x, part.y)] = part
+			parts_by_pos[plot.xy_key(part.x, part.y)] = part
 			if not part.dcolour then
 				part.dcolour = 0xFF3F3F3F
 			end
 		end
 		local function add_dmnd(x, y)
-			local key = xy_key(x, y)
+			local key = plot.xy_key(x, y)
 			local q = parts_by_pos[key]
 			if q then
 				if q.type == pt.FILT  then
@@ -328,7 +324,6 @@ local function make_context(parts, debug_stacks)
 		piston_extend = piston_extend,
 		part          = part,
 		spark         = spark,
-		xy_key        = xy_key,
 		solid_spark   = solid_spark,
 		lsns_taboo    = lsns_taboo,
 		lsns_spark    = lsns_spark,
@@ -350,9 +345,48 @@ local function wrap_build(build)
 	end
 end
 
+local function aftersimdraw_user_stacks(tx, ty, x, y, parts, module_dir)
+	local parts_by_pos = {}
+	for _, part in ipairs(parts) do
+		if part.user_stack then
+			local key = plot.xy_key(part.x, part.y)
+			if not parts_by_pos[key] then
+				parts_by_pos[key] = {}
+			end
+			table.insert(parts_by_pos[key], part)
+		end
+	end
+	return function()
+		local mx, my = sim.adjustCoords(ui.mousePosition())
+		local key = plot.xy_key(mx - x, my - y)
+		local stack = parts_by_pos[key]
+		if stack then
+			local line_count = 0
+			local function put_line(str)
+				gfx.drawText(tx, ty + line_count * 12, str)
+				line_count = line_count + 1
+			end
+			for j = 1, math.min(#stack, 10) do
+				local part = stack[j]
+				put_line(("- particle #%i: %s"):format(j, elem.property(part.type, "Name")))
+				for i = 1, #part.user_stack do
+					local source = part.user_stack[i].source
+					local line = part.user_stack[i].currentline
+					local first, last = source:find("@" .. module_dir .. "/", 1, true)
+					if first then
+						source = source:sub(last + 1)
+					end
+					put_line(("  - %s:%i"):format(source, line))
+				end
+			end
+		end
+	end
+end
+
 return {
 	make_context = make_context,
 	wrap_build   = wrap_build,
 	ilog2floor   = ilog2floor,
 	ilog2ceil    = ilog2ceil,
+	aftersimdraw_user_stacks = aftersimdraw_user_stacks,
 }

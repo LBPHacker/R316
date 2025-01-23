@@ -41,13 +41,13 @@ return testbed.module(function(params)
 			{ name = "res"     , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
 			{ name = "res_high", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
 			{ name = "flags"   , index = 5, keepalive = 0x10050000, payload = 0x0000000F },
-			params.for_mcore and { name = "res_mull", index = 7, keepalive = 0x10000000, payload = 0x0000FFFF } or nil,
+			params.core_type == "m" and { name = "res_mull", index = 7, keepalive = 0x10000000, payload = 0x0000FFFF } or nil,
 		},
 		func = function(inputs)
 			local adder_pri = inputs.pri
 			local adder_sec = inputs.sec
 			local csmult_outputs
-			if params.for_mcore then
+			if params.core_type == "m" then
 				csmult_outputs = csmult.component({
 					pri   = inputs.pri,
 					sec   = inputs.sec,
@@ -74,7 +74,7 @@ return testbed.module(function(params)
 				sec = inputs.sec,
 			})
 			local res_mull, res_mulh
-			if params.for_mcore then
+			if params.core_type == "m" then
 				res_mull = csmult_outputs.sums_low:bor(spaghetti.lshiftk(adder_outputs.sum_27:bor(0x10000), 5)):band(0x1000FFFF)
 				res_mulh = spaghetti.rshiftk(spaghetti.rshiftk(adder_outputs.sum_27, 9), 2):bor(0x10000000):band(0x1000FFFF)
 			end
@@ -96,16 +96,16 @@ return testbed.module(function(params)
 				imm      = inputs.imm,
 				ram_high = inputs.ram_high,
 				instr    = inputs.instr,
-				flags    = inputs.flags,
-				res_mull = params.for_mcore and res_mull or nil,
-				res_mulh = params.for_mcore and res_mulh or nil,
+				flags    = params.core_type == "s" and inputs.flags or nil,
+				res_mull = params.core_type == "m" and res_mull or nil,
+				res_mulh = params.core_type == "m" and res_mulh or nil,
 			})
 			local flags = mux_outputs.sign_zero:bor(adder_outputs.overflow_carry)
 			return {
 				res      = mux_outputs.muxed,
 				res_high = mux_outputs.muxed_high,
 				flags    = flags,
-				res_mull = params.for_mcore and res_mull or nil,
+				res_mull = params.core_type == "m" and res_mull or nil,
 			}
 		end,
 		fuzz_inputs = function()
@@ -126,13 +126,16 @@ return testbed.module(function(params)
 			local adder_sec = inputs.sec
 			local res_mull, res_mulh
 			local flags_mask = 0xFFF0000F
-			if params.for_mcore then
+			if params.core_type == "m" then
 				local pri    = bitx.band(inputs.pri, 0xFFFF)
 				local sec    = bitx.band(inputs.sec, 0xFFFF)
 				local signed = bitx.band(inputs.instr, 0x8000) ~= 0
+				local mixed  = bitx.band(inputs.instr, 0x0001) ~= 0
 				if signed then
-					if pri >= 0x8000 then
-						pri = pri - 0x10000
+					if not mixed then
+						if pri >= 0x8000 then
+							pri = pri - 0x10000
+						end
 					end
 					if sec >= 0x8000 then
 						sec = sec - 0x10000
@@ -206,8 +209,8 @@ return testbed.module(function(params)
 				ram_high = inputs.ram_high,
 				instr    = inputs.instr,
 				flags    = inputs.flags,
-				res_mull = params.for_mcore and res_mull or nil,
-				res_mulh = params.for_mcore and res_mulh or nil,
+				res_mull = params.core_type == "m" and res_mull or nil,
+				res_mulh = params.core_type == "m" and res_mulh or nil,
 			})
 			if not mux_outputs then
 				return nil, "mux: " .. err
@@ -217,7 +220,7 @@ return testbed.module(function(params)
 				res      = mux_outputs.muxed,
 				res_high = mux_outputs.muxed_high,
 				flags    = { value = bitx.bor(0x10050000, flags_out), mask = flags_mask },
-				res_mull = params.for_mcore and bitx.band(inputs.instr, 0x000E) == 0x000E and res_mull or false,
+				res_mull = params.core_type == "m" and bitx.band(inputs.instr, 0x000E) == 0x000E and res_mull or false,
 			}
 		end,
 	}

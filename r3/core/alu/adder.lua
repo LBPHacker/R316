@@ -6,7 +6,7 @@ local bitx      = require("spaghetti.bitx")
 local testbed   = require("spaghetti.testbed")
 
 return testbed.module(function(params)
-	local payload = params.for_mcore and 0x07FFFFFF or 0x0000FFFF
+	local payload = params.core_type == "m" and 0x07FFFFFF or 0x0000FFFF
 	return {
 		tag = "core.alu.adder",
 		opt_params = {
@@ -28,7 +28,7 @@ return testbed.module(function(params)
 		outputs = {
 			{ name = "res_add"       , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
 			{ name = "overflow_carry", index = 3, keepalive = 0x10000000, payload = 0x00000003 },
-			params.for_mcore and { name = "sum_27", index = 5, keepalive = 0x10000000, payload = 0x07FFFFFF } or nil,
+			params.core_type == "m" and { name = "sum_27", index = 5, keepalive = 0x10000000, payload = 0x07FFFFFF } or nil,
 		},
 		func = function(inputs)
 			local lhs_ka = inputs.pri:bor(0x20000000):assert(0x30000000, payload)
@@ -57,7 +57,7 @@ return testbed.module(function(params)
 			local propagate_conditional = propagate:band(spaghetti.lshift(0x3FFFFFFF, carry_in))       :assert(0x20000000, payload)
 			local carries_no_in         = generate:bor(propagate_conditional)                          :assert(0x30000000, payload)
 			local outputs = {}
-			if params.for_mcore then
+			if params.core_type == "m" then
 				local generate_27 = propagate:band(spaghetti.lshiftk(generate:bor(0x1000), 16):bor(0x20000000)):bor(generate)
 				local carries_27 = spaghetti.lshiftk(generate_27, 1)
 				outputs.sum_27 = onebit_sums:bxor(carries_27:bor(0x10000000)):assert(0x10000000, 0x0FFFFFFF):force(0x10000000, 0x07FFFFFF)
@@ -113,7 +113,7 @@ return testbed.module(function(params)
 				res_add        = bitx.bor(0x10000000, sum % 0x10000),
 				overflow_carry = bitx.bor(bitx.bor(0x10000000, carry_out), overflow_out),
 			}
-			if params.for_mcore then
+			if params.core_type == "m" then
 				local pri_27 = bitx.band(inputs.pri, 0x7FFFFFF)
 				local sec_27 = bitx.band(inputs.sec, 0x7FFFFFF)
 				local sum_27 = pri_27 + sec_27
