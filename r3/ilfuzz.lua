@@ -218,7 +218,7 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 				clobber = true
 			end
 			if not (bitx.bxor(bitx.band(op, 0x800F0000), 0x000E0000) == 0 and
-			        bitx.band(bitx.bxor(bitx.rshift(op, 16), state.cinstr_high), 0x7FFE) == 0 and
+			        bitx.band(bitx.bxor(bitx.rshift(op, 16), state.cinstr_high), 0x41FE) == 0 and
 			        bitx.band(bitx.bxor(            op,      state.cinstr_low ), 0xFFFF) == 0 and
 			        not clobber) then
 				skip_mul = true
@@ -627,7 +627,7 @@ local aftersim = xpcall_wrap(function()
 			-- 	last_value = bitx.bor(bitx.band(any32(), 0xFFF1FFFF), 0x000E0000)
 			-- 	sim_value(memory_id(index), last_value)
 			-- else
-			-- 	sim_value(memory_id(index), bitx.bor(bitx.band(last_value, 0x7FFEFFFF), bitx.lshift(math.random(0, 1), 20)))
+			-- 	sim_value(memory_id(index), bitx.bor(bitx.band(last_value, 0x41FEFFFF), bitx.lshift(math.random(0, 1), 20)))
 			-- end
 			sim_value(memory_id(index), any32())
 			-- local value = any32()

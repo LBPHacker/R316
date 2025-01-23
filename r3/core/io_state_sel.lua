@@ -56,7 +56,7 @@ return testbed.module(function(params)
 				local instr_not_mul = util.op_is_not_k(inputs.instr, 14, 0xE)
 				local instr_not_mul_e = util.op_is_not_k(inputs.instr, 14)
 				local instr_not_mull = instr_not_mul_e:bor(spaghetti.rshiftk(inputs.instr:bsub(0x10000), 15)):bsub(0xFFFE):assert(0x3E000000, 0x00010001)
-				local prev_differs =      inputs.curr_instr:bxor(inputs.instr):bsub(0x8000):bsub(1)
+				local prev_differs =      inputs.curr_instr:bxor(inputs.instr):bsub(0xBE01)
 				                     :bor(inputs.curr_imm  :bxor(inputs.imm  )                     )
 				local not_mull_or_differs = instr_not_mull:bor(prev_differs):assert(0x3E000000, 0x0001FFFF)
 				local prev_dest = spaghetti.rshiftk(inputs.curr_instr, 9)
@@ -108,7 +108,7 @@ return testbed.module(function(params)
 			if params.core_type == "s" and math.random(1, 10) == 1 then
 				imm = curr_imm
 				curr_instr = bitx.bor(bitx.band(curr_instr, 0xFFFFFFF1), 0x0000000E)
-				instr = bitx.band(curr_instr, 0xFFFF7FFE)
+				instr = bitx.bor(bitx.band(curr_instr, 0xFFFF41FE), bitx.lshift(math.random(0x00, 0x1F), 4))
 			end
 			return {
 				state           = bitx.bor(0x10000000, util.any_state()),
@@ -136,7 +136,7 @@ return testbed.module(function(params)
 			if s_or_f then
 				if bitx.band(inputs.instr, 0xE) == 14 then
 					if params.core_type == "s" then
-						local prev_is_mul = bitx.band(bitx.bxor(inputs.curr_instr, inputs.instr), 0x7FFE) == 0 and
+						local prev_is_mul = bitx.band(bitx.bxor(inputs.curr_instr, inputs.instr), 0x41FE) == 0 and
 						                    bitx.band(bitx.bxor(inputs.curr_imm  , inputs.imm  ), 0xFFFF) == 0
 						local this_is_mull = bitx.band(inputs.instr, 0x800F) == 0x000E
 						local can_do_mull = prev_is_mul and this_is_mull
