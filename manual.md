@@ -577,8 +577,8 @@ The terminal's I/O range is accessible at a 128-cell-aligned block in the addres
 | addresses | register | access |
 |-|-|-|
 | 0x00 | `input` | read-only |
-| 0x40 | `char0left` | write-only |
-| 0x41 | `char0right` | write-only |
+| 0x40 | `char0odd` | write-only |
+| 0x41 | `char0even` | write-only |
 | 0x42 | `hrange` | write-only |
 | 0x43 | `vrange` | write-only |
 | 0x44 | `cursor` | write-only |
@@ -682,26 +682,39 @@ This write-only register holds the scroll mask used for printing characters.
 
 Setting or clearing bits that correspond to columns or rows that do not exist have no effect.
 
-### `char0left` register: character #0 left half
+### `char0even` register: character #0 odd columns
 
-This write-only register holds the data for the leftmost 4 columns of character #0. Bits of this register map to the 8×4 grid of pixels according to the following table:
+This write-only register holds the data for the even-numbered columns of character #0. Bits of this register map to the 8×8 grid of pixels according to the following table:
 
 ```
- 0   8  16  24
- 1   9  17  25
- 2  10  18  26
- 3  11  19  27
- 4  12  20  28
- 5  13  21  29
- 6  14  22  30
- 7  15  23  31
+ 7  --  15  --  23  --  31  --
+ 6  --  14  --  22  --  30  --
+ 5  --  13  --  21  --  29  --
+ 4  --  12  --  20  --  28  --
+ 3  --  11  --  19  --  27  --
+ 2  --  10  --  18  --  26  --
+ 1  --   9  --  17  --  25  --
+ 0  --   8  --  16  --  24  --
 ```
 
-A set bit results in the corresponding pixel being plotted with the selected background colour, while a clear bit results in it being plotted with the selected foreground colour. Note that the usual limitations of the quasi-32-bit architecture apply.
+A set bit results in the corresponding pixel being plotted with the selected background colour, while a clear bit results in it being plotted with the selected foreground colour. Note that the usual limitations of the quasi-32-bit architecture apply. Spots marked with `--` in the table are mapped by `char0odd`.
 
-### `char0right` register: character #0 right half
+### `char0odd` register: character #0 even columns
 
-This write-only register has the exact same semantics as `char0left`, except it holds the data for the rightmost 4 columns of character #0.
+This write-only register has the exact same semantics as `char0even`, except it holds the data for the odd-numbered columns of character #0.
+
+```
+--   7  --  15  --  23  --  31
+--   6  --  14  --  22  --  30
+--   5  --  13  --  21  --  29
+--   4  --  12  --  20  --  28
+--   3  --  11  --  19  --  27
+--   2  --  10  --  18  --  26
+--   1  --   9  --  17  --  25
+--   0  --   8  --  16  --  24
+```
+
+. Spots marked with `--` in the table are mapped by `char0even`.
 
 ### `scrollprint` sub-range: scroll selection and print character
 
