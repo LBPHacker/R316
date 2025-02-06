@@ -36,7 +36,6 @@ end
 local function op_is_bits(instr, k, mask)
 	mask = mask or 0xF
 	assert(bitx.band(mask, 0xF) == mask)
-	instr:assert(0x30000000, 0x0001FFFF)
 	local bits = {}
 	local last_index = 0
 	local function next_bit(index)

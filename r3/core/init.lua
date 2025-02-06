@@ -9,7 +9,7 @@ local condition      = require("r3.core.condition")     .instantiate()
 local flags_sel      = require("r3.core.flags_sel")
 local unstack_high   = require("r3.core.unstack_high")  .instantiate()
 local stack_high     = require("r3.core.stack_high")    .instantiate()
-local instr_sel      = require("r3.core.instr_sel")     .instantiate()
+local instr_sel      = require("r3.core.instr_sel")
 local pc_incr        = require("r3.core.pc_incr")       .instantiate()
 local pc_sel         = require("r3.core.pc_sel")        .instantiate()
 local sec_sel        = require("r3.core.sec_sel")       .instantiate()
@@ -17,15 +17,15 @@ local state_next     = require("r3.core.state_next")
 local wreg_addr_sel  = require("r3.core.wreg_addr_sel") .instantiate()
 local curr_instr_sel = require("r3.core.curr_instr_sel")
 local ram_addr_sel   = require("r3.core.ram_addr_sel")  .instantiate()
-local io_state_sel   = require("r3.core.io_state_sel")
+local io_state_sel   = require("r3.core.io_state_sel")  .instantiate()
 local util           = require("r3.core.util")
 
 return testbed.module(function(params)
 	local alu_instance            = alu           .instantiate(params)
+	local instr_sel_instance      = instr_sel     .instantiate(params)
 	local curr_instr_sel_instance = curr_instr_sel.instantiate(params)
 	local flags_sel_instance      = flags_sel     .instantiate(params)
 	local state_next_instance     = state_next    .instantiate(params)
-	local io_state_sel_instance   = io_state_sel  .instantiate(params)
 
 	local function flow(inputs, component)
 		local unstack_high_pri_outputs = component("unstack_high_pri", unstack_high, {
@@ -37,7 +37,7 @@ return testbed.module(function(params)
 		local unstack_high_ram_outputs = component("unstack_high_ram", unstack_high, {
 			both_halves = inputs.ram,
 		})
-		local instr_sel_outputs = component("instr_sel", instr_sel, {
+		local instr_sel_outputs = component("instr_sel", instr_sel_instance, {
 			state      = inputs.state,
 			ram_instr  = unstack_high_ram_outputs.high_half,
 			ram_imm    = unstack_high_ram_outputs.low_half,
@@ -77,7 +77,7 @@ return testbed.module(function(params)
 			pc        = inputs.pc,
 			pc_incr   = pc_incr_outputs.pc,
 			pc_jump   = sec_sel_outputs.sec,
-			state     = inputs.state,
+			state     = instr_sel_outputs.state,
 			condition = condition_outputs.condition,
 		})
 		local flags_sel_outputs = component("flags_sel", flags_sel_instance, {
@@ -109,7 +109,7 @@ return testbed.module(function(params)
 			high_half = alu_outputs.res_high,
 			low_half  = alu_outputs.res,
 		})
-		local io_state_sel_outputs = component("io_state_sel", io_state_sel_instance, {
+		local io_state_sel_outputs = component("io_state_sel", io_state_sel, {
 			io_state        = inputs.io_state,
 			state           = inputs.state,
 			instr           = instr_sel_outputs.instr,

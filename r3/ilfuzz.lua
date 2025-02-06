@@ -106,7 +106,30 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 	local prir = bitx.band(bitx.rshift(early_op, 20), 0x1F)
 	local secr = bitx.band(            early_op     , 0x1F)
 	local op = early_op
-	if state.state == 0x10000008 then
+	local skip_mul = false
+	if bitx.band(early_op, 0x000E0000) == 0x000E0000 then
+		if core_type == "s" then
+			local prev_dest = bitx.band(bitx.rshift(state.cinstr_high, 9), 0x1F)
+			local prev_src1 = bitx.band(bitx.rshift(state.cinstr_high, 4), 0x1F)
+			local prev_src2 = bitx.band(            state.cinstr_low     , 0x1F)
+			local clobber = false
+			if prev_dest == prev_src1 then
+				clobber = true
+			end
+			if bitx.band(state.cinstr_high, 0x4000) == 0x0000 and prev_dest == prev_src2 then
+				clobber = true
+			end
+			if not (bitx.bxor(bitx.band(early_op, 0x800F0000), 0x000E0000) == 0 and
+			        bitx.band(bitx.bxor(bitx.rshift(early_op, 16), state.cinstr_high), 0x41FE) == 0 and
+			        bitx.band(bitx.bxor(            early_op,      state.cinstr_low ), 0xFFFF) == 0 and
+			        not clobber) then
+				skip_mul = true
+			end
+		elseif core_type == "f" then
+			skip_mul = true
+		end
+	end
+	if state.state == 0x10000008 or skip_mul then
 		op = bitx.band(op, 0xFFFF)
 	end
 	local dest = bitx.band(bitx.rshift(op, 25), 0x1F)
@@ -143,7 +166,6 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 	local carry_out    = ( sum <  0x0000 or  sum > 0xFFFF) and 1 or 0
 	local overflow_out = (ssum < -0x8000 or ssum > 0x7FFF) and 2 or 0
 	local res16, mul_flags
-	local skip_mul = false
 	if bitx.band(op, 0x000F0000) == 0x00000000 then
 		res16 = sec16
 	elseif bitx.band(op, 0x000F0000) == 0x00010000 then
@@ -207,28 +229,9 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 		prihi = bitx.rshift(memory_read, 0xFFFF0000)
 	elseif bitx.band(op, 0x000E0000) == 0x000E0000 then
 		if core_type == "s" then
-			local prev_dest = bitx.band(bitx.rshift(state.cinstr_high, 9), 0x1F)
-			local prev_src1 = bitx.band(bitx.rshift(state.cinstr_high, 4), 0x1F)
-			local prev_src2 = bitx.band(            state.cinstr_low     , 0x1F)
-			local clobber = false
-			if prev_dest == prev_src1 then
-				clobber = true
-			end
-			if bitx.band(state.cinstr_high, 0x4000) == 0x0000 and prev_dest == prev_src2 then
-				clobber = true
-			end
-			local memop = bitx.band(state.cinstr_high, 0x10000) ~= 0
-			if not (bitx.bxor(bitx.band(op, 0x800F0000), 0x000E0000) == 0 and
-			        bitx.band(bitx.bxor(bitx.rshift(op, 16), state.cinstr_high), 0x41FE) == 0 and
-			        bitx.band(bitx.bxor(            op,      state.cinstr_low ), 0xFFFF) == 0 and
-			        not clobber and
-			        not memop) then
-				skip_mul = true
-			end
 			res16 = bitx.band(bitx.rshift(state.flags, 4), 0xFFFF)
 			mul_flags = 0
 		elseif core_type == "f" then
-			skip_mul = true
 			res16 = 0
 			mul_flags = 0
 		else
@@ -310,6 +313,9 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 		if dest ~= 0 and bitx.band(op, 0x000F0000) ~= 0x000A0000 then
 			next_state.registers[dest] = res
 		end
+		if skip_mul then
+			next_pc = pc
+		end
 		next_state.pc = bitx.bor(0x10000000, next_pc)
 		next_state.mem_addr = bitx.bor(0x10000000, next_pc)
 		if bitx.band(op, 0x000F0000) == 0x00020000 then
@@ -341,7 +347,7 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 	if next_state.state == 0x10000001 and bitx.band(sync_bit, 0x10) ~= 0 then
 		next_state.state = 0x10000008
 	end
-	if bitx.band(io_state_in, 1) ~= 0 or skip_mul then
+	if bitx.band(io_state_in, 1) ~= 0 then
 		next_state.memory      = state.memory
 		next_state.registers   = state.registers
 		next_state.pc          = state.pc
