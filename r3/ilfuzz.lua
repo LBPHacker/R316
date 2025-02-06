@@ -217,10 +217,12 @@ local function advance_state(core_index, state, sync_bit, io_state_in, io_data_i
 			if bitx.band(state.cinstr_high, 0x4000) == 0x0000 and prev_dest == prev_src2 then
 				clobber = true
 			end
+			local memop = bitx.band(state.cinstr_high, 0x10000) ~= 0
 			if not (bitx.bxor(bitx.band(op, 0x800F0000), 0x000E0000) == 0 and
 			        bitx.band(bitx.bxor(bitx.rshift(op, 16), state.cinstr_high), 0x41FE) == 0 and
 			        bitx.band(bitx.bxor(            op,      state.cinstr_low ), 0xFFFF) == 0 and
-			        not clobber) then
+			        not clobber and
+			        not memop) then
 				skip_mul = true
 			end
 			res16 = bitx.band(bitx.rshift(state.flags, 4), 0xFFFF)

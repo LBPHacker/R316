@@ -387,9 +387,11 @@ Note that this instruction can only be executed by **M** (multiply-capable) and,
 
 An **S** unit can only execute this instruction if:
 
- - the most recently utilized **M** unit executed a `mul`, `mulh`, `muls`, or `mulx` instruction
+ - the previous unit is an **M** unit and it executed a `mul`, `mulh`, `muls`, or `mulx` instruction
  - the register output operand of this instruction was not also a register input operand to it
  - the operands of this instruction exactly match those of the one about to be executed by the **S** unit
+
+Note that due to the first requirement, **S** units are only useful when they immediately follow **M** units.
 
 See `mulh` for a scheduling example of the simple case of a single **M** unit and many surrounding **F** (multiply-deferring) or **S** units.
 

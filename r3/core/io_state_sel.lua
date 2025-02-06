@@ -18,7 +18,7 @@ return testbed.module(function(params)
 			round_length  = 10000,
 		},
 		stacks        = 1,
-		storage_slots = 40,
+		storage_slots = 50,
 		work_slots    = 26,
 		inputs = {
 			{ name = "state"          , index =  1, keepalive = 0x10000000, payload = 0x0000000F, initial = 0x10000001 },
@@ -58,7 +58,8 @@ return testbed.module(function(params)
 				local instr_not_mull = instr_not_mul_e:bor(spaghetti.rshiftk(inputs.instr:bsub(0x10000), 15)):bsub(0xFFFE):assert(0x3E000000, 0x00010001)
 				local prev_differs =      inputs.curr_instr:bxor(inputs.instr):bsub(0xBE01)
 				                     :bor(inputs.curr_imm  :bxor(inputs.imm  )                     )
-				local not_mull_or_differs = instr_not_mull:bor(prev_differs):assert(0x3E000000, 0x0001FFFF)
+				local memop = spaghetti.rshiftk(inputs.instr, 8):bsub(0xFF):assert(0x00300000, 0x00000100)
+				local not_mull_or_differs_or_memop = instr_not_mull:bor(prev_differs):bor(memop):assert(0x3E300000, 0x0001FFFF)
 				local prev_dest = spaghetti.rshiftk(inputs.curr_instr, 9)
 				local prev_src1 = spaghetti.rshiftk(inputs.curr_instr, 4)
 				local prev_src2 =                   inputs.curr_imm
@@ -68,7 +69,7 @@ return testbed.module(function(params)
 				local clobber_src2_no_imm = clobber_src2:bor(no_imm):assert(0x1008C020, 0x00003FDF)
 				local clobber =      spaghetti.constant(0x20):rshift(clobber_src1)       :never_zero()
 				                :bor(spaghetti.constant(0x20):rshift(clobber_src2_no_imm):never_zero()):never_zero():bor(0x10000):band(0x10001)
-				local cannot_fuse = not_mull_or_differs:bor(clobber):assert(0x3E010000, 0x0000FFFF)
+				local cannot_fuse = not_mull_or_differs_or_memop:bor(clobber):assert(0x3E310000, 0x0000FFFF)
 				local shift_by = instr_not_mul:bor(0x10000):bxor(1):assert(0x1E010000, 0x00000001)
 				keep_old = keep_old:bsub(0xFFFE):bor(cannot_fuse:band(spaghetti.constant(0x3FFFFFFF):lshift(shift_by))):band(0xFFFF)
 			elseif params.core_type == "f" then
@@ -138,8 +139,11 @@ return testbed.module(function(params)
 					if params.core_type == "s" then
 						local prev_is_mul = bitx.band(bitx.bxor(inputs.curr_instr, inputs.instr), 0x41FE) == 0 and
 						                    bitx.band(bitx.bxor(inputs.curr_imm  , inputs.imm  ), 0xFFFF) == 0
+						-- if curr_instr[16] then curr_instr matches instr because it was fed to this core
+						-- by an st, not because the previous core executed a mul too; exclude that case
+						local prev_from_memop = bitx.band(inputs.curr_instr, 0x10000) ~= 0
 						local this_is_mull = bitx.band(inputs.instr, 0x800F) == 0x000E
-						local can_do_mull = prev_is_mul and this_is_mull
+						local can_do_mull = prev_is_mul and this_is_mull and not prev_from_memop
 						local prev_dest = bitx.band(bitx.rshift(inputs.curr_instr, 9), 0x1F)
 						local prev_src1 = bitx.band(bitx.rshift(inputs.curr_instr, 4), 0x1F)
 						local prev_src2 = bitx.band(            inputs.curr_imm      , 0x1F)
