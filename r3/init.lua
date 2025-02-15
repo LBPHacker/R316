@@ -70,7 +70,7 @@ local function build(params)
 
 	local pt = plot.pt
 	local parts = {}
-	local ucontext = util.make_context(parts, true)
+	local ucontext = util.make_context(parts, false)
 	local sig_magn      = ucontext.sig_magn
 	local mutate        = ucontext.mutate
 	local piston_extend = ucontext.piston_extend

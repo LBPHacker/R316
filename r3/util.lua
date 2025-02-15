@@ -363,6 +363,8 @@ local function aftersimdraw_user_stacks(tx, ty, x, y, parts, module_dir)
 		if stack then
 			local line_count = 0
 			local function put_line(str)
+				local w, h = gfx.textSize(str)
+				gfx.fillRect(tx - 5, ty + line_count * 12 - 2, w + 10, h + 2, 0, 0, 0, 192)
 				gfx.drawText(tx, ty + line_count * 12, str)
 				line_count = line_count + 1
 			end
