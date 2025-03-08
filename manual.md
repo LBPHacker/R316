@@ -287,9 +287,10 @@ Adds `P` to `S` treating the carry flag as carry in, and stores the result in `D
 ```asm
 sub  D, P, S
 sub  D, Sreg ; expands to sub D, D, Sreg
-sub  D, Simm ; expands to add D, D, -Simm
+sub  D, Simm ; expands to add D, D, -Simm, carry inverted
 subs D, P, S ; leaves flags unchanged
-cmp  S, P    ; expands to sub r0, S, P
+cmp  P, Sreg ; expands to sub r0, P, Sreg
+cmp  P, Simm ; expands to add r0, P, -Simm, carry inverted
 ```
 
 Subtracts `S` from `P`, and stores the result in `D`. Note that due to properties of 2's complement arithmetic, whether both operands are signed or both are unsigned does not matter, as long as they are the same signedness.
@@ -301,19 +302,23 @@ sub r3, 8
 sub r3, r5, 8
 ```
 
-are interpreted as the following semantically equivalent spellings:
+are interpreted as the following almost semantically equivalent spellings:
 
 ```asm
 add r3, -8
 add r3, r5, -8
 ```
 
+the important difference being that the carry flag is inverted compared to what might be expected given the original spelling, because an addition with a negated constant is done under the hood.
+
+This ultimately means that conditional jumps relying on unsigned overflow detection with the carry flag should be similarly inverted: `ja` instead of `jb`, etc. For this reason, it is recommended to manually rewrite such instances of `sub` to the `add`-based spelling for clarity.
+
 ### `sbb`: subtract with borrow
 
 ```asm
 sbb  D, P, S
 sbb  D, Sreg ; expands to sub D, D, Sreg
-sbb  D, Simm ; expands to adc D, D, -Simm
+sbb  D, Simm ; expands to adc D, D, -Simm, carry inverted
 sbbs D, P, S ; leaves flags unchanged
 ```
 
@@ -326,12 +331,16 @@ sbb r3, 8
 sbb r3, r5, 8
 ```
 
-are interpreted as the following semantically equivalent spellings:
+are interpreted as the following almost semantically equivalent spellings:
 
 ```asm
 adc r3, -8
 adc r3, r5, -8
 ```
+
+the important difference being that the carry flag is inverted compared to what might be expected given the original spelling, because an addition with a negated constant is done under the hood.
+
+This ultimately means that conditional jumps relying on unsigned overflow detection with the carry flag should be similarly inverted: `ja` instead of `jb`, etc. For this reason, it is recommended to manually rewrite such instances of `sbb` to the `adc`-based spelling for clarity.
 
 ### `mulh`: unsigned multiply high half
 
