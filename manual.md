@@ -309,7 +309,7 @@ add r3, -8
 add r3, r5, -8
 ```
 
-the important difference being that the carry flag is inverted compared to what might be expected given the original spelling, because an addition with a negated constant is done under the hood.
+the important difference being that the carry flag is inverted compared to what might be expected given the original spelling, because an addition with a 2's-complement-negated constant is done under the hood.
 
 This ultimately means that conditional jumps relying on unsigned overflow detection with the carry flag should be similarly inverted: `ja` instead of `jb`, etc. For this reason, it is recommended to manually rewrite such instances of `sub` to the `add`-based spelling for clarity.
 
@@ -318,7 +318,7 @@ This ultimately means that conditional jumps relying on unsigned overflow detect
 ```asm
 sbb  D, P, S
 sbb  D, Sreg ; expands to sub D, D, Sreg
-sbb  D, Simm ; expands to adc D, D, -Simm, carry inverted
+sbb  D, Simm ; expands to adc D, D, Simm ^ 0xFFFF, carry inverted
 sbbs D, P, S ; leaves flags unchanged
 ```
 
@@ -334,11 +334,11 @@ sbb r3, r5, 8
 are interpreted as the following almost semantically equivalent spellings:
 
 ```asm
-adc r3, -8
-adc r3, r5, -8
+adc r3, 0xFFF7
+adc r3, r5, 0xFFF7
 ```
 
-the important difference being that the carry flag is inverted compared to what might be expected given the original spelling, because an addition with a negated constant is done under the hood.
+the important difference being that the carry flag is inverted compared to what might be expected given the original spelling, because an addition with a bitwise-negated constant is done under the hood.
 
 This ultimately means that conditional jumps relying on unsigned overflow detection with the carry flag should be similarly inverted: `ja` instead of `jb`, etc. For this reason, it is recommended to manually rewrite such instances of `sbb` to the `adc`-based spelling for clarity.
 
