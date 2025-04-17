@@ -241,26 +241,28 @@ See `mul` for further details.
 
 The effects of using any operation index not listed above are undefined.
 
-Conditions:
+Conditions, expressed in terms of the four flags `Zf`, `Sf`, `Cf`, and `Of`:
 
-| condition | condition index |
-|-|-|
-| - | 0 |
-| be | 1 |
-| l | 2 |
-| le | 3 |
-| s | 4 |
-| z | 5 |
-| o | 6 |
-| c | 7 |
-| n | 8 |
-| nbe | 9 |
-| nl | 10 |
-| nle | 11 |
-| ns | 12 |
-| nz | 13 |
-| no | 14 |
-| nc | 15 |
+| name | condition index | condition |
+|-|-|-|
+| - | 0 | `true` |
+| be | 1 | `Cf | Zf` |
+| l | 2 | `Sf ^ Of` |
+| le | 3 | `Zf | (Sf ^ Of)` |
+| s | 4 | `Sf` |
+| z | 5 | `Zf` |
+| o | 6 | `Of` |
+| c | 7 | `Cf` |
+| n | 8 | `false` |
+| nbe | 9 | `!(Cf | Zf)` |
+| nl | 10 | `!(Sf ^ Of)` |
+| nle | 11 | `!(Zf | (Sf ^ Of))` |
+| ns | 12 | `!Sf` |
+| nz | 13 | `!Zf` |
+| no | 14 | `!Of` |
+| nc | 15 | `!Cf` |
+
+Note that the two halves of the table are the exact same conditions, but negated.
 
 ### `add`: add
 
@@ -691,7 +693,7 @@ This write-only register holds the scroll mask used for printing characters.
 | 31 to 29 | unused |
 | 28 to 0 | enable bit for the column or row of the corresponding index |
 
-Setting or clearing bits that correspond to columns or rows that do not exist have no effect.
+Setting or clearing bits that correspond to columns or rows that do not exist has no effect.
 
 ### `char0even` register: character #0 odd columns
 
@@ -725,7 +727,7 @@ This write-only register has the exact same semantics as `char0even`, except it 
 --   0  --   8  --  16  --  24
 ```
 
-. Spots marked with `--` in the table are mapped by `char0even`.
+Spots marked with `--` in the table are mapped by `char0even`.
 
 ### `scrollprint` sub-range: scroll selection and print character
 
