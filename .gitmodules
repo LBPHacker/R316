@@ -5,3 +5,6 @@
 [submodule "tptasm"]
 	path = tptasm
 	url = https://github.com/LBPHacker/tptasm
+[submodule "TPT-Script-Manager"]
+	path = TPT-Script-Manager
+	url = https://github.com/The-Powder-Toy/TPT-Script-Manager

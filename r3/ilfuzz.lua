@@ -1,6 +1,7 @@
-local r3   = require("r3")
-local util = require("r3.util")
-local plot = require("spaghetti.plot")
+local r3_cpu     = require("r3.comp.cpu")
+local plot       = require("spaghetti.plot")
+local misc       = require("spaghetti.misc")
+local modulepack = require("modulepack")
 
 local pt = plot.pt
 local audited_pairs = pairs
@@ -47,19 +48,8 @@ local function detect()
 	end
 	assert(memory_rows)
 	space_available = memory_rows * row_size
-	height = bitx.lshift(1, math.max(util.ilog2ceil(memory_rows), 4))
+	height = bitx.lshift(1, math.max(misc.ilog2ceil(memory_rows), 4))
 	memory_mask = height * row_size - 1
-end
-
-local function xpcall_wrap(func)
-	return function()
-		xpcall(function()
-			func()
-		end, function(err)
-			print(err)
-			print(debug.traceback())
-		end)
-	end
 end
 
 local function keyify(arr)
@@ -519,6 +509,7 @@ local function compare_states(expected, actual)
 	return true
 end
 
+local function run()
 local key = "r3ilfuzz"
 if rawget(_G, key) then
 	_G[key].unregister()
@@ -533,7 +524,69 @@ local randomize = true
 local spawn_delay = 0
 local start_delay
 local sync_bit = 0x10000
-local function aftersim_inner()
+local tick = modulepack.xpcall_wrap(function()
+	if broken and not sim.paused() then
+		sim.paused(true)
+	end
+	if randomize then
+		last_state = nil
+		expect_io_addr_out = nil
+		expect_io_data_out = nil
+		randomize = nil
+		sim.clearSim()
+		local x, y = 100, 100
+		local cores = "msfmsfmsfmsf"
+		local memory_rows = 12
+		local io_probes = {}
+		for i = 0, #cores - 1 do
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 15 })
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 16 })
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 17 })
+			table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 18 })
+			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
+			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
+		end
+		plot.create_parts(x, y, plot.merge_parts(0, 0, r3_cpu.build_internal({
+			cores       = cores,
+			memory_rows = memory_rows,
+		}), io_probes))
+		detect()
+		-- local last_value
+		for index = 0, space_available - 1 do
+			-- if index % 2 == 0 then -- for testing fused muls
+			-- 	last_value = bitx.bor(bitx.band(any32(), 0xFFF1FFFF), 0x000E0000)
+			-- 	sim_value(memory_id(index), last_value)
+			-- else
+			-- 	sim_value(memory_id(index), bitx.bor(bitx.band(last_value, 0x41FEFFFF), bitx.lshift(math.random(0, 1), 20)))
+			-- end
+			sim_value(memory_id(index), any32())
+			-- local value = any32()
+			-- value = bitx.band(value, 0xFFF0FFFF)
+			-- local allowed = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+			-- value = bitx.bor(value, bitx.lshift(allowed[math.random(#allowed)], 16))
+			-- sim_value(memory_id(index), value)
+		end
+		for index = 1, 31 do
+			sim_value(register_id(index), any32())
+		end
+		start(0x10008)
+		sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
+		sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
+		do_input()
+		round_length = math.random(0x10, 0x100)
+		spawn_delay = 1
+	end
+end)
+local aftersim = modulepack.xpcall_wrap(function()
+	if randomize then
+		return
+	end
 	if spawn_delay > 0 then
 		spawn_delay = spawn_delay - 1
 		return
@@ -572,7 +625,6 @@ local function aftersim_inner()
 		end
 		if not ok then
 			broken = err
-			sim.paused(true)
 		end
 	end
 	if not broken then
@@ -597,65 +649,8 @@ local function aftersim_inner()
 		start_delay = nil
 		sync_bit = 0x10000
 	end
-end
-local aftersim = xpcall_wrap(function()
-	aftersim_inner()
-	if randomize then
-		last_state = nil
-		expect_io_addr_out = nil
-		expect_io_data_out = nil
-		randomize = nil
-		sim.clearSim()
-		local x, y = 100, 100
-		local core_count = "msfmsfmsfmsf"
-		local memory_rows = 12
-		local io_probes = {}
-		for i = 0, #core_count - 1 do
-			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 15 })
-			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 16 })
-			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 17 })
-			table.insert(io_probes, { type = pt.FILT, x = 136, y = i * 6 + 18 })
-			table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 17 })
-			table.insert(io_probes, { type = pt.FILT, x = 137, y = i * 6 + 18 })
-			table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 17 })
-			table.insert(io_probes, { type = pt.FILT, x = 138, y = i * 6 + 18 })
-			table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 17 })
-			table.insert(io_probes, { type = pt.LDTC, x = 139, y = i * 6 + 18 })
-			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 17, ctype = 0x10000000 })
-			table.insert(io_probes, { type = pt.FILT, x = 141, y = i * 6 + 18, ctype = 0x10000000 })
-		end
-		plot.create_parts(x, y, plot.merge_parts(0, 0, r3.build({
-			core_count  = core_count,
-			memory_rows = memory_rows,
-		}), io_probes))
-		detect()
-		-- local last_value
-		for index = 0, space_available - 1 do
-			-- if index % 2 == 0 then -- for testing fused muls
-			-- 	last_value = bitx.bor(bitx.band(any32(), 0xFFF1FFFF), 0x000E0000)
-			-- 	sim_value(memory_id(index), last_value)
-			-- else
-			-- 	sim_value(memory_id(index), bitx.bor(bitx.band(last_value, 0x41FEFFFF), bitx.lshift(math.random(0, 1), 20)))
-			-- end
-			sim_value(memory_id(index), any32())
-			-- local value = any32()
-			-- value = bitx.band(value, 0xFFF0FFFF)
-			-- local allowed = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
-			-- value = bitx.bor(value, bitx.lshift(allowed[math.random(#allowed)], 16))
-			-- sim_value(memory_id(index), value)
-		end
-		for index = 1, 31 do
-			sim_value(register_id(index), any32())
-		end
-		start(0x10008)
-		sim_value(pc_id(), bitx.bor(0x10000000, math.random(0x0000, 0xFFFF)))
-		sim_value(flags_id(), bitx.bor(0x10000000, math.random(0x0, 0xB)))
-		do_input()
-		round_length = math.random(0x10, 0x100)
-		spawn_delay = 1
-	end
 end)
-local tick = xpcall_wrap(function()
+local aftersimdraw = modulepack.xpcall_wrap(function()
 	if broken then
 		gfx.drawText(tx, ty, broken)
 	else
@@ -663,11 +658,13 @@ local tick = xpcall_wrap(function()
 	end
 end)
 
-event.register(event.AFTERSIM, aftersim)
 event.register(event.TICK, tick)
+event.register(event.AFTERSIM, aftersim)
+event.register(event.AFTERSIMDRAW, aftersimdraw)
 local function unregister()
-	event.unregister(event.AFTERSIM, aftersim)
 	event.unregister(event.TICK, tick)
+	event.unregister(event.AFTERSIM, aftersim)
+	event.unregister(event.AFTERSIMDRAW, aftersimdraw)
 end
 _G[key] = {
 	unregister = unregister,
@@ -675,3 +672,8 @@ _G[key] = {
 
 -- print("=========")
 sim.paused(false)
+end
+
+return {
+	run = run,
+}
