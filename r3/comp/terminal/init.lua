@@ -1792,7 +1792,7 @@ local function build_internal(params, derived_params)
 			if not unibody then
 				for i = old_parts_length + 1, #parts do
 					local part = parts[i]
-					if part.y < y_keyboard + 26 then
+					if part.y < y_keyboard + 28 then
 						part.dcolour = 0xFF007F7F
 						if part.type == pt.FILT then
 							part.dcolour = 0xFF00FFFF

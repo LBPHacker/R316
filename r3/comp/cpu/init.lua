@@ -228,7 +228,7 @@ local function build_internal(params)
 		local function filt_line_to(x, y)
 			local qs = {}
 			for xx = x, x_io + right_padding do
-				table.insert(qs, part({ type = pt.FILT, x = xx, y = y }))
+				table.insert(qs, part({ type = pt.FILT, x = xx, y = y, dcolour = xx >= x_io + right_padding - 1 and 0xFF00FFFF or nil }))
 			end
 			return qs
 		end
@@ -239,8 +239,10 @@ local function build_internal(params)
 		local x_default_io = x_io - 13
 		part({ type = pt.FILT, x = x_default_io, y = y - 1, ctype = 0x10000000 }) -- default io state
 		ldtc(x_io - 10, y - 1, x_default_io, y - 1)
-		ldtc(x_io - 1, y - 3, x_io - 4, y - 3)
-		ldtc(x_io - 1, y - 2, x_ram_data_up, y - 2)
+		local ldtc_ram_addr = ldtc(x_io - 1, y - 3, x_io - 4, y - 3)
+		ldtc_ram_addr.dcolour = 0xFF007F7F
+		local ldtc_ram_data = ldtc(x_io - 1, y - 2, x_ram_data_up, y - 2)
+		ldtc_ram_data.dcolour = 0xFF007F7F
 		part({ type = pt.FILT, x = x_ram_data_up, y = y + 4 })
 		part({ type = pt.DMND, x = x_ram_data_up + 2, y = y })
 		part({ type = pt.STOR, x = x_ram_data_up, y = y + 2, z = 20000000 })
