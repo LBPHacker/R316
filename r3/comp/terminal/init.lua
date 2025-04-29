@@ -1630,6 +1630,11 @@ local function build_internal(params, derived_params)
 			ldtc(x_kb - 8, y, x_kb - 8, grab_busstate_prev.y)
 			ldtc(x_kb + 7, y + 1, grab_life.x, y + 1)
 			dray(x_kb + 7, y + 1, x_kb + 46, y + 1, 1, pt.PSCN)
+			dray(x_kb + 7, y + 1, x_kb + 70, y + 1, 3, pt.PSCN)
+			for x = x_kb + 70, x_kb + 72 do
+				part({ type = pt.INSL, x = x, y = y + 1 })
+			end
+			dray(x_kb + 73, y + 1, x_kb + 12, y + 1, 1, pt.PSCN)
 			part({ type = pt.FILT, x = x_kb + 8, y = y + 1 })
 			ldtc(x_kb + 3, y + 1, grab_busstate.x, y + 1)
 			dray(x_kb + 3, y + 1, x_kb + 47, y + 1, 1, pt.PSCN)
@@ -1651,12 +1656,17 @@ local function build_internal(params, derived_params)
 						cray(x_kb - 5 + i % 2 * 3, y_target + i, x, y_target + i, pt.SPRK, 3, pt.PSCN)
 					end
 				end
-				emit_indicator(x    , y_kb + 18, 0xFFFF0000)
-				emit_indicator(x + 4, y_kb + 26, 0xFF00FF00)
+				emit_indicator(x     , y_kb + 18, 0xFFFF0000)
+				emit_indicator(x +  4, y_kb + 26, 0xFF00FF00)
+				emit_indicator(x + 68, y_kb + 34, 0xFFFFFF00)
 				for i = 0, 6 do
 					spark({ type = pt.INWR, x = x + i, y = y + 1 })
 				end
-				spark_row(x - 2, y + 1, x, y + 1, pt.INWR, 7, 4)
+				spark_row(x -  2, y + 1, x     , y + 1, pt.INWR, 7, 4)
+				for i = 0, 2 do
+					spark({ type = pt.INWR, x = x + 68 + i, y = y + 1 })
+				end
+				spark_row(x + 66, y + 1, x + 68, y + 1, pt.INWR, 3, 4)
 			end
 
 			local x_control = x_kb + 96
@@ -1668,16 +1678,18 @@ local function build_internal(params, derived_params)
 				lsns_spark({ type = conductor, x = x - 1, y = y - 1, life = 3 }, 0, 1, 1, 1)
 				spark({ type = conductor, x = x_target, y = y - 1, unstack = true, life = 2 })
 			end
-			emit_control( 5, x_kb + 17, pt.NSCN)
-			emit_control( 0, x_kb + 17, pt.PSCN)
-			emit_control(15, x_kb +  9, pt.NSCN)
-			emit_control(10, x_kb +  9, pt.PSCN)
+			emit_control( -5, x_kb + 77, pt.NSCN)
+			emit_control(-10, x_kb + 77, pt.PSCN)
+			emit_control(  5, x_kb + 13, pt.NSCN)
+			emit_control(  0, x_kb + 13, pt.PSCN)
+			emit_control( 15, x_kb +  9, pt.NSCN)
+			emit_control( 10, x_kb +  9, pt.PSCN)
 		end
 
 		do
 			local storage_remap = setmetatable({}, { __index = function(_, k)
 				if k >= 16 then
-					return 53 + (k - 16) * 5
+					return 43 + (k - 16) * 5
 				end
 				return k
 			end })

@@ -13,9 +13,9 @@ return testbed.module({
 		seed          = { 0x56789ABC, 0x87654321 },
 	},
 	stacks        = 1,
-	storage_slots = 20,
+	storage_slots = 22,
 	work_slots    = 10,
-	probe_length  = 3,
+	probe_length  = 7,
 	inputs = {
 		{ name = "key_input", index =  1, keepalive = 0x10000000, payload = 0x0000FFFF, initial = 0x10000000 },
 		{ name = "flush"    , index =  2, keepalive = 0x00000002, payload = 0x00000001, initial = 0x00000002 },
@@ -24,10 +24,12 @@ return testbed.module({
 		{ name = "caps"     , index = 13, keepalive = 0x00000002, payload = 0x00000001, initial = 0x00000002 },
 	},
 	outputs = {
-		{ name = "shift_on"   , index = 17, keepalive = 0x10000004, payload = 0x00000001 },
-		{ name = "shift_off"  , index = 18, keepalive = 0x10000004, payload = 0x00000001 },
-		{ name = "caps_on"    , index = 19, keepalive = 0x10000004, payload = 0x00000001 },
-		{ name = "caps_off"   , index = 20, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "pending_on" , index = 17, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "pending_off", index = 18, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "shift_on"   , index = 19, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "shift_off"  , index = 20, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "caps_on"    , index = 21, keepalive = 0x10000004, payload = 0x00000001 },
+		{ name = "caps_off"   , index = 22, keepalive = 0x10000004, payload = 0x00000001 },
 		{ name = "next_output", index = 16, keepalive = 0x10000000, payload = 0x0000007F },
 		{ name = "next_shift" , index = 11, keepalive = 0x00000002, payload = 0x00000001 },
 		{ name = "next_caps"  , index = 13, keepalive = 0x00000002, payload = 0x00000001 },
@@ -45,11 +47,14 @@ return testbed.module({
 		)
 		local output_3 = spaghetti.select(inputs.flush:band(1):zeroable(), 0x10000000, inputs.output)
 		local output_2 = spaghetti.select(output_3:bxor(0x10000000):zeroable(), output_3, output_1)
+		local pending  = spaghetti.select(output_2:band(0x7F):zeroable(), 0x10000007, 0x10000006)
 		return {
 			shift_on    = shift_2:bxor(0x10000007),
 			shift_off   = shift_2:bxor(0x10000006),
 			caps_on     = caps   :bxor(0x10000007),
 			caps_off    = caps   :bxor(0x10000006),
+			pending_on  = pending:bxor(2):bxor(1),
+			pending_off = pending:bxor(2),
 			next_output = output_2,
 			next_shift  = shift_2,
 			next_caps   = caps,
@@ -94,11 +99,14 @@ return testbed.module({
 			end
 			shift = false
 		end
+		local pending = output == 0
 		return {
-			shift_on    = bitx.bor(0x10000004, shift and 0 or 1),
-			shift_off   = bitx.bor(0x10000004, shift and 1 or 0),
-			caps_on     = bitx.bor(0x10000004, caps  and 0 or 1),
-			caps_off    = bitx.bor(0x10000004, caps  and 1 or 0),
+			shift_on    = bitx.bor(0x10000004, shift   and 0 or 1),
+			shift_off   = bitx.bor(0x10000004, shift   and 1 or 0),
+			caps_on     = bitx.bor(0x10000004, caps    and 0 or 1),
+			caps_off    = bitx.bor(0x10000004, caps    and 1 or 0),
+			pending_on  = bitx.bor(0x10000004, pending and 1 or 0),
+			pending_off = bitx.bor(0x10000004, pending and 0 or 1),
 			next_output = bitx.bor(0x10000000, output),
 			next_shift  = bitx.bor(0x00000002, shift and 1 or 0),
 			next_caps   = bitx.bor(0x00000002, caps  and 1 or 0),
