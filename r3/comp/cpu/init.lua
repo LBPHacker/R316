@@ -275,7 +275,7 @@ local function build_internal(params)
 	lsns_spark({ type = pt.METL, x = x_io - 4, y = y_call_sites - 4, life = 3 }, 0, -1, 0, -2)
 	per_core(function(i, y)
 		local y_io_apom_float = y_call_sites - 8
-		local y_io_apom_reset = y_call_sites + core_count * core_pitch
+		local y_io_apom_reset = y_call_sites + core_count * core_pitch - 1
 		local y_ram_inject_cleanup = y_call_sites + core_count * core_pitch + 2
 		cray(x_io - 4, y_io_apom_float, x_io - 4, y - 3 + 4, pt.SPRK, 1, pt.PSCN)
 		cray(x_io - 4, y_io_apom_float, x_io - 4, y - 3, pt.ARAY, 1, pt.PSCN)
@@ -592,15 +592,23 @@ local function build_internal(params)
 
 	-- last core ram addr and data repeaters
 	do
-		local function repeater(x, y, count)
+		local function repeater(x, y, count, y_dray)
+			local last
 			for j = 0, count - 1 do
-				part({ type = pt.FILT, x = x, y = y - j })
+				last = part({ type = pt.FILT, x = x, y = y - j })
 			end
-			dray(x, y + core_pitch * core_count + 1, x, y, count, pt.PSCN)
+			dray(x, y + core_pitch * core_count + y_dray, x, y, count, pt.PSCN)
+			return last
 		end
-		repeater(x_ram_data_up, y_call_sites - 1, 2)
-		repeater(x_storage_slot(86), y_call_sites - 3, 1)
-		repeater(x_storage_slot(68), y_call_sites, 1)
+		repeater(x_ram_data_up, y_call_sites - 1, 2, 1)
+		repeater(x_storage_slot(86), y_call_sites - 3, 1, 1)
+		local x_65 = x_storage_slot(65)
+		local wreg_addr = repeater(x_65, y_call_sites - 3, 1, 4)
+		part({ type = pt.FILT, x = x_65 + 3, y = y_call_sites })
+		ldtc(x_65 + 2, y_call_sites - 1, wreg_addr.x, wreg_addr.y)
+		local y_65 = y_call_sites + core_pitch * core_count
+		part({ type = pt.FILT, x = x_65, y = y_65 })
+		ldtc(x_65 + 1, y_65, x_65 + 3, y_65)
 	end
 
 	-- register readers
@@ -884,11 +892,22 @@ local function build_internal(params)
 
 		local x_reset = x_storage_slot(14)
 		local y_reset = y_call_sites + (core_count - 1) * core_pitch + 6
+		local x_reset_io = x_storage_slot(84)
+		part({ type = pt.FILT, x = x_reset_io + 3, y = y_reset    , ctype = 0x10000000 })
+		part({ type = pt.DRAY, x = x_reset_io + 4, y = y_reset + 1, tmp = 1, tmp2 = 2 })
+		local reset_2_sprk = spark({ type = pt.PSCN, x = x_reset_io + 5, y = y_reset + 2, life = 2 })
 		part({ type = pt.FILT, x = x_reset    , y = y_reset - 1, ctype = 0x10000000 })
+		part({ type = pt.FILT, x = x_reset - 2, y = y_reset - 1, ctype = 0x10000008 })
 		part({ type = pt.DRAY, x = x_reset    , y = y_reset    , tmp = 1, tmp2 = 1 })
+		part({ type = pt.DRAY, x = x_reset - 1, y = y_reset    , tmp = 1, tmp2 = 1 })
 		part({ type = pt.PSCN, x = x_reset    , y = y_reset + 1 })
 		part({ type = pt.METL, x = x_reset + 1, y = y_reset + 1 })
 		part({ type = pt.NSCN, x = x_reset + 2, y = y_reset + 2 })
+		part({ type = pt.INWR, x = x_reset + 3, y = y_reset + 2 })
+		cray(x_reset + 4, y_reset + 2, reset_2_sprk.x, y_reset + 2, pt.SPRK, 1, false)
+		cray(44, y_reset + 2, reset_2_sprk.x, y_reset + 2, pt.PSCN, 1, pt.PSCN)
+		cray(44, y_reset + 2, reset_2_sprk.x, y_reset + 2, pt.PSCN, 1, pt.PSCN)
+		cray(reset_2_sprk.x - 15, y_reset + 2, reset_2_sprk.x, y_reset + 2, pt.SPRK, 1, pt.INWR, nil, 2)
 
 		local y_sync_bit = y_call_sites + (core_count - 1) * core_pitch - 1
 
@@ -966,7 +985,7 @@ local function build_internal(params)
 		patch_filt(x_storage_slot(14)    ,     y_bottom, 0x10000000) -- pc
 		patch_filt(x_storage_slot(16)    ,     y_bottom, 0x10000000) -- flags
 		patch_filt(x_storage_slot( 7)    ,     y_bottom, 0x10000000) -- wreg_data
-		patch_filt(x_storage_slot(65) + 3,    y_top + 3, 0x10000000) -- wreg_addr
+		patch_filt(x_storage_slot(65)    ,    y_top + 0, 0x10000000) -- wreg_addr
 		patch_filt(x_storage_slot(86)    ,    y_top + 0, 0x10040000) -- ram_addr*
 		patch_filt(x_storage_slot(64)    ,    y_top + 1, 0x10000000) -- ram_data*
 		patch_filt(x_storage_slot(64)    ,    y_top + 2, 0x10000000) -- ram_data*
