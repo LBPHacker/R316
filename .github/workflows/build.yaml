@@ -1,0 +1,22 @@
+name: build
+
+on:
+  push:
+    tags:
+      - 'v2.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash -c './.github/create-release.sh'
+      - run: sudo apt update && sudo apt install luajit
+      - run: ./.github/dist.sh ${{ github.ref }}
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET_PATH: dist/r3plot.lua
+          ASSET_NAME: r3plot.lua
+        run: bash -c './.github/upload-release-asset.sh'
