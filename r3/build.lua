@@ -1,18 +1,27 @@
 local runner = require("spaghetti.runner")
 
-local function run(modname, core_type, output_type, output_view, verb)
+local function run(modname_with_params, core_type, output_type, output_view, verb, output_file)
 	output_type = output_type or "plot"
 	output_type = output_type or "none"
-	local generated = modname:gsub("%.", "/") .. "/generated"
+	verb        = verb or "build"
+	local modname
 	local module_params = {}
-	if modname == "r3.comp.cpu.core" then
-		generated = generated .. "_" .. core_type
-		module_params.core_type = core_type
+	for param_str in modname_with_params:gmatch("[^ ]+") do
+		if modname then
+			local key, value = param_str:match("^([^=]+)=(.*)$")
+			if not key then
+				key = param_str
+				value = true
+			end
+			module_params[key] = value
+		else
+			modname = param_str
+		end
 	end
 	runner.run_internal({
 		module = require(modname),
 		module_params = module_params,
-		output = (output_type == "plot") and (generated .. ".lua") or nil,
+		output = output_file,
 		vt100 = true,
 		fuzz = verb == "fuzz",
 		output_view = output_view,

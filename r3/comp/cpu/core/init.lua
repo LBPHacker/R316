@@ -1,5 +1,6 @@
 local spaghetti      = require("spaghetti")
 local bitx           = require("spaghetti.bitx")
+local check          = require("spaghetti.check")
 local testbed        = require("spaghetti.testbed")
 local alu            = require("r3.comp.cpu.core.alu")
 local condition      = require("r3.comp.cpu.core.condition")     .instantiate()
@@ -17,7 +18,9 @@ local ram_addr_sel   = require("r3.comp.cpu.core.ram_addr_sel")  .instantiate()
 local io_state_sel   = require("r3.comp.cpu.core.io_state_sel")  .instantiate()
 local util           = require("r3.comp.cpu.core.util")
 
-return testbed.module(function(params)
+return testbed.module(function(params, params_name)
+	check.one_of(params_name .. ".core_type", params.core_type, { "m", "s", "f" })
+
 	local alu_instance            = alu           .instantiate(params)
 	local instr_sel_instance      = instr_sel     .instantiate(params)
 	local curr_instr_sel_instance = curr_instr_sel.instantiate(params)
