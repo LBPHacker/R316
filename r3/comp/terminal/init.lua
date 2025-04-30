@@ -33,44 +33,6 @@ local function build_internal(params, derived_params)
 	local y_interface       = derived_params.y_interface
 	local y_keyboard        = derived_params.y_keyboard
 
-	--[[
-	 - rows are row counts, columns are column counts
-	 - . means invalid
-	 - # means valid with the 1px plotter
-	 - + means only valid without the 1px plotter
-	 - any combination not shown in the table is invalid
-
-	     1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2
-	     2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9
-	    ------------------------------------
-	 4 | + + + + + + + + + + + + + + + + + +
-	 5 | + + + + + + + + + + + + + + + + + +
-	 6 | + + + + + + + + + + + + + + + + + +
-	 7 | + + + + + + + + + + + + + + + + + +
-	 8 | # + + + + + + + + + + + + + + + + +
-	 9 | # # # # # + + + + + + + + + + + + +
-	10 | # # # # # # # # # + + + + + + + + +
-	11 | # # # # # # # # # # # # # + + + + +
-	12 | # # # # # # # # # # # # # # # # # +
-	13 | . # # # # # # # # # # # # # # # # #
-	14 | . # # # # # # # # # # # # # # # # #
-	15 | . # # # # # # # # # # # # # # # # #
-	16 | . # # # # # # # # # # # # # # # # #
-	17 | . . # # # # # # # # # # # # # # # #
-	18 | . . # # # # # # # # # # # # # # # #
-	19 | . . # # # # # # # # # # # # # # # #
-	20 | . . # # # # # # # # # # # # # # # #
-	21 | . . . # # # # # # # # # # # # # # #
-	22 | . . . # # # # # # # # # # # # # # #
-	23 | . . . # # # # # # # # # # # # # # #
-	24 | . . . # # # # # # # # # # # # # # #
-	25 | . . . . # # # # # # # # # # # # # #
-	26 | . . . . # # # # # # # # # # # # # #
-	27 | . . . . # # # # # # # # # # # # # #
-	28 | . . . . # # # # # # # # # # # # # #
-	29 | . . . . . # # # # # # # # # # # # #
-	--]]
-
 	local pt = plot.pt
 	local parts = {}
 	local ucontext = plot.common_structures(parts, params.debug_stacks and true or false)

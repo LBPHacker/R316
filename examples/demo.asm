@@ -781,7 +781,7 @@ dayofweek:
 
 
 %define frame_size 0
-primes:
+primes:                       ; * Sorry folks, no documentedion for this yet.
     enter frame_size
     call term_clear
     mov r1, .message
@@ -976,7 +976,7 @@ primes:
 %eval block_size 1 block_order <<
 %eval block_mask block_size 1 -
 %define frame_size 8
-mandelbrot:
+mandelbrot:                   ; * Sorry folks, no documentedion for this yet.
     enter frame_size
     call term_clear
     mov r1, .message
