@@ -6,6 +6,8 @@ There is a subculture that builds computers, because *of course* the game is Tur
 
 The author of this repo is one such tormented soul. This repo contains the code used to design (out-of-game) and plot (in-game) the R3 family of computers, and references to dependencies required for said code to work properly. Go check out [the manual](manual.md).
 
+![the showcase save](screenshot.png)
+
 [000]: https://powdertoy.co.uk/
 	"The Powder Toy official website"
 

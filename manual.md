@@ -2,7 +2,9 @@
 
 *This is a computer. All crafthackership is of the highest quality. On the item is an image of the Subframe Inside™ logo. This object menaces with spikes of questionable time management.*
 
-*TODO: save link*
+Check out [the showcase save](https://powdertoy.co.uk/Browse/View.html?ID=3236906) in your browser.
+
+![the showcase save](screenshot.png)
 
 Note: ordinal numbers throughout this manual start at 0, yielding odd-looking constructs such as *0th* and *bit 0* (the LSB). For clarity's sake the English word *first* is never used to refer to ordinals.
 
