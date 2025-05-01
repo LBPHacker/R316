@@ -28,7 +28,9 @@ local function run(params)
 	if rawget(_G, "r3plot") then
 		r3plot.unregister()
 	end
-	sim.clearSim()
+	if params.clear_sim then
+		sim.clearSim()
+	end
 	check.table("params", params)
 	check.table("params.components", params.components)
 	if params.debug_stacks ~= nil then
@@ -281,13 +283,15 @@ local function run(params)
 		end
 	end
 	plot.create_parts(0, 0, parts)
-	sim.paused(true)
-	sim.heatSim(false)
-	sim.newtonianGravity(false)
-	sim.ambientHeatSim(false)
-	sim.waterEqualization(0)
-	sim.airMode(sim.AIR_OFF)
-	sim.gravityMode(sim.GRAV_OFF)
+	if params.clear_sim then
+		sim.paused(true)
+		sim.heatSim(false)
+		sim.newtonianGravity(false)
+		sim.ambientHeatSim(false)
+		sim.waterEqualization(0)
+		sim.airMode(sim.AIR_OFF)
+		sim.gravityMode(sim.GRAV_OFF)
+	end
 	if debug_areas then
 		local prev_aftersimdraw = aftersimdraw
 		aftersimdraw = function()

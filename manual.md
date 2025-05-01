@@ -605,8 +605,6 @@ The showcase save is just one such configuration. Any configuration can be turne
 
 Using this script requires some Lua knowledge, but only to the point of familiarity with table syntax. Grab r3plot.lua from [the releases page](https://github.com/LBPHacker/R316/releases). Beware, it is huge in Lua script terms. The script is expected to be run as a Lua function and given a single table as its first parameter: the configuration.
 
-Running this script erases the simulation and changes some simulation options to get the best possible performance; for example, it disables heat simulation. The computer and its peripherals are generally not sensitive to these settings, the intent is simply best performance.
-
 ### Configuration structure
 
 Table, required. This is the first and only parameter to r3plot.lua.
@@ -634,6 +632,10 @@ Table, optional. If present, once the script is done plotting, it enters visual 
 #### `.debug_areas` property
 
 Boolean, optional, defaults to `false`. If `true`, once the script is done plotting, it enters visual debug mode, with areas made visible. Areas cover parts of the plotted structures, and hovering over them displays their names. This mode can be exited by running `r3plot.unregister()` in the console.
+
+#### `.clear_sim` property
+
+Boolean, optional, defaults to `false`. If `true`, the script erases the simulation and changes some simulation options to get the best possible performance. The computer and its peripherals are generally not sensitive to these settings, the intent is simply best performance.
 
 ### Of the computer itself
 
