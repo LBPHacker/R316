@@ -1033,6 +1033,7 @@ mandelbrot:                   ; * Sorry folks, no documentedion for this yet.
     cmp r1, image_size_y
     stl r1, 2
     jne .next_row
+    call term_get_char
     leave frame_size
     ret
 .init_terminal:
