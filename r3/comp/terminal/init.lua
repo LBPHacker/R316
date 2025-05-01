@@ -824,8 +824,11 @@ local function build_internal(params, derived_params)
 		part({ type = pt.FILT, x = right_cray_first.x + 3, y = right_cray_first.y - 2 })
 		dray    (right_cray_first.x    , right_cray_first.y - 2, right_cray_first.x    , y_after_content - 1, 2, pt.PSCN)
 		dray_log(right_cray_first.x    , right_cray_first.y - 2, right_cray_first.x    , right_cray_first.y + 1, chars_h - 2, pt.PSCN)
-		dray_log(right_cray_first.x + 3, right_cray_first.y - 4, right_cray_first.x + 3, right_cray_first.y - 1, chars_h    , pt.PSCN)
-		dray    (right_cray_first.x + 3, right_cray_first.y - 4, right_cray_first.x + 3, y_after_content + 3, 1, pt.PSCN)
+		dray_log(right_cray_first.x + 3, right_cray_first.y - 4, right_cray_first.x + 3, right_cray_first.y - 1, chars_h    , false)
+		dray    (right_cray_first.x + 3, right_cray_first.y - 4, right_cray_first.x + 3, y_after_content + 3, 1, false)
+		part({ type = pt.CONV, x = right_cray_first.x + 2, y = right_cray_first.y - 5, ctype = pt.SPRK, tmp = pt.PSCN })
+		lsns_spark({ type = pt.PSCN, x = right_cray_first.x + 3, y = right_cray_first.y - 5, life = 3 }, -1, 0, -2, 0)
+		part({ type = pt.CONV, x = right_cray_first.x + 3, y = right_cray_first.y - 4, ctype = pt.PSCN, tmp = pt.SPRK })
 
 		for rank = 0, 1 do
 			local y = y_after_content + rank * 3
