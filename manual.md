@@ -6,6 +6,8 @@ Check out [the showcase save](https://powdertoy.co.uk/Browse/View.html?ID=323690
 
 ![the showcase save](screenshot.png)
 
+Come and discuss it on the [Subframe Discord Server](https://discord.gg/fjF24Hc), an official branch of the [TPT Discord Server](https://tpt.io/discord) that happened to be created earlier.
+
 Note: ordinal numbers throughout this manual start at 0, yielding odd-looking constructs such as *0th* and *bit 0* (the LSB). For clarity's sake the English word *first* is never used to refer to ordinals.
 
 Note: Instruction spellings and expansions reflect the state of integration with [TPTASM](https://github.com/LBPHacker/tptasm).
