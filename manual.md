@@ -268,17 +268,17 @@ Conditions, expressed in terms of the four flags `Zf`, `Sf`, `Cf`, and `Of`:
 | name | condition index | condition |
 |-|-|-|
 | - | 0 | `true` |
-| be | 1 | `Cf | Zf` |
+| be | 1 | `Cf \| Zf` |
 | l | 2 | `Sf ^ Of` |
-| le | 3 | `Zf | (Sf ^ Of)` |
+| le | 3 | `Zf \| (Sf ^ Of)` |
 | s | 4 | `Sf` |
 | z | 5 | `Zf` |
 | o | 6 | `Of` |
 | c | 7 | `Cf` |
 | n | 8 | `false` |
-| nbe | 9 | `!(Cf | Zf)` |
+| nbe | 9 | `!(Cf \| Zf)` |
 | nl | 10 | `!(Sf ^ Of)` |
-| nle | 11 | `!(Zf | (Sf ^ Of))` |
+| nle | 11 | `!(Zf \| (Sf ^ Of))` |
 | ns | 12 | `!Sf` |
 | nz | 13 | `!Zf` |
 | no | 14 | `!Of` |
