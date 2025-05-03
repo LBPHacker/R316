@@ -535,18 +535,31 @@ fibonacci:
     st r2, r5, 1              ;   digit of the larger number.
 ..no_extend:
     add r9, 1                 ; * We then cycle the colour used to print the
-    cmp r9, 2500              ;   digits. The size of the scratch space (about
-    je .done                  ;   256 cells) limits us to about 2500 sequence
+    cmp 2500, r9              ;   digits. The size of the scratch space (about
+    jb .done                  ;   256 cells) limits us to about 2500 sequence
                               ;   items, so we must exit when we reach that
                               ;   many, but we keep this a secret from users.
     ld r5, term_input         ; * Exit if requested by a key press.
     test r5, r5
     jz .loop
+    jmp .done_early
 .done:
+    mov r1, 0x0A              ; * Set colour to green on black.
+    st r1, term_colour
+    mov r1, .theend
+    call term_print_wrapped   ; * Congratulate users if they get this far.
+    add r5, 0xE3
+    mov r2, 30
+    mov r3, 0xA0
+    mov r4, ' '
+    call term_get_char_blink
+.done_early:
     leave frame_size
     ret
 .message:
     dw "This will loop until you press a key", 0
+.theend:
+    dw 10, "You have reached the end, wow! Press any key", 0
 .f0:
     dw "F0=0", nlchar, 0
 %undef frame_size
@@ -721,6 +734,9 @@ dayofweek:
     jc ..no_decr_year12       ;   range 0 to 99) by one if the month is below
     mov r3, 99                ;   3 (March).
     add r2, 0xFFFF
+    jc ..no_overflow_year12
+    mov r2, 99
+..no_overflow_year12:
 ..no_decr_year12:
 ..no_decr_year34:
 ..total:
@@ -784,7 +800,7 @@ dayofweek:
 primes:                       ; * Sorry folks, no documentedion for this yet.
     enter frame_size
     call term_clear
-    mov r1, .message
+    mov r1, fibonacci.message
     call term_print_wrapped
     mov r2, nlchar
     st r2, term_term
@@ -917,7 +933,17 @@ primes:                       ; * Sorry folks, no documentedion for this yet.
     st r8, term_term
 ..print_prime:
     mov r18, r10
-    mov r19, r11
+    mov r19, 0
+    mov r3, r11
+...reduce_r3:
+    test r3, r3
+    jz ....done
+    sub r3, 1
+    add r18, 5536
+    adc r3, 0
+    add r19, 6
+    jmp ...reduce_r3
+....done:
     cmp 40000, r18
     jnbe ...no_40k
     sub r18, 40000
@@ -943,17 +969,26 @@ primes:                       ; * Sorry folks, no documentedion for this yet.
     mov r2, nlchar
     st r2, term_term
     add r9, 1
-    cmp r9, 10000
-    je .done
+    cmp 9999, r9
+    jb .done
 ..not_prime:
     ld r5, term_input
     test r5, r5
     jz .loop
+    jmp .done_early
 .done:
+    mov r1, 0x0A              ; * Set colour to green on black.
+    st r1, term_colour
+    mov r1, fibonacci.theend
+    call term_print_wrapped   ; * Congratulate users if they get this far.
+    add r5, 0xE3
+    mov r2, 30
+    mov r3, 0xA0
+    mov r4, ' '
+    call term_get_char_blink
+.done_early:
     leave frame_size
     ret
-.message:
-    dw "This will loop until you press a key", 0
 .p1:
     dw "P1=2", nlchar, 0
 .p2:
