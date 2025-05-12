@@ -257,24 +257,20 @@ s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x 
 s_5a:                     0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x x x
 c_5a:                   1 1 0 x x x x x x x x x x x x x x x x x x x x x x x 0 0 0 0
 
-but c_5a[26] can never be 1
-
-s_4a:                               0 0 0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x
-s_5a:                     0 1 0 x x x x x x x x x x x x x x x x x x x x x x x x x x x
-c_5a:                   1 1 0 0 x x x x x x x x x x x x x x x x x x x x x x 0 0 0 0
+c_5a[26] is an artefact of the signed multiplication technique and does not contribute to the result
 
 (group)
 
 s_4a:                               0 0 0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a
 s_5a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
-c_5a:                   1 1 0 0 a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0
+c_5a:                   1 1 0 a a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0
 
 s_4a >>= 5 (low 5 bits saved elsewhere)
 c_5a <<= 1
 
 s_4a:                     0 0 0 0 0 0 0 0 1 0 a a a a a a a a a a a a a a a a a a a a
 s_5a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
-c_5a:                     1 0 0 a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
+c_5a:                     1 0 a a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
 
 s_4a ^= 30000000
 c_5a ^= 10000000
@@ -282,14 +278,12 @@ s_4a ^= 00200000
 
 s_4a:                     1 1 0 0 0 0 0 0 0 0 a a a a a a a a a a a a a a a a a a a a
 s_5a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
-c_5a:                     1 1 0 a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
+c_5a:                     1 1 a a a a a a a a a a a a a a a a a a a a a a a 0 0 0 0 0
 
 (reduce)
 
-s_6a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
+s_6a:                     0 1 a a a a a a a a a a a a a a a a a a a a a a a a a a a a
 c_6a:                   1 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
 
-but c_6a[26] can never be 1
-
-s_6a:                     0 1 0 a a a a a a a a a a a a a a a a a a a a a a a a a a a
-c_6a:                   1 1 0 0 a a a a a a a a a a a a a a a a a a a a a a a a a a
+s_6a[27] is an artefact of the signed multiplication technique and does not contribute to the result
+c_6a[26] is an artefact of the signed multiplication technique and does not contribute to the result

@@ -25,6 +25,8 @@ return testbed.module({
 		{ name = "bit_high", index = 3, keepalive = 0x00000000, payload = mask_mask, never_zero = true },
 	},
 	func = function(inputs)
+		local occ = spaghetti.occ_domain("range_to_rbits")
+		inputs.range:occ_root(occ, "range", "auto")
 		local range_above28 = inputs.range:band(spaghetti.rshiftk(inputs.range, 1):bor(0x10000000))
 		                                  :band(spaghetti.rshiftk(inputs.range, 2):bor(0x10000000)):assert(0x10000000, 0x000000FF)
 		local range_above28_bits = range_above28:bsub(0x40):bsub(0x20):bsub(0x10):bsub(0x08):bsub(0x03):assert(0x10000000, 0x00000084)
@@ -42,8 +44,8 @@ return testbed.module({
 			end
 		end
 		return {
-			bit_low  = shift_total[0]:force(0x00000000, mask_mask),
-			bit_high = shift_total[1]:force(0x00000000, mask_mask),
+			bit_low  = shift_total[0]:occ_force(occ, "bit_low" , 0x00000000, mask_mask),
+			bit_high = shift_total[1]:occ_force(occ, "bit_high", 0x00000000, mask_mask),
 		}
 	end,
 	fuzz_inputs = function()

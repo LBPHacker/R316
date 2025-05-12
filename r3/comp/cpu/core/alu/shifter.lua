@@ -23,6 +23,9 @@ return testbed.module({
 		{ name = "res_shr", index = 3, keepalive = 0x10000000, payload = 0x0000FFFF },
 	},
 	func = function(inputs)
+		local occ = spaghetti.occ_domain("shifter")
+		inputs.pri:occ_root(occ, "pri", "auto")
+		inputs.sec:occ_root(occ, "sec", "auto")
 		local shift_total = spaghetti.constant(0x8000)
 		for i = 0, 3 do
 			local i22 = bitx.lshift(1, bitx.lshift(1, i))
@@ -33,10 +36,10 @@ return testbed.module({
 		local right = inputs.pri:rshift(shift_total):never_zero()
 		                        :bxor(0x30000000)
 		                        :bxor(keepalive_shifted)
-		                        :bxor(0x20000000):force(0x10000000, 0x0000FFFF)
+		                        :bxor(0x20000000):occ_force(occ, "right", 0x10000000, 0x0000FFFF)
 		local left = inputs.pri:bor(keepalive_shifted)
 		                       :lshift(shift_total):never_zero()
-		                       :band(0x1000FFFF):force(0x10000000, 0x0000FFFF)
+		                       :band(0x1000FFFF):occ_force(occ, "left", 0x10000000, 0x0000FFFF)
 		return {
 			res_shl = left,
 			res_shr = right,

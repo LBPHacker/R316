@@ -1,8 +1,8 @@
 local runner = require("spaghetti.runner")
 
-local function run(modname_with_params, core_type, output_type, output_view, verb, output_file)
+local function run(modname_with_params, output_type, output_view, verb, output_file)
 	output_type = output_type or "plot"
-	output_type = output_type or "none"
+	output_view = output_view or "none"
 	verb        = verb or "build"
 	local modname
 	local module_params = {}
@@ -19,13 +19,13 @@ local function run(modname_with_params, core_type, output_type, output_view, ver
 		end
 	end
 	runner.run_internal({
-		module = require(modname),
+		module        = require(modname),
 		module_params = module_params,
-		output = output_file,
-		vt100 = true,
-		fuzz = verb == "fuzz",
-		output_view = output_view,
-		output_type = output_type,
+		output        = output_file,
+		vt100         = true,
+		fuzz          = verb == "fuzz",
+		output_view   = output_view,
+		output_type   = output_type,
 		design_params = {
 			probes = verb == "fuzz",
 		},

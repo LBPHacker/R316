@@ -24,6 +24,10 @@ return testbed.module({
 		{ name = "state", index = 1, keepalive = 0x10000000, payload = 0x0000000F },
 	},
 	func = function(inputs)
+		local occ = spaghetti.occ_domain("state_next")
+		inputs.instr   :occ_root(occ, "instr"   , "auto")
+		inputs.sync_bit:occ_root(occ, "sync_bit", "auto")
+		inputs.state   :occ_root(occ, "state"   , "auto")
 		local instr_not_ld  = util.op_is_not_k(inputs.instr,  2)
 		local instr_not_st  = util.op_is_not_k(inputs.instr, 10)
 		local instr_not_hlt = util.op_is_not_k(inputs.instr, 13)
@@ -39,7 +43,7 @@ return testbed.module({
 		local ehalt_shift = wo_ehalt:bor(0x1000):band(spaghetti.rshiftk(inputs.sync_bit, 4)):bor(8)
 		local state = wo_ehalt:lshift(8):never_zero()
 		                      :rshift(ehalt_shift):never_zero()
-		                      :bor(0x10000000):force(0x10000000, 0x0000000F) -- spaghetti insists that this can be 7F
+		                      :bor(0x10000000):occ_force(occ, "state_next", 0x10000000, 0x0000000F)
 		return {
 			state = state,
 		}

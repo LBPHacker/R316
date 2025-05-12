@@ -38,7 +38,7 @@ return testbed.module(function(params)
 				flags_out = flags_out:bor(spaghetti.lshiftk(inputs.res_mull:band(spaghetti.constant(0x3FFFFFFF):lshift(shift_by)):bor(0x01000000), 4))
 			else
 				-- subtle: s cores can potentially execute mull too, but its encoding already disables updating flags
-				flags_out:force(0x10000000, 0x000FFFFF)
+				flags_out:relax_payload(0x000FFFFF)
 			end
 			return {
 				flags = flags_out,

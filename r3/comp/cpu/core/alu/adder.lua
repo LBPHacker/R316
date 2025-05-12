@@ -3,7 +3,7 @@ local bitx      = require("spaghetti.bitx")
 local testbed   = require("spaghetti.testbed")
 
 return testbed.module(function(params)
-	local payload = params.core_type == "m" and 0x07FFFFFF or 0x0000FFFF
+	local payload = params.core_type == "m" and 0x0FFFFFFF or 0x0000FFFF
 	return {
 		tag = "core.alu.adder",
 		opt_params = {
@@ -25,7 +25,7 @@ return testbed.module(function(params)
 		outputs = {
 			{ name = "res_add"       , index = 1, keepalive = 0x10000000, payload = 0x0000FFFF },
 			{ name = "overflow_carry", index = 3, keepalive = 0x10000000, payload = 0x00000003 },
-			params.core_type == "m" and { name = "sum_27", index = 5, keepalive = 0x10000000, payload = 0x07FFFFFF } or nil,
+			params.core_type == "m" and { name = "sum_27", index = 5, keepalive = 0x10000000, payload = 0x0FFFFFFF } or nil,
 		},
 		func = function(inputs)
 			local lhs_ka = inputs.pri:bor(0x20000000):assert(0x30000000, payload)
@@ -57,7 +57,7 @@ return testbed.module(function(params)
 			if params.core_type == "m" then
 				local generate_27 = propagate:band(spaghetti.lshiftk(generate:bor(0x1000), 16):bor(0x20000000)):bor(generate)
 				local carries_27 = spaghetti.lshiftk(generate_27, 1)
-				outputs.sum_27 = onebit_sums:bxor(carries_27:bor(0x10000000)):assert(0x10000000, 0x0FFFFFFF):force(0x10000000, 0x07FFFFFF)
+				outputs.sum_27 = onebit_sums:bxor(carries_27:bor(0x10000000)):assert(0x10000000, 0x0FFFFFFF)
 				carries_no_in = carries_no_in:band(0x1000FFFF):assert(0x10000000, 0x0000FFFF)
 			end
 			local carries    = spaghetti.lshiftk(carries_no_in, 1):bor(carry_in):assert(0x30000000, 0x0001FFFF)
@@ -115,7 +115,7 @@ return testbed.module(function(params)
 				local sec_27 = bitx.band(inputs.sec, 0x7FFFFFF)
 				local sum_27 = pri_27 + sec_27
 				local check_27 = bitx.band(inputs.instr, 0x000E) == 0x000E
-				outputs.sum_27 = check_27 and bitx.bor(0x10000000, sum_27) or false
+				outputs.sum_27 = check_27 and { value = bitx.bor(0x10000000, sum_27), mask = 0x17FFFFFF } or false
 			end
 			return outputs
 		end,
