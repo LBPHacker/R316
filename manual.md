@@ -16,7 +16,7 @@ Note: Feel free to suggest improvements both to this manual and the computer and
 
 Note: **Please read through this manual, or at least use the "Find in page" / Ctrl+F feature of your browser on it, before asking for help with topics that it already covers.**
 
-## Features
+# Features
 
  - **data path**: quasi-32-bit, works with *almost every* 32-bit value
  - **registers**: 32-bit words, 31 general purpose read/write, 1 read-only *functionally zero*
@@ -203,7 +203,7 @@ The difference between forcing and requesting execution to be halted is that for
 
 Note: As wait cycles prevent memory access from finishing, halt requests are ignored if a wait cycle has been injected into the bottommost execution unit. This can keep happening indefinitely if the execution unit is trying to access an address in memory that is not backed by either the built-in memory or any peripheral. In this case, the computer must be reset instead.
 
-## Instruction reference
+# Instruction reference
 
 Each instruction encodes an operation, three operands, and whether the operation is allowed to update flags. There is a destination register operand, a primary source register operand, and a secondary operand that is either a source register or a 16-bit immediate value.
 
@@ -286,7 +286,7 @@ Conditions, expressed in terms of the four flags `Zf`, `Sf`, `Cf`, and `Of`:
 
 Note that the two halves of the table are the exact same conditions, but negated.
 
-### `add`: add
+## `add`: add
 
 ```asm
 add  D, P, S
@@ -296,7 +296,7 @@ adds D, P, S ; leaves flags unchanged
 
 Adds `P` to `S`, and stores the result in `D`. Note that due to properties of 2's complement arithmetic, whether both operands are signed or both are unsigned does not matter, as long as they are the same signedness.
 
-### `adc`: add with carry
+## `adc`: add with carry
 
 ```asm
 adc  D, P, S
@@ -306,7 +306,7 @@ adcs D, P, S ; leaves flags unchanged
 
 Adds `P` to `S` treating the carry flag as carry in, and stores the result in `D`. Note that due to properties of 2's complement arithmetic, whether both operands are signed or both are unsigned does not matter, as long as they are the same signedness.
 
-### `sub`: subtract
+## `sub`: subtract
 
 ```asm
 sub  D, P, S
@@ -337,7 +337,7 @@ the important difference being that the carry flag is inverted compared to what 
 
 This ultimately means that conditional jumps relying on unsigned overflow detection with the carry flag should be similarly inverted: `ja` instead of `jb`, etc. For this reason, it is recommended to manually rewrite such instances of `sub` to the `add`-based spelling for clarity.
 
-### `sbb`: subtract with borrow
+## `sbb`: subtract with borrow
 
 ```asm
 sbb  D, P, S
@@ -366,7 +366,7 @@ the important difference being that the carry flag is inverted compared to what 
 
 This ultimately means that conditional jumps relying on unsigned overflow detection with the carry flag should be similarly inverted: `ja` instead of `jb`, etc. For this reason, it is recommended to manually rewrite such instances of `sbb` to the `adc`-based spelling for clarity.
 
-### `mulh`: unsigned multiply high half
+## `mulh`: unsigned multiply high half
 
 ```asm
 mulh D, P, S
@@ -384,7 +384,7 @@ add r7, r8, r9
 ```
 In this case, the first `add` is scheduled on the first **F** unit, the `mulh` is skipped by the second **F** unit and scheduled on the **M** unit, and the second `add` is scheduled on the third **F** unit. The situation is identical if the **F** units are replaced with **S** (multiply-secondary) units.
 
-### `muls`: signed multiply high half
+## `muls`: signed multiply high half
 
 ```asm
 muls D, P, S
@@ -396,7 +396,7 @@ Note that this instruction can only be executed by **M** (multiply-capable) exec
 
 See `mulh` for a scheduling example.
 
-### `mulx`: mixed-sign multiply high half
+## `mulx`: mixed-sign multiply high half
 
 ```asm
 mulx D, P, S
@@ -408,7 +408,7 @@ Note that this instruction can only be executed by **M** (multiply-capable) exec
 
 See `mulh` for a scheduling example.
 
-### `mul`: multiply low half
+## `mul`: multiply low half
 
 ```asm
 mul D, P, S
@@ -452,7 +452,7 @@ mul r10, r5, r4
 add r7, r8, r9
 ```
 
-### `shl`: shift left
+## `shl`: shift left
 
 ```asm
 shl  D, P, S
@@ -462,7 +462,7 @@ shls D, P, S ; leaves flags unchanged
 
 Shifts `P` by `S` bit positions to the left, shifting in zeros, and stores the result in `D`. Note that only the 4 LSBs of `S` are used; it is thus impossible to shift by 16 bit positions, which would yield zero.
 
-### `shr`: shift logically right
+## `shr`: shift logically right
 
 ```asm
 shr  D, P, S
@@ -472,7 +472,7 @@ shrs D, P, S ; leaves flags unchanged
 
 Shifts `P` by `S` bit positions to the right, shifting in zeros, and stores the result in `D`. Note that only the 4 LSBs of `S` are used; it is thus impossible to shift by 16 bit positions, which would yield zero.
 
-### `and`: bitwise AND
+## `and`: bitwise AND
 
 ```asm
 and  D, P, S
@@ -483,7 +483,7 @@ test S, P    ; expands to and r0, S, P
 
 Executes a bitwise AND operation on `P` and `S`, and stores the result in `D`.
 
-### `or`: bitwise OR
+## `or`: bitwise OR
 
 ```asm
 or  D, P, S
@@ -493,7 +493,7 @@ ors D, P, S ; leaves flags unchanged
 
 Executes a bitwise OR operation on `P` and `S`, and stores the result in `D`.
 
-### `xor`: bitwise XOR
+## `xor`: bitwise XOR
 
 ```asm
 xor  D, P, S
@@ -503,7 +503,7 @@ xors D, P, S ; leaves flags unchanged
 
 Executes a bitwise XOR operation on `P` and `S`, and stores the result in `D`.
 
-### `mov`: move
+## `mov`: move
 
 ```asm
 mov D, P, S
@@ -515,7 +515,7 @@ movf D, P, S ; updates flags
 
 Stores `S` in `D`. Note that, as explained above, the 16 MSBs of the result come from `P`.
 
-### `exh`: exchange halves
+## `exh`: exchange halves
 
 ```asm
 exh  D, P, S
@@ -525,7 +525,7 @@ exhs D, P, S ; leaves flags unchanged
 
 Stores the 16 MSBs of `P` in `D`. This instruction is the exception to the rule that the 16 MSBs of the result are the 16 MSBs of `P`: in this case, they are the 16 LSBs of `S`.
 
-### `ld`: load
+## `ld`: load
 
 ```asm
 ld D, P, S
@@ -534,7 +534,7 @@ ld D, S ; expands to ld D, r0, S
 
 Executes a memory read access on the address `P`+`S`, and stores the value being read in `D`.
 
-### `st`: store
+## `st`: store
 
 ```asm
 st D, P, S
@@ -543,7 +543,7 @@ st D, S ; expands to st D, r0, S
 
 Executes a memory write access on the address `P`+`S`, with the value being written taken from `D`. This instruction is exceptional in that `D` does not act as a destination operand; its value is preserved.
 
-### `hlt`: halt
+## `hlt`: halt
 
 ```asm
 hlt
@@ -551,7 +551,7 @@ hlt
 
 Halts execution. The computer may be restarted or reset at this point, or even halted manually, see above.
 
-### `jmp`: jump
+## `jmp`: jump
 
 ```asm
 jmp D, S ; unconditionally
@@ -599,7 +599,7 @@ jnb  D, S ; jump if not below (unsigned, same as jnc)
 
 All of the above also have a variant that only jumps if the conditions associated with the variants above hold *and* the instruction is being executed by any execution unit other than the last (bottommost) one. These are *synchronizing* conditional jumps, named so because they make it possible to easily synchronize with external hardware. These have the same mnemonics as the ordinary variant, but with an extra `y` after the `j`. The exception is `jy`, which is synchronizing `jmp`.
 
-## Configuration
+# Configuration
 
 Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
 
@@ -609,69 +609,69 @@ The showcase save is just one such configuration. Any configuration can be turne
 
 Using this script requires some Lua knowledge, but only to the point of familiarity with table syntax. Grab r3plot.lua from [the releases page](https://github.com/LBPHacker/R316/releases). Beware, it is huge in Lua script terms. The script is expected to be run as a Lua function and given a single table as its first parameter: the configuration.
 
-### Configuration structure
+## Configuration structure
 
 Table, required. This is the first and only parameter to r3plot.lua.
 
-#### `.components` property
+### `.components` property
 
 Table, required. This is an array of component configuration nodes.
 
-#### `.components[...].type` property
+### `.components[...].type` property
 
 String, required. Refers to a component type. Each component has an associated `.type` documented alongside its configuration options.
 
-#### `.components[...].name` property
+### `.components[...].name` property
 
 String, required, must be unique across all component configuration nodes. Can be any string. It is used to create connections between multiple components.
 
-#### `.x` and `.y` properties
+### `.x` and `.y` properties
 
 Integers, optional, default to `0`. These enable offsetting the position in the simulation of everything by some amount. Helps with cosmetics.
 
-#### `.debug_stacks` property
+### `.debug_stacks` property
 
 Table, optional. If present, once the script is done plotting, it enters visual debug mode, with call stacks that resulted in the placement of each particle made visible when hovered. Stacks with multiple particles show multiple call stacks. This mode can be exited by running `r3plot.unregister()` in the console.
 
-#### `.debug_areas` property
+### `.debug_areas` property
 
 Boolean, optional, defaults to `false`. If `true`, once the script is done plotting, it enters visual debug mode, with areas made visible. Areas cover parts of the plotted structures, and hovering over them displays their names. This mode can be exited by running `r3plot.unregister()` in the console.
 
-#### `.clear_sim` property
+### `.clear_sim` property
 
 Boolean, optional, defaults to `false`. If `true`, the script erases the simulation and changes some simulation options to get the best possible performance. The computer and its peripherals are generally not sensitive to these settings, the intent is simply best performance.
 
-### Of the computer itself
+## Of the computer itself
 
 The computer exposes exactly as many buses as many execution units it has. These buses can be referred to with tables with two properties: `cpu` and `bus_index`. `cpu` is the `.name` of the computer instance, while `.bus_index` is an integer in the inclusive range `0` to `n - 1`, where `n` is the amount of execution units the computer has.
 
 This component is available under the type `"cpu"`.
 
-#### `.left` or `.right` properties
+### `.left` or `.right` properties
 
 Integer, at most one of the two allowed. This determines the horizontal placement of the given border (left or right) of the computer.
 
-#### `.top` or `.bottom` properties
+### `.top` or `.bottom` properties
 
 Integer, at most one of the two allowed. This determines the vertical placement of the given border (top or bottom) of the computer.
 
-#### `.left_padding` and `.right_padding` properties
+### `.left_padding` and `.right_padding` properties
 
 Integers, optional, default to `0`. These determine the extra space between the left and right borders of the computer and the particles inside, respectively. Purely cosmetic, can help achieve width alignment with peripherals and other things in the simulation.
 
-#### `.machine_id` property
+### `.machine_id` property
 
 Integer, optional, defaults to `1337`. The identifier to encode in the TPTASM anchor.
 
-#### `.cores` property
+### `.cores` property
 
 String, required. Each character is one of `"m"`, `"s"`, `"f"`, referring to M, S, and F execution units, respectively. The first character determines the type of the topmost execution unit, the second character of the second one, and so on. Must be at least a single character, and must contain at least a single `"m"`.
 
-#### `.memory_rows` property
+### `.memory_rows` property
 
 Integer, required, in the inclusive range 1 to 64. The amount of 0x80-sized blocks the built-in memory spans.
 
-#### Example configuration
+### Example configuration
 
 ```lua
 {
@@ -684,7 +684,7 @@ Integer, required, in the inclusive range 1 to 64. The amount of 0x80-sized bloc
 }
 ```
 
-### Example script invocation
+## Example script invocation
 
 This was used to plot the showcase save, barring the text and other cosmetic parts.
 
@@ -720,7 +720,7 @@ loadfile("/path/to/r3plot.lua")({
 })
 ```
 
-## Terminal
+# Terminal
 
 The display area is a collection of 8×8-pixel blocks, arranged into rows and columns, inside which pixels take any of 16 hard-coded colours. The amount of rows and columns is configurable at creation time.
 
@@ -728,7 +728,7 @@ The supported primitive operations are the *scrollprint* and simple pixel plotti
 
 Scrollprints can be requested directly or through terminal mode. Terminal mode introduces a cursor which respects the boundaries of the selected scrollprint sub-area, and can be configured to take different actions when printing characters and when reaching these boundaries.
 
-### I/O range
+## I/O range
 
 The terminal's I/O range is accessible at a 0x80-cell-aligned block in the address space; the 9 MSB of addresses used to access this range depend on configuration. The 7 LSB form an address into the range, used to select read-only and write-only registers and write-triggered sub-ranges:
 
@@ -751,11 +751,11 @@ The terminal's I/O range is accessible at a 0x80-cell-aligned block in the addre
 
 The effects of accessing any other address in the block are undefined. The effects of accessing any aforementioned register in a manner not appropriate for its capabilities are undefined.
 
-#### `input` register: keyboard input
+### `input` register: keyboard input
 
 This read-only register returns the code associated with the most recently pressed key, and causes the terminal to forget about this key press. If the value 0 is read from this register, no key has been pressed since the last time this register was read.
 
-#### `colour` register: colours used for scrollprints
+### `colour` register: colours used for scrollprints
 
 This write-only register holds the colour used for printing characters.
 
@@ -786,7 +786,7 @@ The 16 hard-coded colours are as follows:
 | 14 | #55FFFF | light cyan |
 | 15 | #FFFFFF | white |
 
-#### `hrange` register: horizontal range used for scrollprints
+### `hrange` register: horizontal range used for scrollprints
 
 This write-only register holds the horizontal range, or the column-wise extent of the scrollprint sub-area. The range of meaningful values depends on configuration.
 
@@ -798,7 +798,7 @@ This write-only register holds the horizontal range, or the column-wise extent o
 
 Note that it is perfectly valid for the high column index to hold a value lower than the low column index: in this case, when the horizontal dimension is the secondary dimension during a scrollprint, blocks are scrolled to the left, rather than to the right. When the two values are equal, scrolling is not visible.
 
-#### `vrange` register: vertical range used for scrollprints
+### `vrange` register: vertical range used for scrollprints
 
 This write-only register holds the vertical range, or the row-wise extent of the scrollprint sub-area. The range of meaningful values depends on configuration.
 
@@ -810,7 +810,7 @@ This write-only register holds the vertical range, or the row-wise extent of the
 
 Note that it is perfectly valid for the high row index to hold a value lower than the low row index: in this case, when the vertical dimension is the secondary dimension during a scrollprint, blocks are scrolled upward, rather than downward. When the two values are equal, scrolling is not visible.
 
-#### `cursor` register: cursor position used for scrollprints
+### `cursor` register: cursor position used for scrollprints
 
 This write-only register holds the position of the terminal mode cursor.
 
@@ -820,7 +820,7 @@ This write-only register holds the position of the terminal mode cursor.
 | 9 to 5 | row index |
 | 4 to 0 | column index |
 
-#### `nlchar` register: newline trigger character used for scrollprints
+### `nlchar` register: newline trigger character used for scrollprints
 
 This write-only register holds the character used to signal that the terminal mode cursor should be moved to a new line.
 
@@ -829,7 +829,7 @@ This write-only register holds the character used to signal that the terminal mo
 | 31 to 8 | unused |
 | 7 to 0 | character index |
 
-#### `scrollmask` register: scroll mask used for scrollprints
+### `scrollmask` register: scroll mask used for scrollprints
 
 This write-only register holds the scroll mask used for printing characters.
 
@@ -840,7 +840,7 @@ This write-only register holds the scroll mask used for printing characters.
 
 Setting or clearing bits that correspond to columns or rows that do not exist has no effect.
 
-#### `char0even` register: character #0 odd columns
+### `char0even` register: character #0 odd columns
 
 This write-only register holds the data for the even-numbered columns of character #0. Bits of this register map to the 8×8 grid of pixels according to the following table:
 
@@ -857,7 +857,7 @@ This write-only register holds the data for the even-numbered columns of charact
 
 A set bit results in the corresponding pixel being plotted with the selected background colour, while a clear bit results in it being plotted with the selected foreground colour. Note that the usual limitations of the quasi-32-bit architecture apply. Spots marked with `--` in the table are mapped by `char0odd`.
 
-#### `char0odd` register: character #0 even columns
+### `char0odd` register: character #0 even columns
 
 This write-only register has the exact same semantics as `char0even`, except it holds the data for the odd-numbered columns of character #0.
 
@@ -874,7 +874,7 @@ This write-only register has the exact same semantics as `char0even`, except it 
 
 Spots marked with `--` in the table are mapped by `char0even`.
 
-#### `scrollprint` sub-range: scroll selection and print character
+### `scrollprint` sub-range: scroll selection and print character
 
 Writing to this sub-range causes a character to be printed. The bitmap used to print the character is loaded from the character ROM, from the index specified by the character index.
 
@@ -910,7 +910,7 @@ If the scroll mask is enabled, the set of rows of columns subject to scrolling i
 
 The colour indices in the data bits are only consulted if this is enabled by the address bits; otherwise, colours are taken from the `colour` register.
 
-#### `plotpix` sub-range: plot pixel
+### `plotpix` sub-range: plot pixel
 
 This sub-range is meaningful only if the pixel plotter has been requested in the configuration.
 
@@ -928,7 +928,7 @@ Writing to this sub-range causes a pixel to be plotted, at the intersection of t
 
 Note that the resolution of the column and row indices is eightfold compared to the indices of the scrollprint range and cursor registers.
 
-### Configuration
+## Configuration
 
 Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
 
@@ -936,27 +936,27 @@ The terminal connects to a bus. It can manifest as a stand-alone keyboard or scr
 
 This component is available under the type `"terminal"`.
 
-#### `.bus` property
+### `.bus` property
 
 A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
 
-#### `.base_address` property
+### `.base_address` property
 
 Integer, required, in the inclusive range `0x0000` to `0xFFFF`. Its 7 LSB must be `0`. This determines the address of the 0x80-cell-aligned block that is the terminal's I/O range.
 
-#### `.left` or `.right` properties
+### `.left` or `.right` properties
 
 Integer, at most one of the two allowed. This determines the horizontal placement of the given border (left or right) of the screen and/or the keyboard.
 
-#### `.screen_top` or `.screen_bottom` properties
+### `.screen_top` or `.screen_bottom` properties
 
 Integer, optional, at most one of the two allowed. If present, the terminal has a screen. This determines the vertical placement of the given border (top or bottom) of the screen. Care must be taken so the screen does not overlap with any bus or its own bus interface.
 
-#### `.keyboard_top` or `.keyboard_bottom` properties
+### `.keyboard_top` or `.keyboard_bottom` properties
 
 Integer, optional, at most one of the two allowed. If present, the terminal has a keyboard. This determines the vertical placement of the given border (top or bottom) of the keyboard. Care must be taken so the keyboard does not overlap with any bus or its own bus interface.
 
-#### `.chars_nh` and `.chars_nv` properties
+### `.chars_nh` and `.chars_nv` properties
 
 Integers, required. These determine the amount of columns and rows of characters the terminal has, respectively. They are in the inclusive ranges 12 to 29 and 4 to 29, respectively, though restrictions apply: some aspect ratios are not supported, and some size configurations are incompatible with the presence of a pixel plotter.
 
@@ -991,19 +991,19 @@ The following table specifies this in detail. Rows are row counts, columns are c
 | 28 |    |    |    |    | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 |
 | 29 |    |    |    |    |    | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 | 💯 |
 
-#### `.single_pixel` property
+### `.single_pixel` property
 
 Boolean, optional, defaults to `false`. If `true`, the screen portion of the terminal includes a pixel plotter. This is not compatible with some size configurations.
 
-#### `.grvt_cover` property
+### `.grvt_cover` property
 
 Boolean, optional, defaults to `false`. If `true`, some very noticeably and distractingly flickering parts of the screen portion are covered with inert GRVT. Purely cosmetic.
 
-#### `.unibody` property
+### `.unibody` property
 
 Boolean, optional, defaults to `false`. If `true`, the screen and keyboard portions share a body.
 
-#### Example configuration
+### Example configuration
 
 ```lua
 {
@@ -1025,11 +1025,11 @@ Boolean, optional, defaults to `false`. If `true`, the screen and keyboard porti
 }
 ```
 
-## R216 peripheral adapter
+# R216 peripheral adapter
 
 This peripheral exposes R216 peripheral ports, much like the I/O breakout boxes of that architecture. It consists of a number of port components and a termination component, in this order, from left to right. Each port component exposes an R216 peripheral port.
 
-### I/O range
+## I/O range
 
 The adapter's I/O range is accessible at an address that depends on configuration. There are two sets of registers:
 
@@ -1038,7 +1038,7 @@ The adapter's I/O range is accessible at an address that depends on configuratio
 | `bump` | read-write |
 | `data[...]` | read-write |
 
-#### `bump` register: get leftmost bumped port or set bumped port
+### `bump` register: get leftmost bumped port or set bumped port
 
 Writing the address of a `data[...]` register to this register causes the corresponding port to be bumped for some future frame, always a constant offset in terms of frames from the current frame.
 
@@ -1046,7 +1046,7 @@ Reading this register returns the address of the `data[...]` corresponding to th
 
 The constant input frame offsets are identical to those explained in relation to the `data[...]` register in the corresponding (i.e. input or output) direction.
 
-#### `data[...]` register: send and receive data
+### `data[...]` register: send and receive data
 
 Writing a value to this register causes the 16 LSB of the data to be sent on the port in some future frame, always a constant offset in terms of frames from the current frame.
 
@@ -1054,7 +1054,7 @@ Reading a value from this register returns the 16 LSB of the data that was recei
 
 The constant input frame offsets are identical to those explained in relation to the `bump` register in the corresponding (i.e. input or output) direction.
 
-### Configuration
+## Configuration
 
 Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
 
@@ -1062,31 +1062,31 @@ The adapter connects to a bus. The address of its I/O range can be configured.
 
 This component is available under the type `"r2_adapter"`.
 
-#### `.bus` property
+### `.bus` property
 
 A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
 
-#### `.bump_address` property
+### `.bump_address` property
 
 Integer, required, in the inclusive range `0x0000` to `0xFFFF`. This determines the address of the `bump` register.
 
-#### `.term_left` or `.term_right` properties
+### `.term_left` or `.term_right` properties
 
 Integer, at most one of the two allowed. This determines the horizontal placement of the given border (left or right) of the termination component.
 
-#### `.ports` property
+### `.ports` property
 
 An array of port configuration nodes.
 
-#### `.ports[...].data_address` property
+### `.ports[...].data_address` property
 
 Integer, required, in the inclusive range `0x0000` to `0xFFFF`. This determines the address of the `data[...]` register. This must be distinct from the addresses of all the other `data[...]` registers and also of the `bump` register.
 
-#### `.ports[...].left` or `.ports[...].right` properties
+### `.ports[...].left` or `.ports[...].right` properties
 
 Integer, at most one of the two allowed. This determines the horizontal placement of the given border (left or right) of a port component.
 
-#### Example configuration
+### Example configuration
 
 ```lua
 {
@@ -1107,11 +1107,11 @@ Integer, at most one of the two allowed. This determines the horizontal placemen
 }
 ```
 
-## FILT breakout box
+# FILT breakout box
 
 This peripheral exposes a FILT input and output. It is possible to read and write any value that is not *physically zero*.
 
-### I/O range
+## I/O range
 
 The breakout box's I/O range is accessible at an address that depends on configuration. There is only one register:
 
@@ -1119,13 +1119,13 @@ The breakout box's I/O range is accessible at an address that depends on configu
 |-|-|
 | `value` | read-write |
 
-#### `value` register: read input or write output
+### `value` register: read input or write output
 
 Writing a value to this register causes the value to appear on the output in some future frame, always a constant offset in terms of frames from the current frame.
 
 Reading a value from this register returns the value that appeared on the input in some past frame, always a constant offset in terms of frames from the current frame. 
 
-### Configuration
+## Configuration
 
 Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
 
@@ -1133,35 +1133,35 @@ The breakout box connects to a bus. The facing of its input and output, the beha
 
 This component is available under the type `"filt_breakout"`.
 
-#### `.bus`
+### `.bus`
 
 A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
 
-#### `.base_address`
+### `.base_address`
 
 Integer, required, in the inclusive range `0x0000` to `0xFFFF`. This determines the address of the `value` register.
 
-#### `.left` or `.right`
+### `.left` or `.right`
 
 Integer, at most one of the two allowed. This determines the horizontal placement of the given border (left or right) of the breakout box.
 
-#### `.normally_low`
+### `.normally_low`
 
 Integer, optional, defaults to `0`. The bits set in this integer are reset in the output value to `0` every frame in which the `value` register is not written. Thus, the states of these bits are not remembered.
 
 Must not overlap, i.e. have common bits set, with `.normally_high`.
 
-#### `.normally_high`
+### `.normally_high`
 
 Integer, optional, defaults to `0`. The bits set in this integer are reset in the output value to `1` every frame in which the `value` register is not written. Thus, the states of these bits are not remembered.
 
 Must not overlap, i.e. have common bits set, with `.normally_low`.
 
-#### `.facing`
+### `.facing`
 
 String, required, one of `"top"`, `"bottom"`. This determines which way the input and output face.
 
-#### Example configuration
+### Example configuration
 
 ```lua
 {
@@ -1178,11 +1178,11 @@ String, required, one of `"top"`, `"bottom"`. This determines which way the inpu
 }
 ```
 
-## INST breakout box
+# INST breakout box
 
 This peripheral exposes some INST inputs and outputs.
 
-### I/O range
+## I/O range
 
 The breakout box's I/O range is accessible at an address that depends on configuration. There is only one register:
 
@@ -1190,13 +1190,13 @@ The breakout box's I/O range is accessible at an address that depends on configu
 |-|-|
 | `value` | read-write |
 
-#### `value` register: read input or write output
+### `value` register: read input or write output
 
 Writing a value to this register causes the value to appear on all outputs in some future frame, always a constant offset in terms of frames from the current frame. See below for an explanation on how bits are assigned to outputs. Bits not assigned to any output are ignored. The convention is to set bit 29 to `1`, though this is not required.
 
 Reading a value from this register returns the value that appeared on all inputs in some past frame, always a constant offset in terms of frames from the current frame. See below for an explanation on how bits are assigned to inputs. Bits not assigned to any input are read as `0`. Bit 29 is always read as `1`.
 
-### Configuration
+## Configuration
 
 Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
 
@@ -1204,19 +1204,19 @@ The breakout box connects to a bus. Its set of inputs and outputs, the behaviour
 
 This component is available under the type `"inst_breakout"`.
 
-#### `.bus` property
+### `.bus` property
 
 A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
 
-#### `.base_address` property
+### `.base_address` property
 
 Integer, required, in the inclusive range `0x0000` to `0xFFFF`. This determines the address of the `value` register.
 
-#### `.left` or `.right` properties
+### `.left` or `.right` properties
 
 Integer, at most one of the two allowed. This determines the horizontal placement of the given border (left or right) of the breakout box.
 
-#### `.pins` property
+### `.pins` property
 
 String, required. Each character is one of `"i"`, `"o"`, `"l"`, `"h"`, referring to input, output, normally low output, and normally high output, respectively. Must be at least a single character. Inputs and outputs appear physically from left to right, the first character corresponding to the leftmost input or output, the second to the next, and so on. There can be at most 29 inputs, and at most 29 outputs.
 
@@ -1224,7 +1224,7 @@ Inputs and outputs are assigned bits also from left to right, starting from bit 
 
 Changing the value of an output in a frame causes it to be detectably updated in some later frame. A normally low output is reset to `0` every frame in which it is not being thus updated, i.e. the state of this output is not remembered. A normally high output is the same, except it is reset to `1`. An output that is neither normally low nor normally high is sticky, i.e. its state is remembered across updates.
 
-#### Example configuration
+### Example configuration
 
 ```lua
 {
