@@ -28,9 +28,6 @@ local function run(params)
 	if rawget(_G, "r3plot") then
 		r3plot.unregister()
 	end
-	if params.clear_sim then
-		sim.clearSim()
-	end
 	check.table("params", params)
 	check.table("params.components", params.components)
 	if params.debug_stacks ~= nil then
@@ -231,7 +228,7 @@ local function run(params)
 		local err
 		local coverage = {}
 		for ix_area, area in ipairs(areas) do
-			if area.x < 0 or area.y < 0 then
+			if area.w < 0 or area.h < 0 then
 				err = ("area %s has negative dimensions"):format(area.name)
 				break
 			end
@@ -281,6 +278,9 @@ local function run(params)
 			end
 			return prev_aftersimdraw()
 		end
+	end
+	if params.clear_sim then
+		sim.clearSim()
 	end
 	plot.create_parts(0, 0, parts)
 	if params.clear_sim then

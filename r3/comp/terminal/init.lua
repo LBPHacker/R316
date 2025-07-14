@@ -1791,7 +1791,10 @@ local function build_internal(params, derived_params)
 				-- skip
 			else
 				for yy = 0, 3 do
-					part({ type = pt.FILT, x = x, y = y_interface + 21 + yy })
+					local p = part({ type = pt.FILT, x = x, y = y_interface + 21 + yy })
+					if x <= x1 or x >= x2 then
+						p.dcolour = 0xFF00FFFF
+					end
 				end
 			end
 		end
@@ -1854,46 +1857,30 @@ local function build(params, params_name)
 		have_screen      = have_screen,
 		have_keyboard    = have_keyboard,
 	}
-	if have_screen then
-		if interface_y - (chars_h + yoff + screen_padding) + 1 < 0 then
-			misc.user_error("%s specifies too little distance from the bus", params_name .. "." .. params.screen_y.which)
-		end
-	end
-	if have_keyboard then
-		if keyboard_y - interface_y - 5 < 0 then
-			misc.user_error("%s specifies too little distance from the bus", params_name .. "." .. params.keyboard_y.which)
-		end
-	end
 	if not have_screen and not have_keyboard then
 		misc.user_error("at least one of %s and %s must be specified", params_name .. ".screen_top/.screen_bottom", params_name .. ".keyboard_top/.keyboard_bottom")
 	end
 	if params.unibody then
 		if not (have_screen and have_keyboard) then
-			misc.user_error("%s requests a unibody configuration, which required both a screen and a keyboard", params_name .. ".unibody")
+			misc.user_error("%s requests a unibody configuration, which requires both a screen and a keyboard", params_name .. ".unibody")
 		end
 	end
 	local parts_internal = build_internal(params, derived_params)
 	local parts = {}
 	plot.merge_parts(xoff, yoff, parts, parts_internal)
-	if params.unibody then
-		table.insert(areas, {
+	local screen_body, keyboard_body
+	if have_screen then
+		screen_body = {
 			type = "solid",
-			name = "body",
+			name = "screen",
 			x    = xoff - screen_padding,
 			y    = yoff - screen_padding,
 			w    = chars_w + 2 * screen_padding,
-			h    = keyboard_y + 51 - (yoff - screen_padding),
-		})
-	else
-		if have_screen then
-			table.insert(areas, {
-				type = "solid",
-				name = "screen",
-				x    = xoff - screen_padding,
-				y    = yoff - screen_padding,
-				w    = chars_w + 2 * screen_padding,
-				h    = chars_h + 2 * screen_padding,
-			})
+			h    = chars_h + 2 * screen_padding,
+		}
+		if params.unibody then
+			screen_body.h = screen_body.h - 1
+		else
 			local interface = {
 				type = "solid",
 				name = "screen_interface",
@@ -1913,15 +1900,21 @@ local function build(params, params_name)
 				h    = interface_y - (yoff + chars_h + screen_padding) - 3,
 			})
 		end
-		if have_keyboard then
-			table.insert(areas, {
-				type = "solid",
-				name = "keyboard",
-				x    = xoff - screen_padding,
-				y    = keyboard_y,
-				w    = chars_w + 2 * screen_padding,
-				h    = 51,
-			})
+		table.insert(areas, screen_body)
+	end
+	if have_keyboard then
+		keyboard_body = {
+			type = "solid",
+			name = "keyboard",
+			x    = xoff - screen_padding,
+			y    = keyboard_y,
+			w    = chars_w + 2 * screen_padding,
+			h    = 51,
+		}
+		if params.unibody then
+			keyboard_body.y = keyboard_body.y - 1
+			keyboard_body.h = keyboard_body.h + 1
+		else
 			local interface = {
 				type = "solid",
 				name = "keyboard_interface",
@@ -1941,6 +1934,19 @@ local function build(params, params_name)
 				h    = keyboard_y - interface_y - 9,
 			})
 		end
+		table.insert(areas, keyboard_body)
+	end
+	if params.unibody then
+		local interface = {
+			type = "solid",
+			name = "unibody_interface",
+			x    = xoff - screen_padding,
+			y    = screen_body.y + screen_body.h,
+			w    = chars_w + 2 * screen_padding,
+			h    = keyboard_body.y - (screen_body.y + screen_body.h),
+		}
+		table.insert(areas, interface)
+		table.insert(params.bus.through_areas, interface)
 	end
 	return {
 		parts = parts,
