@@ -2,7 +2,7 @@
 
 *This is a computer. All crafthackership is of the highest quality. On the item is an image of the Subframe Inside™ logo. This object menaces with spikes of questionable time management.*
 
-Check out [the showcase save](https://powdertoy.co.uk/Browse/View.html?ID=3236906) in your browser.
+Check out [the showcase save](https://powdertoy.co.uk/Browse/View.html?ID=3236906) in your browser. This is an R3A1016, see numbering scheme below.
 
 ![the showcase save](screenshot.png)
 
@@ -683,6 +683,12 @@ Integer, required, in the inclusive range 1 to 64. The amount of 0x80-sized bloc
 	bottom      = 253,
 }
 ```
+
+### Numbering scheme
+
+Since its publication, r3plot.lua has not changed significantly, thus, it implements revision "A" of the CPU. The numbering scheme is thus as follows: R3A followed by two 2-digit numbers, padded with zeros as required: the number of execution units and of memory rows. The showcase save CPU has 10 execution units and 16 rows of memory, hence R3A1016.
+
+This scheme does not reflect the choice between M, S, and F execution units. This is mainly because the real purpose of the model number is to let TPTASM know how to access memory contents, and the number contains no more information than necessary for this purpose.
 
 ## Example script invocation
 
