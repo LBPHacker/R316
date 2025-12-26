@@ -220,6 +220,8 @@ Instruction bit layout:
 | 19 to 16 | 4 LSB of operation index |
 | 15 to 0 | secondary source register index, or an immediate value |
 
+The instructions `sub` and `sbb` swap their primary and secondary source operands relative to this table; see further explanation below.
+
 Jumps encode their conditions *instead of* a primary source register index. Bit layout:
 
 | bits | function |
@@ -319,7 +321,7 @@ cmp  P, Simm ; expands to add r0, P, -Simm, carry inverted
 
 Subtracts `S` from `P`, and stores the result in `D`. Note that due to properties of 2's complement arithmetic, whether both operands are signed or both are unsigned does not matter, as long as they are the same signedness.
 
-Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`. Accordingly, the following:
+Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`, because it is `P` that is encoded into the secondary operand field of the instruction's encoding, and conversely, `S` is encoded into its primary operand field. Using an immediate value for `S` is still allowed, but such usage expands to `add` instead, so the following:
 
 ```asm
 sub r3, 8
@@ -348,7 +350,7 @@ sbbs D, P, S ; leaves flags unchanged
 
 Subtracts `S` from `P` treating the carry flag as borrow in, and stores the result in `D`. Note that due to properties of 2's complement arithmetic, whether both operands are signed or both are unsigned does not matter, as long as they are the same signedness.
 
-Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`. Accordingly, the following:
+Note that in the case of this instruction, it is `P` that may take an immediate value rather than `S`, because it is `P` that is encoded into the secondary operand field of the instruction's encoding, and conversely, `S` is encoded into its primary operand field. Using an immediate value for `S` is still allowed, but such usage expands to `adc` instead, so the following:
 
 ```asm
 sbb r3, 8
