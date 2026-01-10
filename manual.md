@@ -213,12 +213,14 @@ Instruction bit layout:
 
 | bits | function |
 |-|-|
-| 31 | MSB of operation index, mostly enables updating flags |
-| 30 | secondary operand is an immediate value |
+| 31 | MSB of operation index, mostly enables updating flags if `1` |
+| 30 | secondary operand is an immediate value if `1` |
 | 29 to 25 | destination register index |
 | 24 to 20 | primary source register index |
 | 19 to 16 | 4 LSB of operation index |
 | 15 to 0 | secondary source register index, or an immediate value |
+
+Indices and other multi-bit numbers are encoded in the logical bit order, highest bit in their binary representations at the highest bit in the encoding, the next highest the same way, etc.
 
 The instructions `sub` and `sbb` swap their primary and secondary source operands relative to this table; see further explanation below.
 
@@ -226,7 +228,7 @@ Jumps encode their conditions *instead of* a primary source register index. Bit 
 
 | bits | function |
 |-|-|
-| 4 | sync bit |
+| 4 | make jump synchronizing if `0` |
 | 3 to 0 | condition index |
 
 Operations:
@@ -458,7 +460,7 @@ add r7, r8, r9
 
 ```asm
 shl  D, P, S
-shl  D, S    ; expands to shr D, D, S
+shl  D, S    ; expands to shl D, D, S
 shls D, P, S ; leaves flags unchanged
 ```
 
@@ -516,6 +518,17 @@ movf D, P, S ; updates flags
 ```
 
 Stores `S` in `D`. Note that, as explained above, the 16 MSBs of the result come from `P`.
+
+The quasi-32-bit nature of the computer extends to instruction encoding, and so the four *physically zero* values cause some instructions to be misinterpreted; these all happen to be quite useless move instructions:
+
+```asm
+mov  r0, r0, r0     ; 00000000
+mov  r0, r0, 0x0000 ; 40000000
+movf r0, r0, r0     ; 80000000
+movf r0, r0, 0x0000 ; C0000000
+```
+
+All these do is set `Zf` and `Sf` to `0`, so they can be replaced with `mov r0, r1, r0` instead. TPTASM does not do this automatically, and exactly like the computer itself, it automatically sets the `0x20000000` bit in instruction written out, which makes these instructions target `r16` instead, so avoid using them.
 
 ## `exh`: exchange halves
 
@@ -778,20 +791,20 @@ The 16 hard-coded colours are as follows:
 | index | rgb888 | name |
 |-|-|-|
 |  0 | #000000 | black |
-|  1 | #AA0000 | dark red |
+|  1 | #0000AA | dark blue |
 |  2 | #00AA00 | dark green |
-|  3 | #AAAA00 | dark yellow |
-|  4 | #0000AA | dark blue |
+|  3 | #00AAAA | dark cyan |
+|  4 | #AA0000 | dark red |
 |  5 | #AA00AA | dark magenta |
-|  6 | #00AAAA | dark cyan |
+|  6 | #AAAA00 | dark yellow |
 |  7 | #AAAAAA | light grey |
 |  8 | #555555 | dark grey |
-|  9 | #FF5555 | light red |
+|  9 | #5555FF | light blue |
 | 10 | #55FF55 | light green |
-| 11 | #FFFF55 | light yellow |
-| 12 | #5555FF | light blue |
+| 11 | #55FFFF | light cyan |
+| 12 | #FF5555 | light red |
 | 13 | #FF55FF | light magenta |
-| 14 | #55FFFF | light cyan |
+| 14 | #FFFF55 | light yellow |
 | 15 | #FFFFFF | white |
 
 ### `hrange` register: horizontal range used for scrollprints
