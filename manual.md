@@ -1085,7 +1085,7 @@ This component is available under the type `"r2_adapter"`.
 
 ### `.bus` property
 
-A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
+A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the adapter's components use.
 
 ### `.bump_address` property
 
@@ -1156,7 +1156,7 @@ This component is available under the type `"filt_breakout"`.
 
 ### `.bus`
 
-A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
+A bus, required, to which the terminal connects. This determines the vertical placement of the bus interface the breakout box uses.
 
 ### `.base_address`
 
@@ -1227,7 +1227,7 @@ This component is available under the type `"inst_breakout"`.
 
 ### `.bus` property
 
-A bus, required, to which the terminal connects. This determines the vertical placement of the bus interfaces the screen and/or the keyboard use.
+A bus, required, to which the terminal connects. This determines the vertical placement of the bus interface the breakout box uses.
 
 ### `.base_address` property
 
