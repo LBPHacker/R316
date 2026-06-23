@@ -951,7 +951,7 @@ Note that the resolution of the column and row indices is eightfold compared to 
 
 ## Configuration
 
-Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
+Feel free to ignore this section if you do not plan on making your own custom R316-based saves.
 
 The terminal connects to a bus. It can manifest as a stand-alone keyboard or screen, or it can be both at once. If it is both, their bodies can be requested to be unified. In all cases, the screen is above the bus it is connected to, while the keyboard is below it. Its size, the address of its I/O range, the presence of a pixel plotter, and other cosmetic properties can be configured.
 
@@ -1077,7 +1077,7 @@ The constant input frame offsets are identical to those explained in relation to
 
 ## Configuration
 
-Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
+Feel free to ignore this section if you do not plan on making your own custom R316-based saves.
 
 The adapter connects to a bus. The address of its I/O range can be configured.
 
@@ -1148,7 +1148,7 @@ Reading a value from this register returns the value that appeared on the input 
 
 ## Configuration
 
-Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
+Feel free to ignore this section if you do not plan on making your own custom R316-based saves.
 
 The breakout box connects to a bus. The facing of its input and output, the behaviour of its output, and the address of its I/O range can be configured.
 
@@ -1219,7 +1219,7 @@ Reading a value from this register returns the value that appeared on all inputs
 
 ## Configuration
 
-Feel free to ignore this section if to do not plan on making your own custom R316-based saves.
+Feel free to ignore this section if you do not plan on making your own custom R316-based saves.
 
 The breakout box connects to a bus. Its set of inputs and outputs, the behaviour of its outputs, and the address of its I/O range can be configured.
 
