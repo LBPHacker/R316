@@ -134,10 +134,13 @@ local function build_inst_filt(do_inst, params, params_name, derived_params)
 			part({ type = pt.FILT, x = 16, y = 11, dcolour = color_output, ctype = 0x20000000 })
 		end
 		part({ type = pt.FILT, x = 10, y = -3, ctype = 0x20000000 })
-		part({ type = pt.STOR, x = 11, y = -3 })
-		part({ type = pt.BRAY, x = 12, y = -3, ctype = 0x20000000 })
-		part({ type = pt.INSL, x = 13, y = -3 })
+		for x = 11, 21 do
+			part({ type = pt.STOR, x = x, y = -3 })
+		end
+		local source = part({ type = pt.BRAY, x = 22, y = -3, ctype = 0x20000000 })
+		part({ type = pt.INSL, x = 23, y = -3 })
 		aray(9, -3, -1, 0, pt.METL)
+		ldtc(13, 6, source.x, source.y)
 	end
 	if do_inst then
 		output_source_top = part({ type = pt.FILT, x = x_write + 1, y = -3, ctype = 0x20000000 })
